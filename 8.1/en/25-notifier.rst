@@ -124,7 +124,7 @@ Instead of sending an email via ``MailerInterface`` to notify the admin that a c
 
     --- i/src/MessageHandler/CommentMessageHandler.php
     +++ w/src/MessageHandler/CommentMessageHandler.php
-    @@ -4,15 +4,15 @@ namespace App\MessageHandler;
+    @@ -4,16 +4,16 @@ namespace App\MessageHandler;
 
      use App\ImageOptimizer;
      use App\Message\CommentMessage;
@@ -135,6 +135,7 @@ Instead of sending an email via ``MailerInterface`` to notify the admin that a c
      use Psr\Log\LoggerInterface;
     -use Symfony\Bridge\Twig\Mime\NotificationEmail;
      use Symfony\Component\DependencyInjection\Attribute\Autowire;
+     use Symfony\Component\DependencyInjection\Attribute\Target;
     -use Symfony\Component\Mailer\MailerInterface;
      use Symfony\Component\Messenger\Attribute\AsMessageHandler;
      use Symfony\Component\Messenger\MessageBusInterface;
@@ -142,20 +143,20 @@ Instead of sending an email via ``MailerInterface`` to notify the admin that a c
      use Symfony\Component\Workflow\WorkflowInterface;
 
      #[AsMessageHandler]
-    @@ -24,8 +24,7 @@ class CommentMessageHandler
+    @@ -25,8 +25,7 @@ class CommentMessageHandler
              private CommentRepository $commentRepository,
              private MessageBusInterface $bus,
-             private WorkflowInterface $commentStateMachine,
+             #[Target('comment')] private WorkflowInterface $workflow,
     -        private MailerInterface $mailer,
     -        #[Autowire('%admin_email%')] private string $adminEmail,
     +        private NotifierInterface $notifier,
              private ImageOptimizer $imageOptimizer,
              #[Autowire('%photo_dir%')] private string $photoDir,
              private ?LoggerInterface $logger = null,
-    @@ -50,13 +49,7 @@ class CommentMessageHandler
+    @@ -51,13 +50,7 @@ class CommentMessageHandler
                  $this->entityManager->flush();
                  $this->bus->dispatch($message);
-             } elseif ($this->commentStateMachine->can($comment, 'publish') || $this->commentStateMachine->can($comment, 'publish_ham')) {
+             } elseif ($this->workflow->can($comment, 'publish') || $this->workflow->can($comment, 'publish_ham')) {
     -            $this->mailer->send((new NotificationEmail())
     -                ->subject('New comment posted')
     -                ->htmlTemplate('emails/comment_notification.html.twig')
@@ -164,7 +165,7 @@ Instead of sending an email via ``MailerInterface`` to notify the admin that a c
     -                ->context(['comment' => $comment])
     -            );
     +            $this->notifier->send(new CommentReviewNotification($comment), ...$this->notifier->getAdminRecipients());
-             } elseif ($this->commentStateMachine->can($comment, 'optimize')) {
+             } elseif ($this->workflow->can($comment, 'optimize')) {
                  if ($comment->getPhotoFilename()) {
                      $this->imageOptimizer->resize($this->photoDir.'/'.$comment->getPhotoFilename());
 
@@ -412,14 +413,14 @@ It is now a matter of tracking changes backward. First, update the message handl
 
     --- i/src/MessageHandler/CommentMessageHandler.php
     +++ w/src/MessageHandler/CommentMessageHandler.php
-    @@ -49,7 +49,8 @@ class CommentMessageHandler
+    @@ -50,7 +50,8 @@ class CommentMessageHandler
                  $this->entityManager->flush();
                  $this->bus->dispatch($message);
-             } elseif ($this->commentStateMachine->can($comment, 'publish') || $this->commentStateMachine->can($comment, 'publish_ham')) {
+             } elseif ($this->workflow->can($comment, 'publish') || $this->workflow->can($comment, 'publish_ham')) {
     -            $this->notifier->send(new CommentReviewNotification($comment), ...$this->notifier->getAdminRecipients());
     +            $notification = new CommentReviewNotification($comment, $message->getReviewUrl());
     +            $this->notifier->send($notification, ...$this->notifier->getAdminRecipients());
-             } elseif ($this->commentStateMachine->can($comment, 'optimize')) {
+             } elseif ($this->workflow->can($comment, 'optimize')) {
                  if ($comment->getPhotoFilename()) {
                      $this->imageOptimizer->resize($this->photoDir.'/'.$comment->getPhotoFilename());
 
