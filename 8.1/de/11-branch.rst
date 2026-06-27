@@ -81,7 +81,7 @@ Um Sessions in der Datenbank zu speichern, ändere die ``session.handler_id``-Ko
          #esi: true
          #fragments: true
 
-Um Sessions in der Datenbank zu speichern, müüsen wir die ``sessions``-Tabelle anlegen. Mach das mit Doctrine Migrations:
+Um Sessions in der Datenbank zu speichern, müssen wir die ``sessions``-Tabelle anlegen. Mach das mit Doctrine Migrations:
 
 .. code-block:: terminal
 
@@ -114,13 +114,13 @@ Einen Branch deployen
 .. index::
     single: Upsun;Environment
 
-Bevor wir zum Produktivsystem deployen, sollten wir den Branch auf der gleichen Infrastruktur wie die Production-Environment testen. Wir sollten auch sicherstellen, dass für die Symfony ``prod``-Environment alles gut funktioniert (die lokale Website hat die Symfony ``dev``-Environment verwendet).
+Bevor wir zum Produktivsystem deployen, sollten wir den Branch auf der gleichen Infrastruktur wie das Production-Environment testen. Wir sollten auch sicherstellen, dass für das Symfony ``prod``-Environment alles gut funktioniert (die lokale Website hat das Symfony ``dev``-Environment verwendet).
 
 .. index::
     single: Symfony CLI;cloud:env:delete
     single: Symfony CLI;cloud:env:create
 
-Lasst uns nun eine *Upsun-Environment* erstellen, die auf dem *Git-Branch* basiert:
+Lasst uns nun ein *Upsun-Environment* erstellen, das auf dem *Git-Branch* basiert:
 
 .. code-block:: terminal
     :class: hide
@@ -131,17 +131,17 @@ Lasst uns nun eine *Upsun-Environment* erstellen, die auf dem *Git-Branch* basie
 
     $ symfony cloud:push
 
-Dieser Befehl erstellt eine neue Environment:
+Dieser Befehl erstellt ein neues Environment:
 
 * Der Branch erbt den Code und die Infrastruktur vom aktuellen Git-Branch (``sessions-in-db``);
 
-* Die Daten stammen von der Master-Environment (auch bekannt als Production oder Produktivumgebung), und zwar durch eine Momentaufnahme aller Servicedaten, einschließlich Dateien (z. B. von Benutzer*innen hochgeladene Dateien) und Datenbanken;
+* Die Daten stammen vom Master-Environment (auch bekannt als Production oder Produktivumgebung), und zwar durch eine Momentaufnahme aller Servicedaten, einschließlich Dateien (z. B. von Benutzer*innen hochgeladene Dateien) und Datenbanken;
 
 * Ein neuer dedizierter Cluster wird erstellt, um den Code, die Daten und die Infrastruktur zu deployen.
 
 Da das Deployment den gleichen Schritten folgt wie das Deployment in die Produktivumgebung, werden auch Datenbankmigrationen durchgeführt. Dies ist gleichzeitig eine gute Möglichkeit um sicherzugehen, dass die Migrationen mit echten Daten funktionieren.
 
-Die Nicht-``master``-Environments sind der``master``-Environment sehr ähnlich, bis auf einige kleine Unterschiede: So werden beispielsweise E-Mails standardmäßig nicht gesendet.
+Die Nicht-``master``-Environments sind dem``master``-Environment sehr ähnlich, bis auf einige kleine Unterschiede: So werden beispielsweise E-Mails standardmäßig nicht gesendet.
 
 .. index::
     single: Symfony CLI;cloud:url
@@ -155,16 +155,16 @@ Wenn das Deployment abgeschlossen ist, öffne den neuen Branch in einem Browser:
 
 Beachte, dass alle Upsun-Befehle mit dem aktuellen Git-Branch arbeiten. Somit wird der Befehl die URL für den ``sessions-in-db``-Branch aufrufen. Die URL sieht dann so ``https://sessions-in-db-xxx.eu-5.platformsh.site/`` aus.
 
-Teste die Website auf dieser neuen Environment. Du solltest jetzt alle Daten sehen, die Du in der Master-Environment angelegt hast.
+Teste die Website auf diesem neuen Environment. Du solltest jetzt alle Daten sehen, die Du im Master-Environment angelegt hast.
 
-Wenn Du weitere Konferenzen in die ``master``-Environment hinzufügst, werden diese nicht in der ``sessions-in-db``-Environment angezeigt und umgekehrt. Die Environments sind unabhängig und isoliert.
+Wenn Du weitere Konferenzen in das ``master``-Environment hinzufügst, werden diese nicht im ``sessions-in-db``-Environment angezeigt und umgekehrt. Die Environments sind unabhängig und isoliert.
 
 Wenn sich der Code auf Master weiterentwickelt, kannst Du diese Änderungen jederzeit mittels ``rebase`` in den aktuellen Branch integrieren und die aktualisierte Version deployen, wodurch die Konflikte sowohl für den Code als auch für die Infrastruktur gelöst werden.
 
 .. index::
     single: Symfony CLI;cloud:env:sync
 
-Du kannst sogar die Daten von Master zurück in die ``sessions-in-db``-Environment synchronisieren:
+Du kannst sogar die Daten von Master zurück in das ``sessions-in-db``-Environment synchronisieren:
 
 .. code-block:: terminal
     :class: answers(y)
@@ -177,7 +177,7 @@ Fehler von Deployments in die Produktivumgebung vermeiden
 .. index::
     single: Upsun;Debugging
 
-Standardmäßig verwenden alle Upsun-Environments die Einstellungen der ``master``/``prod``-Environment (auch bekannt als die ``prod``-Symfony-Environment). Auf diese Weise kannst Du die Anwendung unter realen Bedingungen testen. Dies gibt Dir das Gefühl, direkt auf Produktivsystemen zu entwickeln und zu testen, aber ohne den damit verbundenen Risiken. Das erinnert mich an die guten alten Zeiten, als wir Deployments noch über FTP gemacht haben.
+Standardmäßig verwenden alle Upsun-Environments die Einstellungen des ``master``/``prod``-Environments (auch bekannt als das ``prod``-Symfony-Environment). Auf diese Weise kannst Du die Anwendung unter realen Bedingungen testen. Dies gibt Dir das Gefühl, direkt auf Produktivsystemen zu entwickeln und zu testen, aber ohne den damit verbundenen Risiken. Das erinnert mich an die guten alten Zeiten, als wir Deployments noch über FTP gemacht haben.
 
 .. index::
     single: Symfony CLI;cloud:env:debug
@@ -196,7 +196,7 @@ Wenn Du fertig bist, gehe zurück zu den Produktiveinstellungen:
 
 .. warning::
 
-    Aktiviere **niemals** die ``dev``-Environment oder den Symfony Profiler im ``master``-Branch; dies würde Deine Anwendung wirklich langsam machen und viele ernsthafte Sicherheitsschwachstellen öffnen.
+    Aktiviere **niemals** das ``dev``-Environment oder den Symfony Profiler im ``master``-Branch; dies würde Deine Anwendung wirklich langsam machen und viele ernsthafte Sicherheitsschwachstellen öffnen.
 
 Produktivinstallationen vor dem Deployment testen
 -------------------------------------------------
@@ -235,7 +235,7 @@ Aufräumen
     single: Symfony CLI;env:delete
     single: Git;branch
 
-Entferne zum Abschluss den Git-Branch und die Upsun-Environment:
+Entferne zum Abschluss den Git-Branch und das Upsun-Environment:
 
 .. code-block:: terminal
 
