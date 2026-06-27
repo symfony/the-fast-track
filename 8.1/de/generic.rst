@@ -1,6 +1,6 @@
 :orphan:
 
-Symfony: The Fast Track
+Symfony: Auf der Überholspur
 
 Schritt
 
@@ -14,20 +14,21 @@ Weiterführendes
 
 Datenbank-Daten exportieren und importieren
 
-Was ist Dein letzter Wunsch, Master Developer?
+Was ist Dein letzter Wunsch, Meister Entwickler?
 
 Gib mir das Symfony Buch!
 
-Is it possible to quickly build a modern web application and love the
-process? With Symfony, you can. This book - written by Symfony's
-creator - lays out a pragmatic approach to developing web applications
-with Symfony: from scratch to production. Whether you are discovering
-Symfony for the first time or refreshing your knowledge, this practical
-guide provides the definitive introduction to modern Symfony
-applications.
+Kann man schnell eine moderne Webanwendung entwickeln und dabei auch noch
+Spaß haben? Mit Symfony ist das möglich. Dieses Buch – geschrieben vom
+Schöpfer von Symfony – bietet einen pragmatischen Ansatz für die
+Entwicklung von Webanwendungen mit Symfony: von der ersten Idee bis zum
+Produktiveinsatz. Ob Du Symfony gerade erst entdeckst oder Dein Wissen
+auffrischen möchtest, dieser praktische Leitfaden ist die ultimative
+Einführung in moderne Symfony-Anwendungen.
 
-Learn how to combine Symfony with Docker, APIs, notifications, queues &
-asynchronous tasks, Symfony UX, and other
-powerful tools. By the end of this book, you'll have the confidence,
-understanding and a clear path to dive in and start building your next
-application with Symfony.
+Lerne, wie Du Symfony mit Docker, APIs, Benachrichtigungen,
+Warteschlangen und asynchronen Aufgaben, Symfony UX und anderen
+leistungsstarken Tools kombinierst. Nach der Lektüre dieses Buches wirst
+Du das nötige Selbstvertrauen, das Verständnis und einen klaren Weg haben,
+um direkt mit der Entwicklung Deiner nächsten Anwendung mit Symfony zu
+beginnen.

@@ -1,10 +1,11 @@
 Was kommt als Nächstes?
 ========================
 
-I hope you enjoyed the ride. I have tried to give you enough information to
-help you get started faster with your Symfony projects. We have barely
-scratched the surface of the Symfony world. Now, dive into the rest of the
-Symfony documentation to learn more about each feature we have discovered
-together.
+Ich hoffe, Dir hat die Reise gefallen. Ich habe versucht, Dir genügend
+Informationen zu geben, um Deinen Einstieg in Deine Symfony-Projekte
+zu erleichtern. Wir haben gerade mal die Oberfläche der Symfony-Welt
+angekratzt. Tauche nun in die restliche Symfony-Dokumentation ein, um
+mehr über die einzelnen Funktionen zu erfahren, die wir gemeinsam
+entdeckt haben.
 
 Viel Spaß mit Symfony!

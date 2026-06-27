@@ -91,7 +91,7 @@ Warte ein wenig, bis die Datenbank hochgefahren ist und überprüfe, ob alles in
 Zugriff auf die lokale Datenbank
 --------------------------------
 
-Using the ``psql`` command-line utility might prove useful from time to time. But you need to remember the credentials and the database name. Less obvious, you also need to know the local port the database runs on the host. Docker chooses a random port so that you can work on more than one project using PostgreSQL at the same time (the local port is part of the output of ``docker compose ps``).
+Die Nutzung des ``psql``-Kommandozeilenprogramms kann manchmal hilfreich sein. Aber Du musst dir Zugangsdaten und den Datenbanknamen merken. Weniger offensichtlich ist, dass Du auch den lokalen Port kennen musst, auf dem die Datenbank auf dem Host läuft. Docker wählt einen zufälligen Port, damit Du gleichzeitig an mehreren Projekten mit PostgreSQL arbeiten kannst (der lokale Port ist Teil der Ausgabe von ``docker compose ps``).
 
 Wenn Du ``psql`` über die Symfony CLI  aufrufst, musst Du dir nichts merken.
 
