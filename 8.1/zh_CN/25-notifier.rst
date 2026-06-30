@@ -13,11 +13,7 @@
     single: Components;Notifier
     single: Notifier
 
-Symfony 的 Notifier 组件实现了很多通知策略：
-
-.. code-block:: terminal
-
-    $ symfony composer req notifier
+Symfony 的 Notifier 组件实现了很多通知策略。
 
 在浏览器中发送 web 应用的通知
 -----------------------------------------
@@ -30,28 +26,28 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\File\Exception\FileException;
-     use Symfony\Component\HttpFoundation\Request;
-     use Symfony\Component\HttpFoundation\Response;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\HttpKernel\Attribute\RateLimit;
      use Symfony\Component\Messenger\MessageBusInterface;
     +use Symfony\Component\Notifier\Notification\Notification;
     +use Symfony\Component\Notifier\NotifierInterface;
-     use Symfony\Component\Routing\Annotation\Route;
-     use Twig\Environment;
+     use Symfony\Component\Routing\Attribute\Route;
 
-    @@ -53,7 +55,7 @@ class ConferenceController extends AbstractController
-         }
-
-         #[Route('/conference/{slug}', name: 'conference')]
-    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, NotifierInterface $notifier, string $photoDir): Response
-         {
+     final class ConferenceController extends AbstractController
+    @@ -45,7 +47,8 @@ final class ConferenceController extends AbstractController
+             Request $request,
+             Conference $conference,
+             CommentRepository $commentRepository,
+    +        NotifierInterface $notifier,
+             #[Autowire('%photo_dir%')] string $photoDir,
+             #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0,
+         ): Response {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
-    @@ -82,9 +84,15 @@ class ConferenceController extends AbstractController
-
+    @@ -69,8 +72,14 @@ final class ConferenceController extends AbstractController
+                 ];
                  $this->bus->dispatch(new CommentMessage($comment->getId(), $context));
 
     +            $notifier->send(new Notification('Thank you for the feedback; your comment will be posted after moderation.', ['browser']));
@@ -63,7 +59,6 @@ Symfony 的 Notifier 组件实现了很多通知策略：
     +            $notifier->send(new Notification('Can you check your submission? There are some problems with it.', ['browser']));
     +        }
     +
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
 通知器会用一个 *通道* 来 *发送* 一个 *通知* 给 *接收者*。
@@ -82,8 +77,8 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -3,6 +3,13 @@
      {% block title %}Conference Guestbook - {{ conference }}{% endblock %}
 
@@ -91,7 +86,7 @@ Symfony 的 Notifier 组件实现了很多通知策略：
     +    {% for message in app.flashes('notification') %}
     +        <div class="alert alert-info alert-dismissible fade show">
     +            {{ message }}
-    +            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    +            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
     +        </div>
     +    {% endfor %}
     +
@@ -127,9 +122,9 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/MessageHandler/CommentMessageHandler.php
-    +++ b/src/MessageHandler/CommentMessageHandler.php
-    @@ -4,14 +4,14 @@ namespace App\MessageHandler;
+    --- i/src/MessageHandler/CommentMessageHandler.php
+    +++ w/src/MessageHandler/CommentMessageHandler.php
+    @@ -4,15 +4,15 @@ namespace App\MessageHandler;
 
      use App\ImageOptimizer;
      use App\Message\CommentMessage;
@@ -139,43 +134,28 @@ Symfony 的 Notifier 组件实现了很多通知策略：
      use Doctrine\ORM\EntityManagerInterface;
      use Psr\Log\LoggerInterface;
     -use Symfony\Bridge\Twig\Mime\NotificationEmail;
+     use Symfony\Component\DependencyInjection\Attribute\Autowire;
     -use Symfony\Component\Mailer\MailerInterface;
-     use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
+     use Symfony\Component\Messenger\Attribute\AsMessageHandler;
      use Symfony\Component\Messenger\MessageBusInterface;
     +use Symfony\Component\Notifier\NotifierInterface;
      use Symfony\Component\Workflow\WorkflowInterface;
 
-     class CommentMessageHandler implements MessageHandlerInterface
-    @@ -21,22 +21,20 @@ class CommentMessageHandler implements MessageHandlerInterface
-         private $commentRepository;
-         private $bus;
-         private $workflow;
-    -    private $mailer;
-    +    private $notifier;
-         private $imageOptimizer;
-    -    private $adminEmail;
-         private $photoDir;
-         private $logger;
-
-    -    public function __construct(EntityManagerInterface $entityManager, SpamChecker $spamChecker, CommentRepository $commentRepository, MessageBusInterface $bus, WorkflowInterface $commentStateMachine, MailerInterface $mailer, ImageOptimizer $imageOptimizer, string $adminEmail, string $photoDir, LoggerInterface $logger = null)
-    +    public function __construct(EntityManagerInterface $entityManager, SpamChecker $spamChecker, CommentRepository $commentRepository, MessageBusInterface $bus, WorkflowInterface $commentStateMachine, NotifierInterface $notifier, ImageOptimizer $imageOptimizer, string $photoDir, LoggerInterface $logger = null)
-         {
-             $this->entityManager = $entityManager;
-             $this->spamChecker = $spamChecker;
-             $this->commentRepository = $commentRepository;
-             $this->bus = $bus;
-             $this->workflow = $commentStateMachine;
-    -        $this->mailer = $mailer;
-    +        $this->notifier = $notifier;
-             $this->imageOptimizer = $imageOptimizer;
-    -        $this->adminEmail = $adminEmail;
-             $this->photoDir = $photoDir;
-             $this->logger = $logger;
-         }
-    @@ -62,13 +60,7 @@ class CommentMessageHandler implements MessageHandlerInterface
-
+     #[AsMessageHandler]
+    @@ -24,8 +24,7 @@ class CommentMessageHandler
+             private CommentRepository $commentRepository,
+             private MessageBusInterface $bus,
+             private WorkflowInterface $commentStateMachine,
+    -        private MailerInterface $mailer,
+    -        #[Autowire('%admin_email%')] private string $adminEmail,
+    +        private NotifierInterface $notifier,
+             private ImageOptimizer $imageOptimizer,
+             #[Autowire('%photo_dir%')] private string $photoDir,
+             private ?LoggerInterface $logger = null,
+    @@ -50,13 +49,7 @@ class CommentMessageHandler
+                 $this->entityManager->flush();
                  $this->bus->dispatch($message);
-             } elseif ($this->workflow->can($comment, 'publish') || $this->workflow->can($comment, 'publish_ham')) {
+             } elseif ($this->commentStateMachine->can($comment, 'publish') || $this->commentStateMachine->can($comment, 'publish_ham')) {
     -            $this->mailer->send((new NotificationEmail())
     -                ->subject('New comment posted')
     -                ->htmlTemplate('emails/comment_notification.html.twig')
@@ -184,7 +164,7 @@ Symfony 的 Notifier 组件实现了很多通知策略：
     -                ->context(['comment' => $comment])
     -            );
     +            $this->notifier->send(new CommentReviewNotification($comment), ...$this->notifier->getAdminRecipients());
-             } elseif ($this->workflow->can($comment, 'optimize')) {
+             } elseif ($this->commentStateMachine->can($comment, 'optimize')) {
                  if ($comment->getPhotoFilename()) {
                      $this->imageOptimizer->resize($this->photoDir.'/'.$comment->getPhotoFilename());
 
@@ -193,9 +173,9 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/notifier.yaml
-    +++ b/config/packages/notifier.yaml
-    @@ -13,4 +13,4 @@ framework:
+    --- i/config/packages/notifier.yaml
+    +++ w/config/packages/notifier.yaml
+    @@ -9,4 +9,4 @@ framework:
                  medium: ['email']
                  low: ['email']
              admin_recipients:
@@ -217,12 +197,9 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 
     class CommentReviewNotification extends Notification implements EmailNotificationInterface
     {
-        private $comment;
-
-        public function __construct(Comment $comment)
-        {
-            $this->comment = $comment;
-
+        public function __construct(
+            private Comment $comment,
+        ) {
             parent::__construct('New comment posted');
         }
 
@@ -296,33 +273,15 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: terminal
     :class: answers(slack://ACCESS_TOKEN@default?channel=CHANNEL)
 
-    $ APP_ENV=prod symfony console secrets:set SLACK_DSN
-
-启用 Chatter Slack 支持：
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/packages/notifier.yaml
-    +++ b/config/packages/notifier.yaml
-    @@ -1,7 +1,7 @@
-     framework:
-         notifier:
-    -        #chatter_transports:
-    -        #    slack: '%env(SLACK_DSN)%'
-    +        chatter_transports:
-    +            slack: '%env(SLACK_DSN)%'
-             #    telegram: '%env(TELEGRAM_DSN)%'
-             #texter_transports:
-             #    twilio: '%env(TWILIO_DSN)%'
+    $ symfony console secrets:set SLACK_DSN --env=prod
 
 更新 Notification 类，根据评论的文本内容把它发送到不同的通道（一个简单的正则表达式就能胜任）：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Notification/CommentReviewNotification.php
-    +++ b/src/Notification/CommentReviewNotification.php
+    --- i/src/Notification/CommentReviewNotification.php
+    +++ w/src/Notification/CommentReviewNotification.php
     @@ -7,6 +7,7 @@ use Symfony\Component\Notifier\Message\EmailMessage;
      use Symfony\Component\Notifier\Notification\EmailNotificationInterface;
      use Symfony\Component\Notifier\Notification\Notification;
@@ -331,7 +290,7 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 
      class CommentReviewNotification extends Notification implements EmailNotificationInterface
      {
-    @@ -29,4 +30,15 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
+    @@ -26,4 +27,15 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
 
              return $message;
          }
@@ -357,8 +316,8 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Notification/CommentReviewNotification.php
-    +++ b/src/Notification/CommentReviewNotification.php
+    --- i/src/Notification/CommentReviewNotification.php
+    +++ w/src/Notification/CommentReviewNotification.php
     @@ -3,13 +3,18 @@
      namespace App\Notification;
 
@@ -377,9 +336,9 @@ Symfony 的 Notifier 组件实现了很多通知策略：
     -class CommentReviewNotification extends Notification implements EmailNotificationInterface
     +class CommentReviewNotification extends Notification implements EmailNotificationInterface, ChatNotificationInterface
      {
-         private $comment;
-
-    @@ -31,6 +36,28 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
+         public function __construct(
+             private Comment $comment,
+    @@ -28,6 +33,28 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
              return $message;
          }
 
@@ -416,8 +375,8 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Notification/CommentReviewNotification.php
-    +++ b/src/Notification/CommentReviewNotification.php
+    --- i/src/Notification/CommentReviewNotification.php
+    +++ w/src/Notification/CommentReviewNotification.php
     @@ -3,6 +3,7 @@
      namespace App\Notification;
 
@@ -426,21 +385,15 @@ Symfony 的 Notifier 组件实现了很多通知策略：
      use Symfony\Component\Notifier\Bridge\Slack\Block\SlackDividerBlock;
      use Symfony\Component\Notifier\Bridge\Slack\Block\SlackSectionBlock;
      use Symfony\Component\Notifier\Bridge\Slack\SlackOptions;
-    @@ -17,10 +18,12 @@ use Symfony\Component\Notifier\Recipient\RecipientInterface;
-     class CommentReviewNotification extends Notification implements EmailNotificationInterface, ChatNotificationInterface
+    @@ -18,6 +19,7 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
      {
-         private $comment;
-    +    private $reviewUrl;
-
-    -    public function __construct(Comment $comment)
-    +    public function __construct(Comment $comment, string $reviewUrl)
-         {
-             $this->comment = $comment;
-    +        $this->reviewUrl = $reviewUrl;
-
+         public function __construct(
+             private Comment $comment,
+    +        private string $reviewUrl,
+         ) {
              parent::__construct('New comment posted');
          }
-    @@ -53,6 +56,10 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
+    @@ -50,6 +52,10 @@ class CommentReviewNotification extends Notification implements EmailNotificatio
                  ->block((new SlackSectionBlock())
                      ->text(sprintf('%s (%s) says: %s', $this->comment->getAuthor(), $this->comment->getEmail(), $this->comment->getText()))
                  )
@@ -457,16 +410,16 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/MessageHandler/CommentMessageHandler.php
-    +++ b/src/MessageHandler/CommentMessageHandler.php
-    @@ -60,7 +60,8 @@ class CommentMessageHandler implements MessageHandlerInterface
-
+    --- i/src/MessageHandler/CommentMessageHandler.php
+    +++ w/src/MessageHandler/CommentMessageHandler.php
+    @@ -49,7 +49,8 @@ class CommentMessageHandler
+                 $this->entityManager->flush();
                  $this->bus->dispatch($message);
-             } elseif ($this->workflow->can($comment, 'publish') || $this->workflow->can($comment, 'publish_ham')) {
+             } elseif ($this->commentStateMachine->can($comment, 'publish') || $this->commentStateMachine->can($comment, 'publish_ham')) {
     -            $this->notifier->send(new CommentReviewNotification($comment), ...$this->notifier->getAdminRecipients());
     +            $notification = new CommentReviewNotification($comment, $message->getReviewUrl());
     +            $this->notifier->send($notification, ...$this->notifier->getAdminRecipients());
-             } elseif ($this->workflow->can($comment, 'optimize')) {
+             } elseif ($this->commentStateMachine->can($comment, 'optimize')) {
                  if ($comment->getPhotoFilename()) {
                      $this->imageOptimizer->resize($this->photoDir.'/'.$comment->getPhotoFilename());
 
@@ -475,21 +428,15 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Message/CommentMessage.php
-    +++ b/src/Message/CommentMessage.php
-    @@ -5,14 +5,21 @@ namespace App\Message;
-     class CommentMessage
+    --- i/src/Message/CommentMessage.php
+    +++ w/src/Message/CommentMessage.php
+    @@ -6,10 +6,16 @@ class CommentMessage
      {
-         private $id;
-    +    private $reviewUrl;
-         private $context;
-
-    -    public function __construct(int $id, array $context = [])
-    +    public function __construct(int $id, string $reviewUrl, array $context = [])
-         {
-             $this->id = $id;
-    +        $this->reviewUrl = $reviewUrl;
-             $this->context = $context;
+         public function __construct(
+             private int $id,
+    +        private string $reviewUrl,
+             private array $context = [],
+         ) {
          }
 
     +    public function getReviewUrl(): string
@@ -506,17 +453,17 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -12,6 +12,7 @@ use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
      use Symfony\Component\HttpKernel\KernelInterface;
      use Symfony\Component\Messenger\MessageBusInterface;
-     use Symfony\Component\Routing\Annotation\Route;
+     use Symfony\Component\Routing\Attribute\Route;
     +use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-     use Symfony\Component\Workflow\Registry;
+     use Symfony\Component\Workflow\WorkflowInterface;
      use Twig\Environment;
 
-    @@ -47,7 +48,8 @@ class AdminController extends AbstractController
+    @@ -42,7 +43,8 @@ class AdminController extends AbstractController
              $this->entityManager->flush();
 
              if ($accepted) {
@@ -525,21 +472,21 @@ Symfony 的 Notifier 组件实现了很多通知策略：
     +            $this->bus->dispatch(new CommentMessage($comment->getId(), $reviewUrl));
              }
 
-             return $this->render('admin/review.html.twig', [
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+             return new Response($this->twig->render('admin/review.html.twig', [
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -17,6 +17,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
      use Symfony\Component\Notifier\Notification\Notification;
      use Symfony\Component\Notifier\NotifierInterface;
-     use Symfony\Component\Routing\Annotation\Route;
+     use Symfony\Component\Routing\Attribute\Route;
     +use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-     use Twig\Environment;
 
-     class ConferenceController extends AbstractController
-    @@ -82,7 +83,8 @@ class ConferenceController extends AbstractController
+     final class ConferenceController extends AbstractController
+     {
+    @@ -70,7 +71,8 @@ final class ConferenceController extends AbstractController
+                     'referrer' => $request->headers->get('referer'),
                      'permalink' => $request->getUri(),
                  ];
-
     -            $this->bus->dispatch(new CommentMessage($comment->getId(), $context));
     +            $reviewUrl = $this->generateUrl('review_comment', ['id' => $comment->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
     +            $this->bus->dispatch(new CommentMessage($comment->getId(), $reviewUrl, $context));
@@ -556,21 +503,26 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 全面使用异步
 ------------------
 
-我来解释下我们需要去解决的一个小问题。对于每个评论我们都会收到一封邮件和一个 Slack 消息。如果 Slack 消息出错了（错误的通道 id、错误的令牌等等），messenger 发出的消息会在丢弃前重试 3 次。但由于邮件先发出，所以我们会收到 3 封邮件，却没有任何 Slack 消息。解决该问题的一个方案就是像邮件一样异步发送 Slack 消息：
+按照默认配置，通知和邮件一样会异步发送：
 
-.. code-block:: diff
-    :caption: patch_file
+.. code-block:: yaml
+    :caption: config/packages/messenger.yaml
+    :emphasize-lines: 5,6
+    :class: ignore
 
-    --- a/config/packages/messenger.yaml
-    +++ b/config/packages/messenger.yaml
-    @@ -21,3 +21,5 @@ framework:
-                 # Route your messages to the transports
-                 App\Message\CommentMessage: async
-                 Symfony\Component\Mailer\Messenger\SendEmailMessage: async
-    +            Symfony\Component\Notifier\Message\ChatMessage: async
-    +            Symfony\Component\Notifier\Message\SmsMessage: async
+    framework:
+        messenger:
+            routing:
+                Symfony\Component\Mailer\Messenger\SendEmailMessage: async
+                Symfony\Component\Notifier\Message\ChatMessage: async
+                Symfony\Component\Notifier\Message\SmsMessage: async
 
-当一切变为异步时，消息就互相独立了。考虑到你可能会想要通过手机接收通知，我们也启用了手机短信的异步发送。
+                # Route your messages to the transports
+                App\Message\CommentMessage: async
+
+如果我们禁用异步消息，就会有一个小问题。对于每个评论我们都会收到一封邮件和一个 Slack 消息。如果 Slack 消息出错了（错误的通道 id、错误的令牌等等），messenger 发出的消息会在丢弃前重试 3 次。但由于邮件先发出，所以我们会收到 3 封邮件，却没有任何 Slack 消息。
+
+当一切变为异步时，消息就互相独立了。考虑到你可能会想要通过手机接收通知，手机短信也已经配置为异步发送。
 
 用邮件通知用户
 ---------------------
@@ -579,4 +531,6 @@ Symfony 的 Notifier 组件实现了很多通知策略：
 
 .. sidebar:: 深入学习
 
-    * `Symfony 的 flash 消息 <https://symfony.com/doc/current/controller.html#flash-messages>`_。
+    * `Symfony 的 flash 消息`_。
+
+.. _`Symfony 的 flash 消息`: https://symfony.com/doc/current/controller.html#flash-messages

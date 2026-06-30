@@ -5,13 +5,7 @@
     single: Doctrine
     single: Database
 
-我们要依赖 `Doctrine`_ 来让 PHP 处理数据库，它由一组类库组成，这些类库可以帮助开发者管理数据库。
-
-.. code-block:: terminal
-
-    $ symfony composer req "orm:^2"
-
-这个命令安装了一些依赖包：Doctrine DBAL（一个数据库抽象层），Doctrine ORM（一个用 PHP 对象来管理数据库内容的库）和 Doctrine Migrations。
+我们要依赖 `Doctrine`_ 来让 PHP 处理数据库，它由一组类库组成，这些类库可以帮助开发者管理数据库：Doctrine DBAL（一个数据库抽象层）、Doctrine ORM（一个用 PHP 对象来管理数据库内容的库）和 Doctrine Migrations。
 
 配置 Doctrine ORM
 -------------------
@@ -49,7 +43,7 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
 .. code-block:: text
     :class: ignore
 
-    DATABASE_URL=postgres://main:main@127.0.0.1:32781/main?sslmode=disable&charset=utf8
+    DATABASE_URL=postgres://app:!ChangeMe!@127.0.0.1:32781/app?sslmode=disable&charset=utf8
     # ...
 
 你还记得在 Docker 和 Upsun 里使用的 ``database`` 这个 *服务名* 吗？服务名用来作为环境变量名的前缀，比如 ``DATABASE_URL``。如果你的服务根据 Symfony 的约定来命名，那么就不需要其它的配置了。
@@ -65,15 +59,17 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
 
 .. code-block:: diff
 
-    --- a/.env
-    +++ b/.env
-    @@ -24,5 +24,5 @@ APP_SECRET=ce2ae8138936039d22afb20f4596fe97
-     #
-     # DATABASE_URL="sqlite:///%kernel.project_dir%/var/data.db"
-     # DATABASE_URL="mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7"
-    -DATABASE_URL="postgresql://db_user:db_password@127.0.0.1:5432/db_name?serverVersion=13&charset=utf8"
-    +DATABASE_URL="postgresql://127.0.0.1:5432/db?serverVersion=13&charset=utf8"
+    --- i/.env
+    +++ w/.env
+    @@ -26,7 +26,7 @@ APP_SECRET=ce2ae8138936039d22afb20f4596fe97
+     # DATABASE_URL="sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
+     # DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=8.0.32&charset=utf8mb4"
+     # DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=10.11.2-MariaDB&charset=utf8mb4"
+    -DATABASE_URL="postgresql://app:!ChangeMe!@127.0.0.1:5432/app?serverVersion=16&charset=utf8"
+    +DATABASE_URL="postgresql://127.0.0.1:5432/db?serverVersion=16&charset=utf8"
      ###< doctrine/doctrine-bundle ###
+
+     ###> symfony/messenger ###
 
 为什么这些信息要在两个不同的地方重复呢？因为有些云平台上在 *构建时*，数据库的信息还没确定，而 Doctrine 却需要知道用哪个数据库引擎来构建它的配置。这样说来，服务器名、用户名和密码都不重要。
 
@@ -90,7 +86,9 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
 
 .. index:: ! Command;make:entity
 
-*Maker Bundle* 能帮我们生成一个代表会议的类（即一个 *实体* 类）：
+*Maker Bundle* 能帮我们生成一个代表会议的类（即一个 *实体* 类）。
+
+现在是时候生成 ``Conference`` 实体类了：
 
 .. code-block:: terminal
     :class: answers(city||string||255||no||year||string||4||no||isInternational||boolean||no)
@@ -169,15 +167,15 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
 这个命令也会生成一个 Doctrine 的 *repository* 类：``App\Repository\ConferenceRepository``。
 
 .. index::
-    single: Annotations;@ORM\\Entity
-    single: Annotations;@ORM\\Id
-    single: Annotations;@ORM\\GeneratedValue
-    single: Annotations;@ORM\\Column
+    single: Attributes;ORM\\Entity
+    single: Attributes;ORM\\Id
+    single: Attributes;ORM\\GeneratedValue
+    single: Attributes;ORM\\Column
 
 生成的代码像下面这样（只有一小部分被复制到了这）：
 
 .. code-block:: php
-    :caption: src/App/Entity/Conference.php
+    :caption: src/Entity/Conference.php
     :class: ignore
 
     namespace App\Entity;
@@ -185,22 +183,16 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
     use App\Repository\ConferenceRepository;
     use Doctrine\ORM\Mapping as ORM;
 
-    /**
-     * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-     */
+    #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
     class Conference
     {
-        /**
-         * @ORM\Id()
-         * @ORM\GeneratedValue()
-         * @ORM\Column(type="integer")
-         */
-        private $id;
+        #[ORM\Id]
+        #[ORM\GeneratedValue]
+        #[ORM\Column]
+        private ?int $id = null;
 
-        /**
-         * @ORM\Column(type="string", length=255)
-         */
-        private $city;
+        #[ORM\Column(length: 255)]
+        private ?string $city = null;
 
         // ...
 
@@ -209,7 +201,7 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
             return $this->city;
         }
 
-        public function setCity(string $city): self
+        public function setCity(string $city): static
         {
             $this->city = $city;
 
@@ -219,9 +211,9 @@ Doctrine 是如何知道数据库连接信息的呢？Doctrine 的 recipe 添加
         // ...
     }
 
-请注意这个类本身就是一个普通的 PHP 类，和 Doctrine 没有直接关联。Doctrine 用到的元数据是通过注解的方式添加到类里的，从而把这个类映射到相关的数据库表。
+请注意这个类本身就是一个普通的 PHP 类，和 Doctrine 没有直接关联。Doctrine 用到的元数据是通过属性（attribute）的方式添加到类里的，从而把这个类映射到相关的数据库表。
 
-Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键（``@ORM\Id()``）的值由注解（``@ORM\GeneratedValue()``）根据具体的数据库选用一个策略生成。
+Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键（``#[ORM\Id]``）的值由（``#[ORM\GeneratedValue]``）根据具体的数据库选用一个策略生成。
 
 .. index::
     single: Command;make:entity
@@ -229,7 +221,7 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
 现在，我们来生成一个会议评论的实体类。
 
 .. code-block:: terminal
-    :class: answers(author||string||255||no||text||text||no||email||string||255||no||createdAt||datetime||no)
+    :class: answers(author||string||255||no||text||text||no||email||string||255||no||createdAt||datetime_immutable||no)
 
     $ symfony console make:entity Comment
 
@@ -238,7 +230,7 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
 * ``author``，``string``，``255``，``no``；
 * ``text``，``text``，``no``；
 * ``email``，``string``，``255``，``no``；
-* ``createdAt``，``datetime``，``no``。
+* ``createdAt``，``datetime_immutable``，``no``。
 
 将多个实体类关联起来
 ------------------------------
@@ -331,31 +323,29 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
           * json_array
 
 .. index::
-    single: Annotations;@ORM\\ManyToOne
-    single: Annotations;@ORM\\JoinColumn
-    single: Annotations;@ORM\\OneToMany
+    single: Attributes;ORM\\ManyToOne
+    single: Attributes;ORM\\JoinColumn
+    single: Attributes;ORM\\OneToMany
 
 加好了这个关系的字段后，查看一下实体类文件的全部文件比对：
 
 .. code-block:: diff
     :class: ignore
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -36,6 +36,12 @@ class Comment
-          */
-         private $createdAt;
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -23,6 +23,10 @@ class Comment
+         #[ORM\Column]
+         private ?\DateTimeImmutable $createdAt = null;
 
-    +    /**
-    +     * @ORM\ManyToOne(targetEntity=Conference::class, inversedBy="comments")
-    +     * @ORM\JoinColumn(nullable=false)
-    +     */
-    +    private $conference;
+    +    #[ORM\ManyToOne(inversedBy: 'comments')]
+    +    #[ORM\JoinColumn(nullable: false)]
+    +    private ?Conference $conference = null;
     +
          public function getId(): ?int
          {
              return $this->id;
-    @@ -88,4 +94,16 @@ class Comment
+    @@ -88,4 +92,16 @@ class Comment
 
              return $this;
          }
@@ -365,15 +355,15 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
     +        return $this->conference;
     +    }
     +
-    +    public function setConference(?Conference $conference): self
+    +    public function setConference(?Conference $conference): static
     +    {
     +        $this->conference = $conference;
     +
     +        return $this;
     +    }
      }
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
     @@ -2,6 +2,8 @@
 
      namespace App\Entity;
@@ -383,14 +373,15 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
      use Doctrine\ORM\Mapping as ORM;
 
      /**
-    @@ -31,6 +33,16 @@ class Conference
-          */
-         private $isInternational;
+    @@ -20,6 +22,19 @@ class Conference
+         #[ORM\Column]
+         private ?bool $isInternational = null;
 
     +    /**
-    +     * @ORM\OneToMany(targetEntity=Comment::class, mappedBy="conference", orphanRemoval=true)
+    +     * @var Collection<int, Comment>
     +     */
-    +    private $comments;
+    +    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'conference', orphanRemoval: true)]
+    +    private Collection $comments;
     +
     +    public function __construct()
     +    {
@@ -406,27 +397,26 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
          }
     +
     +    /**
-    +     * @return Collection|Comment[]
+    +     * @return Collection<int, Comment>
     +     */
     +    public function getComments(): Collection
     +    {
     +        return $this->comments;
     +    }
     +
-    +    public function addComment(Comment $comment): self
+    +    public function addComment(Comment $comment): static
     +    {
     +        if (!$this->comments->contains($comment)) {
-    +            $this->comments[] = $comment;
+    +            $this->comments->add($comment);
     +            $comment->setConference($this);
     +        }
     +
     +        return $this;
     +    }
     +
-    +    public function removeComment(Comment $comment): self
+    +    public function removeComment(Comment $comment): static
     +    {
-    +        if ($this->comments->contains($comment)) {
-    +            $this->comments->removeElement($comment);
+    +        if ($this->comments->removeElement($comment)) {
     +            // set the owning side to null (unless already changed)
     +            if ($comment->getConference() === $this) {
     +                $comment->setConference(null);
@@ -465,7 +455,7 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
 
 *Doctrine Migrations* 是完成这一任务的完美方案。它作为 ``orm`` 依赖包的一部分已经安装好了。
 
-如果当前数据库的结构和实体类的注解定义的结构不同，就需要进行 *迁移* （migration）操作。*迁移* 描述了当前数据库结构需要进行的更改。因为现在数据库里没有任何表，这个 *迁移* 会包含两个表的创建。
+如果当前数据库的结构和实体类的属性定义的结构不同，就需要进行 *迁移* （migration）操作。*迁移* 描述了当前数据库结构需要进行的更改。因为现在数据库里没有任何表，这个 *迁移* 会包含两个表的创建。
 
 让我们来看下 Doctrine 生成了什么：
 
@@ -484,9 +474,9 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
     use Doctrine\DBAL\Schema\Schema;
     use Doctrine\Migrations\AbstractMigration;
 
-    final class Version20191019083640 extends AbstractMigration
+    final class Version00000000000000 extends AbstractMigration
     {
-        public function up(Schema $schema) : void
+        public function up(Schema $schema): void
         {
             // this up() migration is auto-generated, please modify it to your needs
             $this->addSql('CREATE SEQUENCE comment_id_seq INCREMENT BY 1 MINVALUE 1 START 1');
@@ -497,7 +487,7 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
             $this->addSql('ALTER TABLE comment ADD CONSTRAINT FK_9474526C604B8382 FOREIGN KEY (conference_id) REFERENCES conference (id) NOT DEFERRABLE INITIALLY IMMEDIATE');
         }
 
-        public function down(Schema $schema) : void
+        public function down(Schema $schema): void
         {
             // ...
         }
@@ -526,12 +516,16 @@ Doctrine添加了一个``id``属性来存储数据库表中的行主键。主键
 
 .. sidebar:: 深入学习
 
-    * Symfony 应用中的 `数据库和 Doctrine ORM <https://symfony.com/doc/current/doctrine.html>`_；
+    * Symfony 应用中的 `数据库和 Doctrine ORM`_；
 
-    * `SymfonyCasts 的 Doctrine 教程  <https://symfonycasts.com/screencast/symfony-doctrine/install>`_；
+    * `SymfonyCasts 的 Doctrine 教程`_；
 
-    * `Doctrine 下实体类之间的关联 <https://symfony.com/doc/current/doctrine/associations.html>`_；
+    * `Doctrine 下实体类之间的关联`_；
 
-    * `DoctrineMigrationsBundle 文档 <https://symfony.com/doc/current/bundles/DoctrineMigrationsBundle/index.html>`_。
+    * `DoctrineMigrationsBundle 文档`_。
 
 .. _`Doctrine`: https://www.doctrine-project.org/
+.. _`数据库和 Doctrine ORM`: https://symfony.com/doc/current/doctrine.html
+.. _`SymfonyCasts 的 Doctrine 教程`: https://symfonycasts.com/screencast/symfony-doctrine/install
+.. _`Doctrine 下实体类之间的关联`: https://symfony.com/doc/current/doctrine/associations.html
+.. _`DoctrineMigrationsBundle 文档`: https://symfony.com/doc/current/bundles/DoctrineMigrationsBundle/index.html

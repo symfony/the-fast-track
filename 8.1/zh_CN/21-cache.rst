@@ -21,24 +21,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -33,9 +33,12 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\DependencyInjection\Attribute\Autowire;
+     use Symfony\Component\HttpFoundation\Request;
+     use Symfony\Component\HttpFoundation\Response;
+    +use Symfony\Component\HttpKernel\Attribute\Cache;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\HttpKernel\Attribute\RateLimit;
+     use Symfony\Component\Messenger\MessageBusInterface;
+    @@ -27,6 +28,7 @@ final class ConferenceController extends AbstractController
+         ) {
+         }
+
+    +    #[Cache(smaxage: 3600)]
          #[Route('/', name: 'homepage')]
          public function index(ConferenceRepository $conferenceRepository): Response
          {
-    -        return new Response($this->twig->render('conference/index.html.twig', [
-    +        $response = new Response($this->twig->render('conference/index.html.twig', [
-                 'conferences' => $conferenceRepository->findAll(),
-             ]));
-    +        $response->setSharedMaxAge(3600);
-    +
-    +        return $response;
-         }
 
-         #[Route('/conference/{slug}', name: 'conference')]
-
-用 ``setSharedMaxAge()`` 方法来配置反向代理的缓存过期时间。用 ``setMaxAge()`` 方法来控制浏览器缓存时间。时间单位是秒（1 小时=60 分钟=3600 秒）。
+``#[Cache]`` 属性通过它的 ``smaxage`` 参数来配置反向代理的缓存过期时间；用 ``maxage`` 来控制浏览器缓存。时间单位是秒（1 小时=60 分钟=3600 秒）。和路由或速率限制一样，缓存策略就声明在它生效的地方：控制器上。
 
 缓存会议页面更有挑战一些，因为它的内容更加动态。任何人在任何时候都可以增加一条评论，没有人想要等一个小时才能看到它发布。在这种情况下，使用 *HTTP 验证* 的策略。
 
@@ -48,19 +50,21 @@
 .. index::
     single: HTTP Cache;Symfony Reverse Proxy
 
-为了测试 HTTP 缓存策略，我们来启用 Symfony 的 HTTP 反向代理：
+为了测试 HTTP 缓存策略，我们来启用 Symfony 的 HTTP 反向代理，但只在“开发”环境中（对于“生产”环境，我们会使用一个“更健壮”的方案）：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -15,3 +15,5 @@ framework:
-         #fragments: true
-         php_errors:
-             log: true
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -22,3 +22,7 @@ when@test:
+             test: true
+             session:
+                 storage_factory_id: session.storage.factory.mock_file
     +
-    +    http_cache: true
+    +when@dev:
+    +    framework:
+    +        http_cache: true
 
 Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功能完善的 HTTP 反向代理，也以 HTTP 头的形式增加了友好的调试信息。这对验证我们已经设置的缓存头很有帮助。
 
@@ -114,7 +118,7 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
     single: HTTP Cache;ESI
     single: ESI
 
-``TwigEventSubscriber`` 事件监听器会在 Twig 里注入一个全局变量，该变量包含了所有的会议对象。网站的每一页里都会注入该变量。这很可能是一个优化的好目标。
+``TwigEventListener`` 事件监听器会在 Twig 里注入一个全局变量，该变量包含了所有的会议对象。网站的每一页里都会注入该变量。这很可能是一个优化的好目标。
 
 你不会每天都去添加会议，所以代码总是一次次地从数据库里去查询完全相同的数据。
 
@@ -127,23 +131,23 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -41,6 +41,14 @@ class ConferenceController extends AbstractController
-             return $response;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -36,6 +36,14 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
     +    #[Route('/conference_header', name: 'conference_header')]
     +    public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
     +    {
-    +        return new Response($this->twig->render('conference/header.html.twig', [
+    +        return $this->render('conference/header.html.twig', [
     +            'conferences' => $conferenceRepository->findAll(),
-    +        ]));
+    +        ]);
     +    }
     +
-         #[Route('/conference/{slug}', name: 'conference')]
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-         {
+         #[RateLimit('comment_submission', methods: ['POST'])]
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(
 
 创建相应的模板：
 
@@ -167,9 +171,9 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -16,11 +16,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -14,11 +14,7 @@
          <body>
              <header>
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
@@ -200,9 +204,9 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -11,7 +11,7 @@ framework:
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -12,7 +12,7 @@ framework:
              cookie_secure: auto
              cookie_samesite: lax
 
@@ -221,9 +225,9 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -16,7 +16,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -14,7 +14,7 @@
          <body>
              <header>
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
@@ -266,22 +270,16 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -44,9 +44,12 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -36,6 +36,7 @@ final class ConferenceController extends AbstractController
+             ]);
+         }
+
+    +    #[Cache(smaxage: 3600)]
          #[Route('/conference_header', name: 'conference_header')]
          public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
          {
-    -        return new Response($this->twig->render('conference/header.html.twig', [
-    +        $response = new Response($this->twig->render('conference/header.html.twig', [
-                 'conferences' => $conferenceRepository->findAll(),
-             ]));
-    +        $response->setSharedMaxAge(3600);
-    +
-    +        return $response;
-         }
-
-         #[Route('/conference/{slug}', name: 'conference')]
 
 现在两个请求都被缓存了：
 
@@ -314,54 +312,61 @@ Symfony 的 HTTP 反向代理（由 ``HttpCache`` 类实现）不但是一个功
 
 .. code-block:: terminal
 
-    $ rm src/EventSubscriber/TwigEventSubscriber.php
+    $ rm src/EventListener/TwigEventListener.php
 
 为测试而清空 HTTP 缓存
 ------------------------------
 
 增加了缓存层之后，在浏览器中或用一些自动化测试手段来测试网站变得更困难一些了。
 
-You can manually remove all the HTTP cache by removing the
-``var/cache/dev/http_cache/`` directory:
+你可以通过删除 ``var/cache/dev/http_cache/`` 目录来手工移除所有的 HTTP 缓存：
 
 .. code-block:: terminal
 
     $ rm -rf var/cache/dev/http_cache/
 
 .. index::
-    single: Annotations;Route
+    single: Attributes;Route
 
 如果你只是想让一部分 URL 的缓存失效，或者你想要在功能测试中让缓存失效，那这个策略就不太可行。让我们来增加一个小的管理员专用的 HTTP 地址，用来让某些 URL 的缓存失效：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -6,8 +6,10 @@ use App\Entity\Comment;
-     use App\Message\CommentMessage;
-     use Doctrine\ORM\EntityManagerInterface;
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -20,6 +20,8 @@ security:
+                     login_path: app_login
+                     check_path: app_login
+                     enable_csrf: true
+    +            http_basic: { realm: Admin Area }
+    +            entry_point: form_login
+                 logout:
+                     path: app_logout
+                     # where to redirect after logout
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Bundle\FrameworkBundle\HttpCache\HttpCache;
      use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
+    +use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
     +use Symfony\Component\HttpKernel\KernelInterface;
      use Symfony\Component\Messenger\MessageBusInterface;
-     use Symfony\Component\Routing\Annotation\Route;
-     use Symfony\Component\Workflow\Registry;
-    @@ -52,4 +54,17 @@ class AdminController extends AbstractController
+     use Symfony\Component\Routing\Attribute\Route;
+     use Symfony\Component\Workflow\WorkflowInterface;
+    @@ -47,4 +49,16 @@ class AdminController extends AbstractController
                  'comment' => $comment,
-             ]);
+             ]));
          }
     +
     +    #[Route('/admin/http-cache/{uri<.*>}', methods: ['PURGE'])]
-    +    public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri): Response
+    +    public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri, StoreInterface $store): Response
     +    {
     +        if ('prod' === $kernel->getEnvironment()) {
     +            return new Response('KO', 400);
     +        }
     +
-    +        $store = (new class($kernel) extends HttpCache {})->getStore();
     +        $store->purge($request->getSchemeAndHttpHost().'/'.$uri);
     +
     +        return new Response('Done');
@@ -378,8 +383,8 @@ You can manually remove all the HTTP cache by removing the
 
 .. code-block:: terminal
 
-    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`/admin/http-cache/
-    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`/admin/http-cache/conference_header
+    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`admin/http-cache/
+    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`admin/http-cache/conference_header
 
 ``symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`` 子命令会返回本地 web 服务器的当前 URL。
 
@@ -387,43 +392,64 @@ You can manually remove all the HTTP cache by removing the
 
     因为代码不会引用这个控制器，所以它没有路由名。
 
+在开发环境中停用 HTTP 缓存
+---------------------------------------
+
+HTTP 缓存对于验证我们的缓存头以及学习如何清理过期条目很有用。但在开发环境中启用一个反向代理是不寻常的，而且它很快就会带来麻烦：当你迭代代码时，应答会从缓存里返回，由于 HttpCache 在处理文件应答时一个长期存在的限制，一些 vendor 资源甚至会以空 body 返回。
+
+现在一切都已验证完毕，把它停用；在生产环境中 Varnish 会接管这个工作：
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -14,7 +14,3 @@ when@test:
+             test: true
+             session:
+                 storage_factory_id: session.storage.factory.mock_file
+    -
+    -when@dev:
+    -    framework:
+    -        http_cache: true
+
 为相似的路由加上前缀并归为一组
 ---------------------------------------------
 
 .. index::
-    single: Annotations;Route
+    single: Attributes;Route
 
 管理后台控制器里的两个路由都有相同的 ``/admin`` 前缀。重构这些路由，改为在类上设置这个前缀，而不是在所有路由上重复它：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -15,6 +15,7 @@ use Symfony\Component\Routing\Annotation\Route;
-     use Symfony\Component\Workflow\Registry;
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -15,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
+     use Symfony\Component\Workflow\WorkflowInterface;
      use Twig\Environment;
 
     +#[Route('/admin')]
      class AdminController extends AbstractController
      {
-         private $twig;
-    @@ -28,7 +29,7 @@ class AdminController extends AbstractController
-             $this->bus = $bus;
+         public function __construct(
+    @@ -24,7 +25,7 @@ class AdminController extends AbstractController
+         ) {
          }
 
     -    #[Route('/admin/comment/review/{id}', name: 'review_comment')]
     +    #[Route('/comment/review/{id}', name: 'review_comment')]
-         public function reviewComment(Request $request, Comment $comment, Registry $registry): Response
+         public function reviewComment(Request $request, Comment $comment, WorkflowInterface $commentStateMachine): Response
          {
              $accepted = !$request->query->get('reject');
-    @@ -55,7 +56,7 @@ class AdminController extends AbstractController
-             ]);
+    @@ -50,7 +51,7 @@ class AdminController extends AbstractController
+             ]));
          }
 
     -    #[Route('/admin/http-cache/{uri<.*>}', methods: ['PURGE'])]
     +    #[Route('/http-cache/{uri<.*>}', methods: ['PURGE'])]
-         public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri): Response
+         public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri, StoreInterface $store): Response
          {
              if ('prod' === $kernel->getEnvironment()) {
 
@@ -436,11 +462,7 @@ You can manually remove all the HTTP cache by removing the
 
 在这个网站上，我们没有 CPU 或内存密集型的算法。为了讨论下”本地缓存“，我们来创建一个命令，它会展示我们当前的工作步骤（更准确地说，就是在当前的 Git 提交时附带的 Git 标签）。
 
-Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的输出结果（标准输出和错误输出）；我们来安装它：
-
-.. code-block:: terminal
-
-    $ symfony composer req process
+Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的输出结果（标准输出和错误输出）。
 
 实现这个命令：
 
@@ -449,79 +471,53 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
 
     namespace App\Command;
 
+    use Symfony\Component\Console\Attribute\AsCommand;
     use Symfony\Component\Console\Command\Command;
-    use Symfony\Component\Console\Input\InputInterface;
     use Symfony\Component\Console\Output\OutputInterface;
     use Symfony\Component\Process\Process;
 
-    class StepInfoCommand extends Command
+    #[AsCommand('app:step:info')]
+    class StepInfoCommand
     {
-        protected static $defaultName = 'app:step:info';
-
-        protected function execute(InputInterface $input, OutputInterface $output): int
+        public function __invoke(OutputInterface $output): int
         {
             $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
             $process->mustRun();
             $output->write($process->getOutput());
 
-            return 0;
+            return Command::SUCCESS;
         }
     }
-
-.. index::
-    single: Command;make:command
-
-.. note::
-
-    你也可以用 ``make:command`` 来新建这个命令：
-
-    .. code-block:: terminal
-        :class: ignore
-
-        $ symfony console make:command app:step:info
 
 .. index::
     single: Cache
     single: Components;Cache
 
-如果你想要把输出的内容缓存几分钟，那要怎么做？使用 Symfony 缓存：
+如果你想要把输出的内容缓存几分钟，那要怎么做？使用 Symfony 缓存。
 
-.. code-block:: terminal
-
-    $ symfony composer req cache
-
-用缓存逻辑包装这段代码：
+Symfony 会把命令的 ``__invoke()`` 方法里类型提示的服务注入进来，方式和控制器参数一样。用缓存逻辑包装这段代码：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Command/StepInfoCommand.php
-    +++ b/src/Command/StepInfoCommand.php
-    @@ -6,16 +6,31 @@ use Symfony\Component\Console\Command\Command;
-     use Symfony\Component\Console\Input\InputInterface;
+    --- i/src/Command/StepInfoCommand.php
+    +++ w/src/Command/StepInfoCommand.php
+    @@ -6,15 +6,21 @@ use Symfony\Component\Console\Attribute\AsCommand;
+     use Symfony\Component\Console\Command\Command;
      use Symfony\Component\Console\Output\OutputInterface;
      use Symfony\Component\Process\Process;
     +use Symfony\Contracts\Cache\CacheInterface;
 
-     class StepInfoCommand extends Command
+     #[AsCommand('app:step:info')]
+     class StepInfoCommand
      {
-         protected static $defaultName = 'app:step:info';
-
-    +    private $cache;
-    +
-    +    public function __construct(CacheInterface $cache)
-    +    {
-    +        $this->cache = $cache;
-    +
-    +        parent::__construct();
-    +    }
-    +
-         protected function execute(InputInterface $input, OutputInterface $output): int
+    -    public function __invoke(OutputInterface $output): int
+    +    public function __invoke(OutputInterface $output, CacheInterface $cache): int
          {
     -        $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
     -        $process->mustRun();
     -        $output->write($process->getOutput());
-    +        $step = $this->cache->get('app.current_step', function ($item) {
+    +        $step = $cache->get('app.current_step', function ($item) {
     +            $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
     +            $process->mustRun();
     +            $item->expiresAfter(30);
@@ -530,7 +526,7 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
     +        });
     +        $output->writeln($step);
 
-             return 0;
+             return Command::SUCCESS;
          }
 
 现在，只有当 ``app.current_step`` 项没有被缓存时，那个命令才会执行。
@@ -540,7 +536,7 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
 
 绝不要盲目地增加缓存。记住，增加一些缓存就增加了一层复杂度。而且因为我们往往猜不准什么会变快什么会变慢，所以我们可能最终会发现缓存反而让应用变慢了。
 
-总要去衡量缓存带来的性能影响，可以使用类似  `Blackfire <https://blackfire.io/>`_ 的分析工具。
+总要去衡量缓存带来的性能影响，可以使用类似 `Blackfire`_ 的分析工具。
 
 参考关于“性能”章节的内容来更多地了解如何在部署前使用 Blackfire 测试代码。
 
@@ -552,28 +548,29 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
     single: Upsun;Varnish
     single: Varnish
 
-不要在生产环境中使用 Symfony 的反向代理。总是优先选用你平台上类似 Varnish 的反向代理，或者选用商业 CDN。
+我们不再在生产环境中使用 Symfony 的反向代理，而是使用“更健壮”的 Varnish 反向代理。
 
 在 Upsun 服务中加入 Varnish：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/services.yaml
-    +++ b/.symfony/services.yaml
-    @@ -2,3 +2,12 @@ db:
-         type: postgresql:13
-         disk: 1024
-         size: S
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -6,6 +6,15 @@ services:
+         database:
+             type: postgresql:16
+
+    +    varnish:
+    +        type: varnish:9.0
+    +        relationships:
+    +            application: 'app:http'
+    +        configuration:
+    +            vcl: !include
+    +                type: string
+    +                path: config.vcl
     +
-    +varnish:
-    +    type: varnish:6.0
-    +    relationships:
-    +        application: 'app:http'
-    +    configuration:
-    +        vcl: !include
-    +            type: string
-    +            path: config.vcl
+     applications:
 
 .. index::
     single: Upsun;Routes
@@ -583,17 +580,18 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/routes.yaml
-    +++ b/.symfony/routes.yaml
-    @@ -1,2 +1,2 @@
-    -"https://{all}/": { type: upstream, upstream: "app:http" }
-    +"https://{all}/": { type: upstream, upstream: "varnish:http", cache: { enabled: false } }
-     "http://{all}/": { type: redirect, to: "https://{all}/" }
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -1,5 +1,5 @@
+     routes:
+    -    "https://{all}/": { type: upstream, upstream: "app:http" }
+    +    "https://{all}/": { type: upstream, upstream: "varnish:http", cache: { enabled: false } }
+         "http://{all}/": { type: redirect, to: "https://{all}/" }
 
 最后，新建一个 ``config.vcl`` 文件来配置 Varnish：
 
 .. code-block:: vcl
-    :caption: .symfony/config.vcl
+    :caption: .upsun/config.vcl
 
     sub vcl_recv {
         set req.backend_hint = application.backend();
@@ -605,7 +603,7 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
 需要为每个请求显式启用 Varnish 上的 ESI 支持。为了使它具有通用性，Symfony 使用标准的 ``Surrogate-Capability`` 和 ``Surrogate-Control`` 头来协商 ESI 支持：
 
 .. code-block:: vcl
-    :caption: .symfony/config.vcl
+    :caption: .upsun/config.vcl
 
     sub vcl_recv {
         set req.backend_hint = application.backend();
@@ -629,8 +627,8 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/config.vcl
-    +++ b/.symfony/config.vcl
+    --- i/.upsun/config.vcl
+    +++ w/.upsun/config.vcl
     @@ -1,6 +1,13 @@
      sub vcl_recv {
          set req.backend_hint = application.backend();
@@ -646,27 +644,35 @@ Symfony 的 Process 组件可以用来运行一个命令，并且获得命令的
 
      sub vcl_backend_response {
 
-在真实场景下，你很可能会根据IP来限制访问，`Varnish 文档 <https://varnish-cache.org/docs/trunk/users-guide/purging.html>`_ 里有这方面的介绍。
+在真实场景下，你很可能会根据IP来限制访问，`Varnish 文档`_ 里有这方面的介绍。
 
 现在清理一些 URL 缓存：
 
 .. code-block:: terminal
 
-    $ curl -X PURGE -H 'x-purge-token PURGE_NOW' `symfony env:urls --first`
-    $ curl -X PURGE -H 'x-purge-token PURGE_NOW' `symfony env:urls --first`conference_header
+    $ curl -X PURGE -H 'x-purge-token: PURGE_NOW' `symfony cloud:env:url --pipe --primary`
+    $ curl -X PURGE -H 'x-purge-token: PURGE_NOW' `symfony cloud:env:url --pipe --primary`conference_header
 
 这些 URL 看起来有点奇怪，因为 ``env:urls`` 返回的URL已经以 ``/`` 结尾了。
 
 .. sidebar:: 深入学习
 
-    * `Cloudflare <https://www.cloudflare.com>`_，覆盖全球的云平台；
+    * `Cloudflare`_，覆盖全球的云平台；
 
-    * `Varnish 的 HTTP 缓存文档 <https://varnish-cache.org/docs/index.html>`_；
+    * `Varnish 的 HTTP 缓存文档`_；
 
-    * `ESI 规范 <https://www.w3.org/TR/esi-lang>`_ 和 `ESI 开发者资源 <https://www.akamai.com/us/en/support/esi.jsp>`_；
+    * `ESI 规范`_ 和 `ESI 开发者资源`_；
 
-    * `HTTP 缓存有效模型 <https://symfony.com/doc/current/http_cache/validation.html>`_；
+    * `HTTP 缓存有效模型`_；
 
-    * `Upsun中的HTTP缓存 <https://symfony.com/doc/current/cloud/cookbooks/cache.html>`_。
+    * `Upsun中的HTTP缓存`_。
 
+.. _`Blackfire`: https://blackfire.io/
+.. _`Varnish 文档`: https://varnish-cache.org/docs/trunk/users-guide/purging.html
 .. _`CDN`: https://en.wikipedia.org/wiki/Content_delivery_network
+.. _`Cloudflare`: https://www.cloudflare.com
+.. _`Varnish 的 HTTP 缓存文档`: https://varnish-cache.org/docs/index.html
+.. _`ESI 规范`: https://www.w3.org/TR/esi-lang
+.. _`ESI 开发者资源`: https://www.akamai.com/us/en/support/esi.jsp
+.. _`HTTP 缓存有效模型`: https://symfony.com/doc/current/http_cache/validation.html
+.. _`Upsun中的HTTP缓存`: https://symfony.com/doc/current/cloud/cookbooks/cache.html

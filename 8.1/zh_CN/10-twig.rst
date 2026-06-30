@@ -9,33 +9,6 @@
 
 你是否还记得，在之前的彩蛋环节，我们不得不在控制器中添加转义来避免安全问题吗？由于这个原因，我们在模板里不会用 PHP，而是用 Twig。`Twig`_ 除了帮我们处理转义之外，还有很多我们可以利用的好功能，比如模板继承。
 
-安装 Twig
------------
-
-我们不需要把 Twig 作为依赖包来安装，因为在安装 EasyAdmin 的时候它作为一个 *传递性依赖* （即依赖包的依赖包）已经被安装过了。但是如果你以后想要切换到另一个管理后台 bundle 会怎么样？比如说切换到一个提供 API 和用 React 作为前端的 bundle？这种 bundle 很可能不再依赖 Twig，所以在移除 EasyAdmin 的时候 Twig 会被自动移除。
-
-为了万无一失，让我们再告诉 Composer，不管用不用 EasyAdmin，我们的项目确实依赖 Twig。把它和其它依赖一样加进来就够了：
-
-.. code-block:: terminal
-
-    $ symfony composer req twig
-
-现在的 ``composer.json`` 文件里，Twig 是项目的直接依赖之一了：
-
-.. code-block:: diff
-    :class: ignore
-
-    --- a/composer.json
-    +++ b/composer.json
-    @@ -14,6 +14,7 @@
-             "symfony/framework-bundle": "4.4.*",
-             "symfony/maker-bundle": "^1.0@dev",
-             "symfony/orm-pack": "dev-master",
-    +        "symfony/twig-pack": "^1.0",
-             "symfony/yaml": "4.4.*"
-         },
-         "require-dev": {
-
 把 Twig 用于模板
 ---------------------
 
@@ -54,11 +27,16 @@
         <head>
             <meta charset="UTF-8">
             <title>{% block title %}Welcome!{% endblock %}</title>
-            {% block stylesheets %}{% endblock %}
+            <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
+            {% block stylesheets %}
+            {% endblock %}
+
+            {% block javascripts %}
+                {% block importmap %}{{ importmap('app') }}{% endblock %}
+            {% endblock %}
         </head>
         <body>
             {% block body %}{% endblock %}
-            {% block javascripts %}{% endblock %}
         </body>
     </html>
 
@@ -102,8 +80,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -2,22 +2,19 @@
 
      namespace App\Controller;
@@ -111,22 +89,22 @@
     +use App\Repository\ConferenceRepository;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
+     use Symfony\Component\Routing\Attribute\Route;
     +use Twig\Environment;
 
-     class ConferenceController extends AbstractController
+     final class ConferenceController extends AbstractController
      {
          #[Route('/', name: 'homepage')]
     -    public function index(): Response
     +    public function index(Environment $twig, ConferenceRepository $conferenceRepository): Response
          {
     -        return new Response(<<<EOF
-    -<html>
-    -    <body>
-    -        <img src="/images/under-construction.gif" />
-    -    </body>
-    -</html>
-    -EOF
+    -            <html>
+    -                <body>
+    -                    <img src="/images/under-construction.gif" />
+    -                </body>
+    -            </html>
+    -            EOF
     -        );
     +        return new Response($twig->render('conference/index.html.twig', [
     +            'conferences' => $conferenceRepository->findAll(),
@@ -154,24 +132,25 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -2,6 +2,8 @@
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -2,6 +2,9 @@
 
      namespace App\Controller;
 
     +use App\Entity\Conference;
     +use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
+    +use Symfony\Bridge\Doctrine\Attribute\MapEntity;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
      use Symfony\Component\HttpFoundation\Response;
-    @@ -17,4 +19,13 @@ class ConferenceController extends AbstractController
+    @@ -17,4 +20,13 @@ final class ConferenceController extends AbstractController
                  'conferences' => $conferenceRepository->findAll(),
              ]));
          }
     +
     +    #[Route('/conference/{id}', name: 'conference')]
-    +    public function show(Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
+    +    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository): Response
     +    {
     +        return new Response($twig->render('conference/show.html.twig', [
     +            'conference' => $conference,
@@ -180,7 +159,7 @@
     +    }
      }
 
-这个方法还有一个我们没见过的特殊行为。我们要求在该方法中注入一个 ``Conference`` 实例。但是数据库里可能有很多个会议。Symfony 能根据请求路径中的 ``{id}`` 来判断你要的是哪一个会议实例（``id`` 是数据库中 ``conference`` 表的主键）。
+这个方法还有一个我们没见过的特殊行为。我们要求在该方法中注入一个 ``Conference`` 实例。但是数据库里可能有很多个会议。``#[MapEntity]`` 属性告诉 Symfony 根据请求路径中的 ``{id}`` 来获取正确的那一个会议实例（``id`` 是数据库中 ``conference`` 表的主键）。
 
 可以通过 ``findBy()`` 方法来获取与这次会议相关的评论，该方法接受一个过滤标准作为参数。
 
@@ -209,7 +188,7 @@
         {% if comments|length > 0 %}
             {% for comment in comments %}
                 {% if comment.photofilename %}
-                    <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" />
+                    <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" style="max-width: 200px" />
                 {% endif %}
 
                 <h4>{{ comment.author }}</h4>
@@ -253,8 +232,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -7,5 +7,8 @@
 
          {% for conference in conferences %}
@@ -275,8 +254,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -8,7 +8,7 @@
          {% for conference in conferences %}
              <h4>{{ conference }}</h4>
@@ -303,9 +282,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Repository/CommentRepository.php
-    +++ b/src/Repository/CommentRepository.php
-    @@ -3,8 +3,10 @@
+    --- i/src/Repository/CommentRepository.php
+    +++ w/src/Repository/CommentRepository.php
+    @@ -3,19 +3,37 @@
      namespace App\Repository;
 
      use App\Entity\Comment;
@@ -315,12 +294,11 @@
     +use Doctrine\ORM\Tools\Pagination\Paginator;
 
      /**
-      * @method Comment|null find($id, $lockMode = null, $lockVersion = null)
-    @@ -14,11 +16,27 @@ use Doctrine\Persistence\ManagerRegistry;
+      * @extends ServiceEntityRepository<Comment>
       */
      class CommentRepository extends ServiceEntityRepository
      {
-    +    public const PAGINATOR_PER_PAGE = 2;
+    +    public const COMMENTS_PER_PAGE = 2;
     +
          public function __construct(ManagerRegistry $registry)
          {
@@ -333,7 +311,7 @@
     +            ->andWhere('c.conference = :conference')
     +            ->setParameter('conference', $conference)
     +            ->orderBy('c.createdAt', 'DESC')
-    +            ->setMaxResults(self::PAGINATOR_PER_PAGE)
+    +            ->setMaxResults(self::COMMENTS_PER_PAGE)
     +            ->setFirstResult($offset)
     +            ->getQuery()
     +        ;
@@ -341,9 +319,9 @@
     +        return new Paginator($query);
     +    }
     +
-         // /**
-         //  * @return Comment[] Returns an array of Comment objects
-         //  */
+         //    /**
+         //     * @return Comment[] Returns an array of Comment objects
+         //     */
 
 我们让每页最多可显示 2 条评论，这样方便测试。
 
@@ -352,37 +330,36 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -6,6 +6,7 @@ use App\Entity\Conference;
-     use App\Repository\CommentRepository;
-     use App\Repository\ConferenceRepository;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -8,6 +8,7 @@ use App\Repository\ConferenceRepository;
+     use Symfony\Bridge\Doctrine\Attribute\MapEntity;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
+    +use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
      use Twig\Environment;
-    @@ -21,11 +22,16 @@ class ConferenceController extends AbstractController
+
+    @@ -22,11 +23,15 @@ final class ConferenceController extends AbstractController
          }
 
          #[Route('/conference/{id}', name: 'conference')]
-    -    public function show(Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
+    -    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository): Response
+    +    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-    +        $offset = max(0, $request->query->getInt('offset', 0));
     +        $paginator = $commentRepository->getCommentPaginator($conference, $offset);
     +
              return new Response($twig->render('conference/show.html.twig', [
                  'conference' => $conference,
     -            'comments' => $commentRepository->findBy(['conference' => $conference], ['createdAt' => 'DESC']),
     +            'comments' => $paginator,
-    +            'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
-    +            'next' => min(count($paginator), $offset + CommentRepository::PAGINATOR_PER_PAGE),
+    +            'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+    +            'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
              ]));
          }
      }
 
-控制器从 Request 对象里的查询字符串（``$request->query``）获取 ``offset`` 值，如果这个值不存在就用默认值 0。
+``#[MapQueryParameter]`` 属性把查询字符串里的 ``offset`` 参数映射到控制器的 ``$offset`` 参数上，当它没有设置时默认值为 ``0``。由于偏移量来自客户端，``min_range`` 选项会校验它不为负数；当该值无效时，Symfony 会返回一个 404 应答。
 
 ``previous`` 和 ``next`` 的偏移量会根据分页器提供的所有信息计算出来。
 
@@ -394,8 +371,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -6,6 +6,8 @@
          <h2>{{ conference }} Conference</h2>
 
@@ -404,7 +381,7 @@
     +
              {% for comment in comments %}
                  {% if comment.photofilename %}
-                     <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" />
+                     <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" style="max-width: 200px" />
     @@ -18,6 +20,13 @@
 
                  <p>{{ comment.text }}</p>
@@ -435,57 +412,64 @@
 重构控制器
 ---------------
 
-你可能注意到了，``ConferenceController`` 类里的两个方法都用到了 Twig 的 Environment 实例作为参数。我们可以不用把它注入到每个方法里，而是用构造函数注入来代替（这样可以让参数列表更短，而且减少重复）：
+你可能注意到了，``ConferenceController`` 类里的两个方法都用到了 Twig 的 Environment 实例作为参数。我们可以不用把它注入到每个方法里，而是利用父类提供的 ``render()`` 辅助方法：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -13,21 +13,28 @@ use Twig\Environment;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -9,28 +9,27 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
+    -use Twig\Environment;
 
-     class ConferenceController extends AbstractController
+     final class ConferenceController extends AbstractController
      {
-    +    private $twig;
-    +
-    +    public function __construct(Environment $twig)
-    +    {
-    +        $this->twig = $twig;
-    +    }
-    +
          #[Route('/', name: 'homepage')]
     -    public function index(Environment $twig, ConferenceRepository $conferenceRepository): Response
     +    public function index(ConferenceRepository $conferenceRepository): Response
          {
     -        return new Response($twig->render('conference/index.html.twig', [
-    +        return new Response($this->twig->render('conference/index.html.twig', [
+    +        return $this->render('conference/index.html.twig', [
                  'conferences' => $conferenceRepository->findAll(),
-             ]));
+    -        ]));
+    +        ]);
          }
 
          #[Route('/conference/{id}', name: 'conference')]
-    -    public function show(Request $request, Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+    -    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    public function show(#[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
     -        return new Response($twig->render('conference/show.html.twig', [
-    +        return new Response($this->twig->render('conference/show.html.twig', [
+    +        return $this->render('conference/show.html.twig', [
                  'conference' => $conference,
                  'comments' => $paginator,
-                 'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
+                 'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+                 'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
+    -        ]));
+    +        ]);
+         }
+     }
 
 .. sidebar:: 深入学习
 
-    * `Twig 文档 <https://twig.symfony.com/doc/2.x/>`_；
+    * `Twig 文档`_；
 
-    * 在 Symfony 应用中 `创建和使用模板 <https://symfony.com/doc/current/templates.html>`_；
+    * 在 Symfony 应用中 `创建和使用模板`_；
 
-    * `SymfonyCasts 的 Twig 教程 <https://symfonycasts.com/screencast/symfony/twig-recipe>`_；
+    * `SymfonyCasts 的 Twig 教程`_；
 
-    * `仅在 Symfony 应用中可用的 Twig 函数和过滤器 <https://symfony.com/doc/current/reference/twig_reference.html>`_；
+    * `仅在 Symfony 应用中可用的 Twig 函数和过滤器`_；
 
-    * `AbstractController 控制器基类 <https://symfony.com/doc/current/controller.html#the-base-controller-classes-services>`_。
+    * `AbstractController 控制器基类`_。
 
 .. _`Twig`: https://twig.symfony.com/
+.. _`Twig 文档`: https://twig.symfony.com/doc/3.x/
+.. _`创建和使用模板`: https://symfony.com/doc/current/templates.html
+.. _`SymfonyCasts 的 Twig 教程`: https://symfonycasts.com/screencast/symfony/twig-recipe
+.. _`仅在 Symfony 应用中可用的 Twig 函数和过滤器`: https://symfony.com/doc/current/reference/twig_reference.html
+.. _`AbstractController 控制器基类`: https://symfony.com/doc/current/controller.html#the-base-controller-classes-services

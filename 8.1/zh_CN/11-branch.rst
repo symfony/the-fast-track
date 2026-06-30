@@ -67,45 +67,24 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -7,7 +7,7 @@ framework:
-         # Enables session support. Note that the session will ONLY be started if you read or write from it.
-         # Remove or comment this section to explicitly disable session support.
-         session:
-    -        handler_id: null
-    +        handler_id: '%env(DATABASE_URL)%'
-             cookie_secure: auto
-             cookie_samesite: lax
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -3,7 +3,8 @@ framework:
+         secret: '%env(APP_SECRET)%'
+
+         # Note that the session will be started ONLY if you read or write from it.
+    -    session: true
+    +    session:
+    +        handler_id: '%env(resolve:DATABASE_URL)%'
+
+         #esi: true
+         #fragments: true
 
 为了把会话存储在数据库中，我们需要创建 ``sessions`` 表。用 Doctrine 的数据库迁移来实现：
 
 .. code-block:: terminal
 
     $ symfony console make:migration
-
-编辑文件，在 ``up()`` 方法中加入表的创建。
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/migrations/Version00000000000000.php
-    +++ b/migrations/Version00000000000000.php
-    @@ -21,6 +21,14 @@ final class Version00000000000000 extends AbstractMigration
-         {
-             // this up() migration is auto-generated, please modify it to your needs
-
-    +        $this->addSql('
-    +            CREATE TABLE sessions (
-    +                sess_id VARCHAR(128) NOT NULL PRIMARY KEY,
-    +                sess_data BYTEA NOT NULL,
-    +                sess_lifetime INTEGER NOT NULL,
-    +                sess_time INTEGER NOT NULL
-    +            )
-    +        ');
-         }
-
-         public function down(Schema $schema): void
 
 迁移数据库：
 
@@ -119,23 +98,6 @@
 .. note::
 
     由于我们在会话存储里重用了数据库，我们不需要第 3 到第 5 步，但在关于 Redis 的那一章里，我们会看到在 Docker 和 Upsun 里增加、测试和部署一个新服务是很直接明了的。
-
-由于这个新表并不是由 Doctrine 来“管理”的，所以我们必须配置 Doctrine，以防它在下次数据库迁移时将该表移除：
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/packages/doctrine.yaml
-    +++ b/config/packages/doctrine.yaml
-    @@ -5,6 +5,8 @@ doctrine:
-             # IMPORTANT: You MUST configure your server version,
-             # either here or in the DATABASE_URL env var (see .env file)
-             #server_version: '13'
-    +
-    +        schema_filter: ~^(?!session)~
-         orm:
-             auto_generate_proxy_classes: true
-             naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
 
 把你的修改提交到这条新分支：
 
@@ -154,19 +116,19 @@
 在部署到生成环境之前，我们必须在和生成环境一样的软件配置中测试这个分支。我们也需要确保在 Symfony 的 ``prod`` 环境中一切正常运行（本地网站则使用了 Symfony 的 ``dev`` 环境）。
 
 .. index::
-    single: Symfony CLI;env:delete
-    single: Symfony CLI;env:create
+    single: Symfony CLI;cloud:env:delete
+    single: Symfony CLI;cloud:env:create
 
 现在，让我们来根据 *Git 分支* 创建一个 *Upsun 环境*：
 
 .. code-block:: terminal
     :class: hide
 
-    $ symfony env:delete sessions-in-db --no-interaction
+    $ symfony cloud:env:delete sessions-in-db
 
 .. code-block:: terminal
 
-    $ symfony env:create
+    $ symfony cloud:push
 
 这个命令创建了一个新的环境，如下所示：
 
@@ -181,16 +143,16 @@
 这些非 ``master`` 环境和 ``master`` 环境非常相似，除了一些小的差异：比如，默认情况下非 ``master`` 环境不发送邮件。
 
 .. index::
-    single: Symfony CLI;open:remote
+    single: Symfony CLI;cloud:url
 
 当部署完成后，用浏览器打开这个新分支的页面：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony open:remote
+    $ symfony cloud:url -1
 
-请注意所有的 Upsun 命令在当前 Git 分支上都可以运行。上面的操作会打开 ``sessions-in-db`` 分支上部署的 URL，它的形式类似 ``https://sessions-in-db-xxx.eu.s5y.io/``。
+请注意所有的 Upsun 命令在当前 Git 分支上都可以运行。上面的操作会打开 ``sessions-in-db`` 分支上部署的 URL，它的形式类似 ``https://sessions-in-db-xxx.eu-5.platformsh.site/``。
 
 在新环境中测试下网站，你应该会看到在主环境中添加的所有数据。
 
@@ -199,14 +161,14 @@
 如果 master 分支上的代码继续不断更新，你总是可以对 Git 分支进行 rebase，然后部署更新的版本，从而解决代码和软件环境配置的冲突。
 
 .. index::
-    single: Symfony CLI;env:sync
+    single: Symfony CLI;cloud:env:sync
 
 你甚至可以把 master 上的数据同步回 ``sessions-in-db`` 环境：
 
 .. code-block:: terminal
     :class: answers(y)
 
-    $ symfony env:sync
+    $ symfony cloud:env:sync
 
 在部署前调试生产部署
 ------------------------------
@@ -217,19 +179,19 @@
 默认情况下，所有 Upsun 上的环境设置和 ``master``/``prod`` 环境是一样的（也就是 Symfony 的 ``prod`` 环境）。这样你才能在真实条件下测试应用程序。你会觉得像是在生产服务器上直接开发和测试，但此时你却没有直接操作生产服务器的风险。这让我想起来了过去用 FTP 部署时的美好时光。
 
 .. index::
-    single: Symfony CLI;env:debug
+    single: Symfony CLI;cloud:env:debug
 
 出问题的时候，你可以切换到 Symfony 的 ``dev`` 环境：
 
 .. code-block:: terminal
 
-    $ symfony env:debug
+    $ symfony cloud:env:debug
 
 当排查完错误后，返回到生产环境的设置：
 
 .. code-block:: terminal
 
-    $ symfony env:debug --off
+    $ symfony cloud:env:debug --off
 
 .. warning::
 
@@ -238,15 +200,15 @@
 在部署前测试生产部署
 ------------------------------
 
-用生产数据预览即将发布的网站版本，这带来了很多可能性，无论是对于用户界面/前端的回归测试，还是性能测试。`Blackfire <https://blackfire.io>`_ 是用来做性能测试的完美工具。
+用生产数据预览即将发布的网站版本，这带来了很多可能性，无论是对于用户界面/前端的回归测试，还是性能测试。`Blackfire`_ 是用来做性能测试的完美工具。
 
-参考关于“性能”的那个步骤，从而更多了解如何使用 Blackfire 在部署前测试你的代码。
+参考 :doc:`性能 <29-performance>` 那个步骤，从而更多了解如何使用 Blackfire 在部署前测试你的代码。
 
 合并到生产环境
 ---------------------
 
 .. index::
-    single: Symfony CLI;deploy
+    single: Symfony CLI;cloud:push
     single: Git;checkout
     single: Git;merge
 
@@ -261,7 +223,7 @@
 
 .. code-block:: terminal
 
-    $ symfony deploy
+    $ symfony cloud:push
 
 部署的时候，只有代码和软件环境配置的更新会被推送到 Upsun；数据不会受到任何影响。
 
@@ -269,7 +231,7 @@
 ------
 
 .. index::
-    single: Symfony CLI;env:delete
+    single: Symfony CLI;cloud:env:delete
     single: Git;branch
 
 最后，移除 Git 分支和 Upsun 环境：
@@ -277,10 +239,12 @@
 .. code-block:: terminal
 
     $ git branch -d sessions-in-db
-    $ symfony env:delete --env=sessions-in-db --no-interaction
+    $ symfony cloud:env:delete -e sessions-in-db
 
 .. sidebar:: 深入学习
 
-    * `Git 分支管理 <https://www.git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell>`_；
+    * `Git 分支管理`_；
 
 .. _`利益相关者`: https://en.wikipedia.org/wiki/Project_stakeholder
+.. _`Git 分支管理`: https://www.git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell
+.. _`Blackfire`: https://blackfire.io

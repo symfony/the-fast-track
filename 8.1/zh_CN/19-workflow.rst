@@ -75,18 +75,16 @@
 .. index::
     single: Command;workflow:dump
 
-为了验证这个流程，可以生成一个示意图：
+为了验证这个流程，可以生成一份 Mermaid 格式的可视化表示：
 
 .. code-block:: terminal
 
     $ symfony console workflow:dump comment --dump-format=mermaid
 
+把输出粘贴到 `Mermaid Live Editor`_ 里来渲染它；GitHub 和 GitLab 也会在 Markdown 文件中原生渲染 Mermaid 示意图：
+
 .. image:: images/workflow.png
     :align: center
-
-.. note::
-
-    ``dot`` 命令是 `Graphviz`_ 工具的一部分。
 
 使用工作流
 ---------------
@@ -226,8 +224,10 @@
 
 .. sidebar:: 深入学习
 
-    * `工作流和状态机 <https://symfony.com/doc/current/workflow/workflow-and-state-machine.html>`_ 以及如何在它们中选择；
+    * `工作流和状态机`_ 以及如何在它们中选择；
 
-    * `Symfony 工作流文档 <https://symfony.com/doc/current/workflow.html>`_。
+    * `Symfony 工作流文档`_。
 
-.. _`Graphviz`: https://www.graphviz.org/
+.. _`Mermaid Live Editor`: https://mermaid.live/
+.. _`工作流和状态机`: https://symfony.com/doc/current/workflow/workflow-and-state-machine.html
+.. _`Symfony 工作流文档`: https://symfony.com/doc/current/workflow.html

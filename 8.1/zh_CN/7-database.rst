@@ -16,26 +16,41 @@ PostgreSQL 是我们选用的数据库。
 .. index::
     single: Docker;PostgreSQL
 
-在我们的本地电脑上，我们决定用Docker来管理服务。创建一个 ``docker-compose.yaml`` 文件，加入 PostgreSQL 作为一个服务：
+在我们的本地电脑上，我们决定用 Docker 来管理服务。生成的 ``compose.yaml`` 文件里已经包含了 PostgreSQL 作为一个服务：
 
 .. code-block:: yaml
-    :caption: docker-compose.yaml
-    :emphasize-lines: 4,5,10
+    :caption: compose.yaml
+    :emphasize-lines: 2,3
+    :class: ignore
 
-    version: '3'
-
-    services:
-        database:
-            image: postgres:13-alpine
-            environment:
-                POSTGRES_USER: main
-                POSTGRES_PASSWORD: main
-                POSTGRES_DB: main
-            ports: [5432]
+    ###> doctrine/doctrine-bundle ###
+    database:
+        image: postgres:${POSTGRES_VERSION:-16}-alpine
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB:-app}
+            # You should definitely change the password in production
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe}
+            POSTGRES_USER: ${POSTGRES_USER:-app}
+    volumes:
+        - db-data:/var/lib/postgresql/data:rw
+        # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+        # - ./docker/db/data:/var/lib/postgresql/data:rw
+    ###< doctrine/doctrine-bundle ###
 
 这个步骤会安装一个 PostgreSQL 服务器，并配置一些环境变量来设置数据库名和账号密码。具体的值不重要。
 
-我们把容器的 PostgreSQL 端口（``5432``）暴露给本地机器，这样它就可以连接到数据库了。
+我们把容器的 PostgreSQL 端口（``5432``）暴露给本地机器，这样它就可以连接到数据库了：
+
+.. code-block:: yaml
+    :caption: compose.override.yaml
+    :emphasize-lines: 4
+    :class: ignore
+
+    ###> doctrine/doctrine-bundle ###
+    database:
+        ports:
+        - "5432"
+    ###< doctrine/doctrine-bundle ###
 
 .. note::
 
@@ -47,31 +62,36 @@ PostgreSQL 是我们选用的数据库。
 在后台运行 Docker Compose（使用 ``-d`` 选项）：
 
 .. code-block:: terminal
+    :class: hide
 
-    $ docker-compose up -d
+    $ docker compose down --remove-orphans
+
+.. code-block:: terminal
+
+    $ docker compose up -d --remove-orphans
 
 先稍等一下，让数据库启动，然后检查是否一切正常：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ docker-compose ps
+    $ docker compose ps
 
             Name                      Command              State            Ports
     ---------------------------------------------------------------------------------------
     guestbook_database_1   docker-entrypoint.sh postgres   Up      0.0.0.0:32780->5432/tcp
 
-如果没有容器在运行，或者 ``State`` 栏不是显示为 ``Up``，检查一下Docker Compose 的日志：
+如果没有容器在运行，或者 ``State`` 栏不是显示为 ``Up``，检查一下 Docker Compose 的日志：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ docker-compose logs
+    $ docker compose logs
 
 连入本地数据库
 ---------------------
 
-你时不时会用到 ``psql`` 这个命令行小工具。但是你需要记住数据库名以及账号密码。更加不太为人所熟悉的一点是，你还需要知道数据库运行时的本地端口。Docker 会选用一个随机端口，这样你就可以同时开发多个使用了 PostgreSQL 的项目（本地端口是 ``docker-compose ps`` 命令输出中的一部分）。
+你时不时会用到 ``psql`` 这个命令行小工具。但是你需要记住数据库名以及账号密码。更加不太为人所熟悉的一点是，你还需要知道数据库运行时的本地端口。Docker 会选用一个随机端口，这样你就可以同时开发多个使用了 PostgreSQL 的项目（本地端口是 ``docker compose ps`` 命令输出中的一部分）。
 
 如果你在 ``symfony`` 命令里使用 ``psql``，你就不必记住任何信息。
 
@@ -80,7 +100,7 @@ PostgreSQL 是我们选用的数据库。
 .. index::
     single: Symfony CLI;run psql
 
-多亏这些约定，使用 ``symfony run`` 来连接数据库方便多了。
+多亏这些约定，使用 ``symfony run`` 来连接数据库方便多了：
 
 .. code-block:: terminal
     :class: ignore
@@ -89,12 +109,12 @@ PostgreSQL 是我们选用的数据库。
 
 .. note::
 
-    如果你在本机上没有 ``psql`` 这个二进制文件，你也可以通过 ``docker-compose`` 来运行它：
+    如果你在本机上没有 ``psql`` 这个二进制文件，你也可以通过 ``docker compose`` 来运行它：
 
     .. code-block:: terminal
         :class: ignore
 
-        $ docker-compose exec database psql main
+        $ docker compose exec database psql app app
 
 导出和恢复数据库的数据
 ---------------------------------
@@ -118,84 +138,45 @@ PostgreSQL 是我们选用的数据库。
 
     $ symfony run psql < dump.sql
 
-.. warning::
-
-    如果你不想丢失数据，绝不要使用 ``docker-compose down``。或者先备份一下。
-
 在 Upsun 中加入 PostgreSQL
 -------------------------------------
 
 .. index::
     single: Upsun;PostgreSQL
 
-在 Upsun 的生产环境软件设施里，添加一个诸如 PostgreSQL 这样的服务，是通过修改 ``.symfony/services.yaml`` 这个文件来完成的，该文件目前还是空的：
+在 Upsun 的生产环境软件设施里，添加一个诸如 PostgreSQL 这样的服务，是通过修改 ``.upsun/config.yaml`` 文件来完成的，而这一步已经由 ``webapp`` 包的 recipe 帮我们做好了：
 
 .. code-block:: yaml
-    :caption: .symfony/services.yaml
+    :caption: .upsun/config.yaml
+    :class: ignore
 
-    db:
-        type: postgresql:13
-        disk: 1024
-        size: S
+    database:
+        type: postgresql:16
 
-这个 ``db`` 服务是一个 PostgreSQL 数据库（和 Docker 里的版本一样），我们会让它在一个 1GB 磁盘空间的小容器中运行。
+这个 ``database`` 服务是一个 PostgreSQL 数据库（和 Docker 里的版本一样）。Upsun 会在第一次部署时自动为它分配磁盘空间；如有需要，之后可以用 ``symfony cloud:resources:set`` 来调整。
 
-我们也需要把数据库“链接”到应用的容器，这需要去编辑 ``.symfony.cloud.yaml`` 文件：
+我们也需要把数据库“链接”到应用的容器，这同样描述在 ``.upsun/config.yaml`` 文件里：
 
 .. code-block:: yaml
-    :caption: .symfony.cloud.yaml
+    :caption: .upsun/config.yaml
     :class: ignore
 
     relationships:
-        database: "db:postgresql"
+        database: "database:postgresql"
 
-在应用容器中，``postgresql`` 类型的 ``db`` 服务被称为 ``database``。
+在应用容器中，``postgresql`` 类型的 ``database`` 服务被引用为 ``database``。
 
-最后一步是在 PHP 运行时中添加 ``pdo_pgsql`` 扩展。
+检查一下 ``pdo_pgsql`` 扩展是否已经为 PHP 运行时安装好了：
 
 .. code-block:: yaml
-    :caption: .symfony.cloud.yaml
+    :caption: .upsun/config.yaml
     :class: ignore
 
     runtime:
         extensions:
+            # other extensions
             - pdo_pgsql
-            # other extensions here
-
-这里是对 ``.symfony.cloud.yaml`` 文件改动的全部差别比对：
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -4,6 +4,7 @@ type: php:8.0
-
-     runtime:
-         extensions:
-    +        - pdo_pgsql
-             - apcu
-             - mbstring
-             - sodium
-    @@ -21,6 +22,9 @@ build:
-
-     disk: 512
-
-    +relationships:
-    +    database: "db:postgresql"
-    +
-     web:
-         locations:
-             "/":
-
-提交这些改变，然后重新部署到 Upsun：
-
-.. code-block:: terminal
-    :class: ignore
-
-    $ git add .
-    $ git commit -m'Configuring the database'
-    $ symfony deploy
+            # other extensions
 
 连入 Upsun 数据库
 -----------------------------
@@ -206,8 +187,9 @@ PostgreSQL 是我们选用的数据库。
 
 .. index::
     single: Upsun;Tunnel
-    single: Symfony CLI;tunnel:open
-    single: Symfony CLI;tunnel:close
+    single: Symfony CLI;cloud:tunnel:open
+    single: Symfony CLI;cloud:tunnel:close
+    single: Symfony CLI;var:expose-from-tunnel
     single: Symfony CLI;run psql
 
 如果你想要连接到生产环境容器中的 PostgreSQL，你需要打开一个 SSH 隧道来接通你的本地电脑和 Upsun 平台设施：
@@ -215,9 +197,10 @@ PostgreSQL 是我们选用的数据库。
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:open --expose-env-vars
+    $ symfony cloud:tunnel:open
+    $ symfony var:expose-from-tunnel
 
-默认情况下，Upsun 服务不会在你的本地电脑上以环境变量暴露出来。要想把它们暴露出来，你必须明确设置 ``--expose-env-vars`` 选项。为什么要这样呢？连接到生产数据库是一个危险的操作。你可能会破坏 *真实的* 数据。强制设置那个选项，是要你确认这 *的确是* 你想要做的操作。
+默认情况下，Upsun 服务不会在你的本地电脑上以环境变量暴露出来。要想把它们暴露出来，你必须明确运行 ``var:expose-from-tunnel`` 命令。为什么要这样呢？连接到生产数据库是一个危险的操作。你可能会破坏 *真实的* 数据。
 
 现在，用 ``symfony run psql`` 连接到远程的 PostgreSQL 服务器，和以前一样：
 
@@ -231,7 +214,7 @@ PostgreSQL 是我们选用的数据库。
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:close
+    $ symfony cloud:tunnel:close
 
 .. tip::
 
@@ -255,21 +238,22 @@ PostgreSQL 是我们选用的数据库。
 
     PGHOST=127.0.0.1
     PGPORT=32781
-    PGDATABASE=main
-    PGUSER=main
-    PGPASSWORD=main
+    PGDATABASE=app
+    PGUSER=app
+    PGPASSWORD=!ChangeMe!
     # ...
 
 ``psql`` 小工具会读取 ``PG*`` 形式的环境变量。那其它环境变量呢？
 
-如果一条隧道设置了 ``--expose-env-vars`` 选项并且连接到了 Upsun，那么 ``var:export`` 命令就会返回远程的环境变量：
+如果一条隧道通过 ``var:expose-from-tunnel`` 连接到了 Upsun，那么 ``var:export`` 命令就会返回远程的环境变量：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:open --expose-env-vars
+    $ symfony cloud:tunnel:open
+    $ symfony var:expose-from-tunnel
     $ symfony var:export
-    $ symfony tunnel:close
+    $ symfony cloud:tunnel:close
 
 描述你的基础设施
 ------------------------
@@ -278,10 +262,15 @@ PostgreSQL 是我们选用的数据库。
 
 .. sidebar:: 深入学习
 
-    * `Upsun 服务 <https://symfony.com/doc/current/cloud/services/intro.html#available-services>`_；
+    * `Upsun 服务`_；
 
-    * `Upsun 隧道 <https://symfony.com/doc/master/cloud/services/intro.html#connecting-to-a-service>`_；
+    * `Upsun 隧道`_；
 
-    * `PostgreSQL 文档 <https://www.postgresql.org/docs/>`_；
+    * `PostgreSQL 文档`_；
 
-    * `docker-compose 命令 <https://docs.docker.com/compose/reference/>`_。
+    * `Docker Compose 命令`_。
+
+.. _`Upsun 服务`: https://symfony.com/doc/current/cloud/services/intro.html#available-services
+.. _`Upsun 隧道`: https://symfony.com/doc/current/cloud/services/intro.html#connecting-to-a-service
+.. _`PostgreSQL 文档`: https://www.postgresql.org/docs/
+.. _`Docker Compose 命令`: https://docs.docker.com/reference/cli/docker/compose/

@@ -5,21 +5,17 @@
     single: Blackfire
     single: Profiler
 
-.. epigraph::
-
-    过早的优化是万恶之源。
+过早的优化是万恶之源。
 
 或许你之前已经听过这句引用的话。但我想要完整引用它：
 
-.. epigraph::
+大概在 97% 的情况下，我们都应该忽略小的性能优化：过早的优化是万恶之源。但是我们不应放弃那关键的 3% 优化机会。
 
-    大概在 97% 的情况下，我们都应该忽略小的性能优化：过早的优化是万恶之源。但是我们不应放弃那关键的 3% 优化机会。
-
-    --   Donald Knuth
+--   Donald Knuth
 
 即便是小的性能提升也能带来很大的改变，尤其是对于电子商务网站。现在留言本应用已经准备好迎接访问高峰，我们来看看如何检查它的性能。
 
-找到性能优化点的最好途径就是使用一个 *分析器*。现在最流行的选择是 `Blackfire <https://blackfire.io>`_ （ *完全免责声明*：我也是 Blackfire 项目的创始人）。
+找到性能优化点的最好途径就是使用一个 *分析器*。现在最流行的选择是 `Blackfire`_ （ *完全免责声明*：我也是 Blackfire 项目的创始人）。
 
 Blackfire 介绍
 ----------------
@@ -32,24 +28,31 @@ Blackfire 由几部分组成：
 
 * 一个用于分析 PHP 代码的 PHP 扩展（即 *probe* 扩展）。
 
-你要先在 Blackfire 上 `注册 <https://blackfire.io/signup>`_ 才能使用它。
+你要先在 Blackfire 上 `注册`_ 才能使用它。
 
 运行下面这个快速安装脚本，它会在你的本地机器上安装 Blackfire：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ curl https://installer.blackfire.io/ | bash
+    $ curl https://installer.blackfire.io/installer.sh | bash
 
-这个安装器会下载 Blackfire 的命令行程序，然后在所有可用 PHP 版本里安装 PHP 的 probe 扩展（但不会启用它）。
+这个安装器会下载并安装 Blackfire 的命令行程序。
 
-为我们的项目启用 PHP 的 probe 扩展：
+完成后，在所有可用的 PHP 版本里安装 PHP 的 probe 扩展：
+
+.. code-block:: terminal
+    :class: ignore
+
+    $ sudo blackfire php:install
+
+然后为我们的项目启用 PHP 的 probe 扩展：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/php.ini
-    +++ b/php.ini
+    --- i/php.ini
+    +++ w/php.ini
     @@ -7,3 +7,7 @@ session.use_strict_mode=On
      realpath_cache_ttl=3600
      zend.detect_unicode=Off
@@ -67,16 +70,12 @@ Blackfire 由几部分组成：
     $ symfony server:stop
     $ symfony server:start -d
 
-Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这样你的项目配置才能存储在你的个人账号下）。你能在 ``Settings/Credentials`` `页 <https://blackfire.io/my/settings/credentials>`_ 的顶部找到这个凭证，用它来替换以下这个命令中的占位符，并且执行该命令：
+Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这样你的项目配置才能存储在你的个人账号下）。你能在 ``Settings/Credentials`` `页`_ 的顶部找到这个凭证，用它来替换以下这个命令中的占位符，并且执行该命令：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ blackfire config --client-id=xxx --client-token=xxx
-
-.. note::
-
-    完整的安装步骤可以按照 `官方的安装指导详情 <https://blackfire.io/docs/up-and-running/installation>`_ 来做。当在服务器上安装 Blackfire 时，这会很有用。
+    $ blackfire client:config --client-id=xxx --client-token=xxx
 
 在 Docker 上设置 Blackfire 代理
 -------------------------------------
@@ -85,38 +84,39 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
     single: Docker;Blackfire
     single: Blackfire;Agent
 
-最后一步就是在 Docker Compose 栈中加入 Blackfire 代理服务：
+Blackfire 代理服务已经在 Docker Compose 栈中配置好了：
 
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/docker-compose.yaml
-    +++ b/docker-compose.yaml
-    @@ -12,3 +12,8 @@ services:
-         mailer:
-             image: schickling/mailcatcher
-             ports: [1025, 1080]
-    +
-    +    blackfire:
-    +        image: blackfire/blackfire
-    +        env_file: .env.local
-    +        ports: [8707]
-
-你需要获取自己的 *服务器* 凭证才能和服务器通信（这些凭证会识别出你想要在哪里存储配置——你可以为每个项目创建一个凭证）；你可以在 ``Settings/Credentials`` `页面 <https://blackfire.io/my/settings/credentials>`_ 底部找到它们。把它们存储在本地的 ``.env.local`` 文件中：
-
-.. code-block:: text
+.. code-block:: yaml
+    :caption: compose.override.yaml
     :class: ignore
 
-    BLACKFIRE_SERVER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    BLACKFIRE_SERVER_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ###> blackfireio/blackfire-symfony-meta ###
+    blackfire:
+        image: blackfire/blackfire:2
+        # uncomment to store Blackfire credentials in a local .env.local file
+        #env_file: .env.local
+        environment:
+        BLACKFIRE_LOG_LEVEL: 4
+        ports: [8307]
+    ###< blackfireio/blackfire-symfony-meta ###
+
+你需要获取自己的 *服务器* 凭证才能和服务器通信（这些凭证会识别出你想要在哪里存储配置——你可以为每个项目创建一个凭证）；你可以在 ``Settings/Credentials`` `页`_ 底部找到它们。把它们存储为机密（secret）：
+
+.. code-block:: terminal
+    :class: ignore
+
+    $ symfony console secrets:set BLACKFIRE_SERVER_ID
+    # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    $ symfony console secrets:set BLACKFIRE_SERVER_TOKEN
+    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 现在你可以启动新容器：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ docker-compose stop
-    $ docker-compose up -d
+    $ docker compose stop
+    $ docker compose up -d --remove-orphans
 
 针对 Blackfire 安装后无法运行进行修复
 --------------------------------------------------
@@ -127,8 +127,8 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
     :caption: patch_file
     :class: ignore
 
-    --- a/php.ini
-    +++ b/php.ini
+    --- i/php.ini
+    +++ w/php.ini
     @@ -10,3 +10,4 @@ zend.detect_unicode=Off
      [blackfire]
      # use php_blackfire.dll on Windows
@@ -152,7 +152,6 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 
 再做一次分析并且检查日志输出。
 
-
 在生产环境中配置 Blackfire
 ----------------------------------
 
@@ -161,29 +160,33 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 
 在所有的 Upsun 项目里，Blackfire 是默认包含的。
 
-把 *服务器* 凭证设置为环境变量：
+把 *服务器* 凭证设置为 **生产环境** 的机密：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony var:set BLACKFIRE_SERVER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    $ symfony var:set BLACKFIRE_SERVER_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    $ symfony console secrets:set BLACKFIRE_SERVER_ID --env=prod
+    # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    $ symfony console secrets:set BLACKFIRE_SERVER_TOKEN --env=prod
+    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-启用 PHP 的 probe 扩展，操作方式和启用其它扩展一样：
+PHP 的 probe 扩展已经像其它需要的 PHP 扩展一样启用了：
 
-.. code-block:: diff
-    :caption: patch_file
+.. code-block:: yaml
+    :caption: .upsun/config.yaml
+    :emphasize-lines: 9
+    :class: ignore
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -4,6 +4,7 @@ type: php:8.0
-
-     runtime:
-         extensions:
-    +        - blackfire
-             - xsl
-             - pdo_pgsql
-             - apcu
+    runtime:
+        extensions:
+            - apcu
+            - blackfire
+            - ctype
+            - iconv
+            - mbstring
+            - pdo_pgsql
+            - sodium
+            - xsl
 
 为 Blackfire 配置 Varnish
 ----------------------------
@@ -205,12 +208,12 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/config.vcl
-    +++ b/.symfony/config.vcl
+    --- i/.upsun/config.vcl
+    +++ w/.upsun/config.vcl
     @@ -1,3 +1,11 @@
     +acl profile {
     +   # Authorize the local IP address (replace with the IP found above)
-    +   "a.b.c.d";
+    +   "192.168.0.1";
     +   # Authorize Blackfire servers
     +   "46.51.168.2";
     +   "54.75.240.245";
@@ -245,24 +248,15 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 .. index::
     single: Profiling;Web Pages
 
-你能通过火狐或谷歌浏览器的 `专用扩展 <https://blackfire.io/docs/integrations/browsers/index>`_ 来对传统的网页进行性能分析。
+你能通过火狐或谷歌浏览器的 `专用扩展`_ 来对传统的网页进行性能分析。
 
-在本地电脑上分析性能时，别忘了在 ``config/packages/framework.yaml`` 文件中禁用 HTTP 缓存：不然的话，你分析的就是 Symfony 的 HTTP 缓存，而不是你自己的代码：
-
-.. code-block:: diff
-    :caption: patch_file
-    :class: ignore
-
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -16,4 +16,4 @@ framework:
-         php_errors:
-             log: true
-
-    -    http_cache: true
-    +    #http_cache: true
+在本地电脑上分析性能时，别忘了在 ``config/packages/framework.yaml`` 文件中禁用 HTTP 缓存：不然的话，你分析的就是 Symfony 的 HTTP 缓存，而不是你自己的代码。
 
 你需要对“生产”环境做性能分析，这样才能更好地了解生产环境中应用程序的性能如何。默认情况下，你的本地环境是“开发”环境，它会增加很多额外的性能开销（主要用来为 web 调试栏和 Symfony 分析器收集数据）。
+
+.. note::
+
+    由于我们将对“生产”环境进行性能分析，配置上无需改动什么，因为在前面一章里我们只为“开发”环境启用了 Symfony 的 HTTP 缓存层。
 
 .. index::
     single: Symfony CLI;server:prod
@@ -294,21 +288,21 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 .. index::
     single: Profiling;API
 
-对 API 或者单页应用进行分析的首选工具就是你之前安装的 Blackfire 命令行程序：
+对 API 进行分析的首选工具就是你之前安装的 Blackfire 命令行程序：
 
 .. code-block:: terminal
     :class: ignore
 
     $ blackfire curl `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`api
 
-``blackfire curl`` 命令接受的参数和选项与 `cURL <https://curl.haxx.se/docs/manpage.html>`_ 完全一样。
+``blackfire curl`` 命令接受的参数和选项与 `cURL`_ 完全一样。
 
 对比性能
 ------------
 
 在关于 “Cache” 的步骤中，我们为了提升代码性能增加了一个缓存层，但我们并没有去测量它带来的性能改变。由于我们都很难猜对什么会变快，什么会变慢，不排除最后你所做的优化反而会让应用变得更慢。
 
-你应该总是要用分析器去衡量所做任何优化带来的影响。多亏有了 Blackfire 的 `比较功能 <https://blackfire.io/docs/cookbooks/understanding-comparisons>`_，这种影响可以一目了然。
+你应该总是要用分析器去衡量所做任何优化带来的影响。多亏有了 Blackfire 的 `比较功能`_，这种影响可以一目了然。
 
 写黑盒功能测试
 ---------------------
@@ -316,7 +310,7 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 .. index::
     single: Blackfire;Player
 
-我们已经学了如何用 Symfony 写功能测试。可以用 Blackfire 写一些浏览情节，它们可以根据需要在 `Blackfire 播放器 <https://blackfire.io/player>`_ 中运行。我们来写一个情节，它在开发环境中提交一条评论并且用邮件链接来验证，然后在生产环境中通过管理后台来验证。
+我们已经学了如何用 Symfony 写功能测试。可以用 Blackfire 写一些浏览情节，它们可以根据需要在 `Blackfire 播放器`_ 中运行。我们来写一个情节，它在开发环境中提交一条评论并且用邮件链接来验证，然后在生产环境中通过管理后台来验证。
 
 用下面的内容创建 ``.blackfire.yaml`` 文件：
 
@@ -339,10 +333,10 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
             visit url('/fr/conference/amsterdam-2019')
                 expect status_code() == 200
             submit button("Submit")
-                param comment_form[author] 'Fabien'
-                param comment_form[email] 'me@example.com'
-                param comment_form[text] 'Such a good conference!'
-                param comment_form[photo] file(fake('image', '/tmp', 400, 300, 'cats'), 'awesome-cat.jpg')
+                param comment[author] 'Fabien'
+                param comment[email] 'me@example.com'
+                param comment[text] 'Such a good conference!'
+                param comment[photo] file(fake('simple_image', '/tmp', 400, 300, 'png', true, true), 'placeholder-image.jpg')
                 expect status_code() == 302
             follow
                 expect status_code() == 200
@@ -363,7 +357,10 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
                         # with "old" messages which do not exist anymore
                         # in the DB (would be a 404 then)
             when env == "prod"
-                visit url('/admin/?entity=Comment&action=list')
+                visit url('/admin')
+                    expect status_code() == 302
+                follow
+                click link("Comments")
                     expect status_code() == 200
                     set comment_ids css('table.table tbody tr').extract('data-id')
                 with id in comment_ids
@@ -385,15 +382,21 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 在开发环境中运行浏览情节：
 
 .. code-block:: terminal
+    :class: ignore
 
-    $ ./blackfire-player.phar run --endpoint=`symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL` .blackfire.yaml --variable "webmail_url=`symfony var:export MAILER_WEB_URL 2>/dev/null`" --variable="env=dev"
+    $ ./blackfire-player.phar run --endpoint=`symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL` .blackfire.yaml --variable "webmail_url=`symfony var:export MAILER_WEB_URL 2>/dev/null`" --variable="env=dev" -vv
+
+.. code-block:: terminal
+    :class: hide
+
+    $ rm blackfire-player.phar
 
 或是在生产环境中：
 
 .. code-block:: terminal
     :class: ignore
 
-    $ ./blackfire-player.phar run --endpoint=`symfony env:urls --first` .blackfire.yaml --variable "webmail_url=NONE" --variable="env=prod"
+    $ ./blackfire-player.phar run --endpoint=`symfony cloud:env:url --pipe --primary` .blackfire.yaml --variable "webmail_url=NONE" --variable="env=prod" -vv
 
 通过增加 ``--blackfire`` 选项，Blackfire 的情节也可以为每个请求触发性能分析并且运行性能检测。
 
@@ -404,10 +407,21 @@ Blackfire 命令行工具需要用你个人的 *客户端* 凭证来配置（这
 
 上节写的情节可用于在持续集成工作流中自动运行，也可以在生产环境中自动定期执行。
 
-每次你在 Upsun 上创建新分支或是部署到生产环境来自动检测代码性能时，Upsun 也可以 `运行浏览情节 <https://blackfire.io/docs/integrations/paas/symfonycloud#builds-level-enterprise>`_。
+每次你在 Upsun 上创建新分支或是部署到生产环境来自动检测代码性能时，Upsun 也可以 `运行浏览情节`_。
 
 .. sidebar:: 深入学习
 
-    * `Blackfire 白皮书：PHP 代码性能详解 <https://blackfire.io/book>`_；
+    * `Blackfire 白皮书：PHP 代码性能详解`_；
 
-    * `SymfonyCasts 的 Blackfire 教程 <https://symfonycasts.com/screencast/blackfire>`_。
+    * `SymfonyCasts 的 Blackfire 教程`_。
+
+.. _`Blackfire`: https://blackfire.io
+.. _`注册`: https://blackfire.io/signup
+.. _`页`: https://blackfire.io/my/settings/credentials
+.. _`专用扩展`: https://blackfire.io/docs/integrations/browsers/index
+.. _`cURL`: https://curl.haxx.se/docs/manpage.html
+.. _`比较功能`: https://blackfire.io/docs/cookbooks/understanding-comparisons
+.. _`Blackfire 播放器`: https://blackfire.io/player
+.. _`运行浏览情节`: https://blackfire.io/docs/integrations/paas/platformsh#builds-level-enterprise
+.. _`Blackfire 白皮书：PHP 代码性能详解`: https://blackfire.io/book
+.. _`SymfonyCasts 的 Blackfire 教程`: https://symfonycasts.com/screencast/blackfire

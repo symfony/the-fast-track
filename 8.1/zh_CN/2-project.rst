@@ -6,11 +6,11 @@
 揭开项目的面纱
 ---------------------
 
-鉴于本书要在阿姆斯特丹的 Symfony 大会上发布，如果该项目和 Symfony 以及会议这些概念有点关联，这会是个不错的主意。做一个 `留言本 <https://en.wikipedia.org/wiki/Guestbook>`_ 的项目，你觉得如何? 在法语里，我们把留言本称为 livre d'or。在2019年，开发一个留言本会有种老派和过时的感觉，我喜欢这感觉！
+如果这个项目能和 Symfony 及其社区有点关联，那会是个不错的主意。由于我们每年都会组织不少线上和线下的会议，做一个 `留言本`_ 怎么样? 在法语里，我们把留言本称为 livre d'or。在 21 世纪开发一个留言本会有种老派和过时的感觉，我喜欢这感觉！
 
 那就用这个主题了。这个项目围绕着从会议上收集反馈：首页上是一个会议列表，每个会议有自己的页面，上面有很多友善的评论。每个评论由一些简短的文本和一个可选的照片组成，照片是会议时拍摄的。我想以上这些就是初始开发时的所有需求了。
 
-这个 *项目* 会包含若干个 *应用程序*。一个采用 HTML 前端的传统网页 应用、一个 API 应用和一个用于手机端的单页应用。听起来如何？
+这个 *项目* 会包含若干个 *应用程序*。一个传统的网页应用，它的 HTML 前端用起来如单页应用（SPA）般流畅，还有一个可以为手机应用提供支持的 API。听起来如何？
 
 学习就是实践
 ------------------
@@ -26,7 +26,7 @@
 
 我们的目标是创建一个有一定复杂度的项目，这种复杂度在真实开发中才会遇到。想要一个证据？看一下这个项目的最终架构图。
 
-.. figure:: images/infrastructure.svg
+.. figure:: images/infrastructure.png
     :align: center
     :figclass: ad diagram
 
@@ -34,9 +34,9 @@
 
 * 网站的 ``src/`` 目录下有 20 个 PHP 类。
 
-* 根据 `PHPLOC <https://github.com/sebastianbergmann/phploc>`_ 的报告，PHP 的逻辑代码行（LLOC）有 550 行；
+* 根据 `PHPLOC`_ 的报告，PHP 的逻辑代码行（LLOC）有 550 行；
 
-* 分布在 3 个文件中的 40 行配置微调（以注解和 YAML 的格式），主要是用来配置后台的设计。
+* 分布在 3 个文件中的 40 行配置微调（以属性和 YAML 的格式），主要是用来配置后台的设计。
 
 * 20 行的开发环境软件配置（Docker）；
 
@@ -55,7 +55,7 @@
     single: Project;Git Repository
     single: Git;clone
 
-在你本地电脑上找个地方克隆这个代码仓库 `guestbook repository <https://github.com/the-fast-track/book-5.2-2>`_：
+在你本地电脑上找个地方克隆这个代码仓库 `guestbook repository`_：
 
 .. code-block:: terminal
     :class: ignore
@@ -64,7 +64,7 @@
 
 该仓库包含了本书的所有代码。
 
-请注意，我们不用 ``git clone``，而是用 ``symfony new``，因为它所做的不仅仅是从代码仓库复制代码（代码仓库在 GitHub 的 ``the-fast-track`` 机构名下：``https://github.com/the-fast-track/book-5.2-2``）。该命令还启动 web 服务器和容器，更新数据库结构，载入固定的伪数据......执行完该命令后，网站就运行了，可以被访问。
+请注意，我们不用 ``git clone``，而是用 ``symfony new``，因为它所做的不仅仅是从代码仓库复制代码（代码仓库在 GitHub 的 ``the-fast-track`` 机构名下：``https://github.com/the-fast-track/book-8.1-1``）。该命令还启动 web 服务器和容器，更新数据库结构，载入固定的伪数据......执行完该命令后，网站就运行了，可以被访问。
 
 这里的代码100%保证和书中的保持一致（使用上述的代码仓库 URL）。尝试让书中的更新和仓库里的代码手工保持一致，这几乎是不可能的。我在过去试过，但失败了，这就是不可行的，尤其是对于我写的这种关于开发网站的书。由于每一章节都依赖前面的章节，一个改动可能会对后续章节带来影响。
 
@@ -73,7 +73,7 @@
 浏览源代码
 ---------------
 
-更棒的是，这个仓库并不只是 ``master`` 分支上的最终版本。这个脚本会执行书中解释的每个操作，并且把每一节结束时的代码状态提交到仓库。它还会给每一个步骤和子步骤打标签（git tags），以便于浏览代码。很棒，不是吗？
+更棒的是，这个仓库并不只是 ``main`` 分支上的最终版本。这个脚本会执行书中解释的每个操作，并且把每一节结束时的代码状态提交到仓库。它还会给每一个步骤和子步骤打标签（git tags），以便于浏览代码。很棒，不是吗？
 
 .. index::
     single: Git;checkout
@@ -120,3 +120,7 @@
     $ git log -- src/Controller/ConferenceController.php
 
 你也能在直接在 GitHub 上浏览代码比对，标签和提交。如果你在读一本纸质书的话，这也是一个很好的复制/粘贴代码的方式。
+
+.. _`PHPLOC`: https://github.com/sebastianbergmann/phploc
+.. _`留言本`: https://en.wikipedia.org/wiki/Guestbook
+.. _`guestbook repository`: https://github.com/the-fast-track/book-8.1-1

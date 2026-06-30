@@ -1,4 +1,4 @@
-Symfony 5 快速开发
+Symfony 快速开发
 ======================
 
 .. toctree::
@@ -28,12 +28,12 @@ Symfony 5 快速开发
     19-workflow
     20-emails
     21-cache
-    22-encore
+    22-styling
     23-imagine
-    24-cron
+    24-scheduler
     25-notifier
     26-api
-    27-spa
+    27-ux
     28-intl
     29-performance
     30-internals

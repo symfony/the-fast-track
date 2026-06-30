@@ -1,0 +1,158 @@
+让网站感觉像单页应用
+==================================
+
+.. index::
+    single: Symfony UX
+    single: Turbo
+    single: Stimulus
+
+网站很快，但每次点击仍然会重新加载一个完整的 HTML 页面。传统的答案是构建一个 *单页应用（SPA）*：一个用另一套技术栈编写、与 API 通信的 JavaScript 应用。这意味着要再开发、保护、部署一个应用，并让它和主应用保持同步。
+
+Symfony 有一个不同的答案。*Symfony UX* 是一个倡议，它把 SPA 的体验带给服务端渲染的应用：你继续编写 Twig 模板和 Symfony 控制器，只在能带来价值的地方点缀一些 JavaScript。
+
+认识 Symfony UX
+----------------------
+
+好消息？从本书的第一步开始我们就一直在使用 Symfony UX。webapp 骨架自带了它的两个包：``symfony/stimulus-bundle`` 和 ``symfony/ux-turbo``。看一下 ``importmap.php``：
+
+.. code-block:: php
+    :class: ignore
+
+    return [
+        'app' => ['path' => './assets/app.js', 'entrypoint' => true],
+        '@hotwired/stimulus' => ['version' => '3.2.2'],
+        '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
+        '@hotwired/turbo' => ['version' => '8.0.23'],
+    ];
+
+`Stimulus`_ 是一个小巧的 JavaScript 框架，它通过 ``data-`` 属性把 JavaScript *控制器* 连接到 HTML 元素上。``assets/stimulus_bootstrap.js`` 文件会启动 Stimulus 应用，并自动注册任何存放在 ``assets/controllers/`` 目录里的控制器。
+
+`Turbo`_ 在这个基础之上让导航变得即时。
+
+用 Turbo 实现即时导航
+-------------------------------
+
+.. index::
+    single: Turbo;Drive
+
+Turbo *Drive* 一直在默默地工作：它拦截每一次链接点击和表单提交，在后台获取页面，然后替换 ``<body>``，而不进行完整的页面重载。浏览器让同样的 JavaScript 和 CSS 保持存活，所以导航感觉是即时的。
+
+打开浏览器的开发者工具，切换到 “Network” 标签，然后在网站里点击浏览：页面变化是 ``fetch`` 请求，而不是完整的文档加载。
+
+Turbo 只要求一件事作为回报：表单要有正确的 HTTP 语义。一次成功的提交必须重定向（我们的就是这样，多亏了 ``redirectToRoute()``），而一次失败的提交必须使用 ``4xx`` 状态码。Symfony 会自动处理后者：当一个提交的表单不合法时，``render()`` 会以一个 ``422 Unprocessable Entity`` 状态码来响应。
+
+用 Turbo Frame 更新页面的一部分
+-----------------------------------------
+
+.. index::
+    single: Turbo;Frame
+
+Turbo Drive 避免了完整的页面重载。Turbo *Frame* 更进一步：它们让页面的一个片段可以独立于其余部分进行导航。
+
+评论列表是一个完美的候选。当通过 “Previous” 和 “Next” 链接浏览评论页时，只有列表应该变化；重新渲染页头、表单和页脚是白费功夫。把评论包在一个 frame 里：
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
+    @@ -17,3 +17,4 @@
+         <div class="row">
+             <div class="col-12 col-lg-8">
+    +            <turbo-frame id="comments" data-turbo-action="advance">
+                 {% if comments|length > 0 %}
+    @@ -56,5 +57,6 @@
+                     No comments have been posted yet for this conference.
+                 </div>
+             {% endif %}
+    +            </turbo-frame>
+             </div>
+             <div class="col-12 col-lg-4">
+
+一个 ``<turbo-frame>`` 元素内部的链接只会更新那个 frame：当点击 “Next” 时，Turbo 在后台获取页面并替换匹配的 frame，而页面的其余部分保持不变。
+
+``data-turbo-action="advance"`` 属性把这个 frame 的导航提升为一次完整的访问：地址栏里的 URL 会被更新（包括 ``offset`` 查询参数），所以分页的评论仍然可以分享，浏览器的后退按钮也会按预期工作。
+
+用 Stimulus 预览评论的照片
+------------------------------------------
+
+.. index::
+    single: Stimulus;Controller
+
+是时候写本书中的第一行 JavaScript 了。提交照片的参会者在发布评论前看不到它。我们来在他们选择一个文件时显示一个预览。
+
+创建一个 Stimulus 控制器（文件名决定了控制器的名字，``photo-preview``）：
+
+.. code-block:: javascript
+    :caption: assets/controllers/photo_preview_controller.js
+
+    import { Controller } from '@hotwired/stimulus';
+
+    export default class extends Controller {
+        show() {
+            const [photo] = this.element.files;
+            if (!photo) {
+                this.preview?.remove();
+                this.preview = null;
+
+                return;
+            }
+
+            if (!this.preview) {
+                this.preview = document.createElement('img');
+                this.preview.className = 'img-thumbnail mt-2';
+                this.preview.style.maxHeight = '150px';
+                this.element.insertAdjacentElement('afterend', this.preview);
+            }
+
+            this.preview.src = URL.createObjectURL(photo);
+        }
+    }
+
+我们需要的 JavaScript 就这么多。Stimulus 会自动发现并注册这个控制器。通过 ``data-`` 属性把它连接到评论表单的照片字段上：
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Form/CommentType.php
+    +++ w/src/Form/CommentType.php
+    @@ -26,6 +26,10 @@ class CommentType extends AbstractType
+                 ->add('photo', FileType::class, [
+                     'required' => false,
+                     'mapped' => false,
+    +                'attr' => [
+    +                    'data-controller' => 'photo-preview',
+    +                    'data-action' => 'change->photo-preview#show',
+    +                ],
+                     'constraints' => [
+                         new Image(maxSize: '1024k')
+                     ],
+
+``data-controller`` 属性把控制器绑定到文件输入框上，而 ``data-action`` 在输入框的值改变时调用它的 ``show()`` 方法。在一个会议页面上选择一张照片，享受这个预览吧。
+
+Stimulus 控制器和 Turbo 紧密协作：因为 Drive 和 Frame 在不重载页面的情况下更新页面，所以当元素进入和离开 DOM 时，控制器会被自动连接和断开。
+
+那移动应用呢？
+-------------------------------
+
+我们在没有构建第二个应用的情况下获得了 SPA 体验：没有单独的 JavaScript 技术栈，没有第二个 web 服务器，没有 CORS 配置，也没有什么新东西要部署。
+
+而如果你以后确实需要一个 *原生* 移动应用，前一步创建的 API 就是正确的入口：它是公开的、有文档的、与框架无关的。网站和移动应用可以在共享同一个后端的同时各自独立演化。
+
+.. sidebar:: 深入学习
+
+    * `Symfony UX 倡议`_；
+
+    * `Turbo 手册`_ 和 `Stimulus 手册`_；
+
+    * `Symfony UX Turbo 文档`_，包括 Turbo *Streams*，它通过 Mercure 把页面更新广播给所有连接的用户；
+
+    * `Live Components`_，完全不用自定义 JavaScript 就能构建动态界面。
+
+.. _`Stimulus`: https://stimulus.hotwired.dev/
+.. _`Turbo`: https://turbo.hotwired.dev/
+.. _`Symfony UX 倡议`: https://ux.symfony.com/
+.. _`Turbo 手册`: https://turbo.hotwired.dev/handbook/introduction
+.. _`Stimulus 手册`: https://stimulus.hotwired.dev/handbook/introduction
+.. _`Symfony UX Turbo 文档`: https://symfony.com/bundles/ux-turbo/current/index.html
+.. _`Live Components`: https://symfony.com/bundles/ux-live-component/current/index.html

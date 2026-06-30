@@ -39,13 +39,15 @@
 
 把你的代码仓库推送到远程的服务器，这会是个好主意。GitHub、GitLab 或者 Bitbucket 都是不错的选择。
 
-如果你部署到 Upsun，那你已经有一份 Git 仓库的副本，但你不应该依赖它。它只是用来部署，并不是一个备份。
+.. note::
+
+    如果你部署到 Upsun，你已经有一份 Git 仓库的副本，因为当你使用 ``cloud:push`` 时，Upsun 在背后使用了 Git。但你不应该依赖 Upsun 的 Git 仓库。它只是用来部署，并不是一个备份。
 
 持续地部署到生产环境
 ------------------------------
 
 .. index::
-    single: Symfony CLI;deploy
+    single: Symfony CLI;cloud:push
 
 另外一个好习惯就是频繁地部署。在每个步骤末尾做次部署是一个不错的节奏。
 

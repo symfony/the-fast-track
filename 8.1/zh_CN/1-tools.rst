@@ -1,7 +1,7 @@
 检查你的开发环境
 ========================
 
-在开始投入到这个项目之前，我们需要检查下，让所有人都有一个好的开发环境。这很重要。和 10 年前相比，现在可供使用的开发者工具已经非常不同了。它们朝好的方向演进了很多。如果不使用它们，那就太可惜了。好的工具可以帮你走得很远。
+在开始投入到这个项目之前，我们需要检查下，让你有一个好的开发环境。这很重要。和 10 年前相比，现在可供使用的开发者工具已经非常不同了。它们朝好的方向演进了很多。如果不使用它们，那就太可惜了。好的工具可以帮你走得很远。
 
 请不要跳过这一步，或者至少读一下关于 ``symfony`` 命令的最后一段。
 
@@ -44,7 +44,7 @@ Git
 
 .. index:: Git
 
-我的上一本书推荐了 Subversion 来做版本控制。现在，看上去所有人都用 `Git`_ 了 。
+在版本控制方面，我们将使用 `Git`_，因为现在所有人都在用它。
 
 在 Windows 上，安装 `Git bash`_。
 
@@ -53,11 +53,13 @@ Git
 PHP
 ---
 
-.. index:: PHP
+.. index::
+    single: PHP
+    single: PHP extensions
 
 我们会用 Docker 来提供服务，但考虑到性能、稳定性和简洁性，我还是喜欢在本地电脑安装 PHP。你愿意的话可以叫我守旧派，但对我来说，本地 PHP 和 Docker 服务的组合堪称完美。
 
-请使用 PHP 8.0 版本，并且确保`以下 PHP 扩展`已经安装，如果没有的话现在就把它们装好：``intl``、``pdo_pgsql``、``xsl``、``amqp``、``gd``、``openssl``、``sodium``。可选择安装 ``redis``、 ``curl`` 和 ``zip``。
+请使用 PHP 8.5 版本，并且确保以下 PHP 扩展已经安装，如果没有的话现在就把它们装好：``intl``、``pdo_pgsql``、``xsl``、``amqp``、``gd``、``openssl``、``sodium`` 和 ``iconv``。可选择安装 ``redis``、 ``curl`` 和 ``zip``。
 
 你可以用 ``php -m`` 命令来查看当前启用的扩展。
 
@@ -76,11 +78,6 @@ Composer
 
     你不必输入完整的命令名：``composer req`` 和 ``composer require`` 的作用是一样的，你也可以用 ``composer rem`` 代替 ``composer remove``......
 
-NodeJS
-------
-
-我们不会写很多 JavaScript 代码，但我们会用 JavaScript/NodeJS 的工具来管理我们的前端资产。检查下你是否安装好了 `NodeJS`_ 和 `Yarn`_ 包管理工具。
-
 Docker 和 Docker Compose
 -------------------------
 
@@ -93,9 +90,9 @@ Symfony CLI
 
 .. index:: Symfony CLI
 
-最后但同样重要的一点是，我们会使用 ``symfony`` 命令来提高生产率。它提供了本地 web 服务器，可以与 Docker 完整集成，并且支持 Upsun，这些都可以为我们节省很多时间。
+最后但同样重要的一点是，我们会使用 ``symfony`` 命令来提高生产率。它提供了本地 web 服务器，可以与 Docker 完整集成，并通过 Upsun 提供云端支持，这些都可以为我们节省很多时间。
 
-安装 `Symfony CLI`_  并且把它移动到你的 ``$PATH`` 路径下。如果你还没有 `SymfonyConnect`_  账号，就去创建一个，然后用 ``symfony login`` 登录。
+现在就安装 `Symfony CLI`_。
 
 要在本地使用 HTTPS，我们也需要去 `安装一个 certificate authority (CA)`_ 来启动对 TLS 的支持。运行下面的命令：
 
@@ -128,11 +125,8 @@ Symfony CLI
 .. _`Visual Studio Code`: https://code.visualstudio.com/
 .. _`PhpStorm`: https://www.jetbrains.com/phpstorm/
 .. _`Composer`: https://getcomposer.org/
-.. _`NodeJS`: https://nodejs.org/
-.. _`Yarn`: https://classic.yarnpkg.com/en/docs/install/
 .. _`把它们安装好`: https://docs.docker.com/install/
 .. _`Symfony CLI`: https://symfony.com/download
-.. _`SymfonyConnect`: https://symfony.com/connect/login
 .. _`安装一个 certificate authority (CA)`: https://symfony.com/doc/current/setup/symfony_server.html#enabling-tls
 .. _`Symfony Support Plugin`: https://plugins.jetbrains.com/plugin/7219-symfony-support
 .. _`iTerm2`: https://iterm2.com/

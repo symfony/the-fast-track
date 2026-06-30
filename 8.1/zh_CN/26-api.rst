@@ -23,10 +23,10 @@
 -------------------------
 
 .. index::
-    single: Annotations;@ApiResource
-    single: Annotations;Groups
+    single: Attributes;ApiResource
+    single: Attributes;Groups
 
-我们配置 API 所需要做的就是在 Conference 类里添加一些注解：
+我们配置 API 所需要做的就是在 Conference 类里添加一些属性：
 
 .. code-block:: diff
     :caption: patch_file
@@ -88,7 +88,7 @@
 
          public function __construct()
 
-``@ApiResource`` 注解为会议配置了 API。它把允许的操作限制为 ``get``，也配置了各种信息：比如展示哪些字段，以及如何为会议排序。
+``ApiResource`` 属性为会议配置了 API。它把允许的操作限制为 ``get``，也配置了各种信息：比如展示哪些字段，以及如何为会议排序。
 
 安装包的 recipe 会添加 ``config/routes/api_platform.yaml`` 文件，根据该文件中的配置，API 的默认主入口是 ``/api`` 路径。
 
@@ -112,9 +112,9 @@
 -------------------------
 
 .. index::
-    single: Annotations;@ApiResource
-    single: Annotations;@ApiFilter
-    single: Annotations;Groups
+    single: Attributes;ApiResource
+    single: Attributes;ApiFilter
+    single: Attributes;Groups
 
 为评论做同样的修改：
 
@@ -188,7 +188,7 @@
 
          #[ORM\Column(length: 255, options: ['default' => 'submitted'])]
 
-用类似的注解来配置评论类。
+用类似的属性来配置评论类。
 
 限制 API 暴露的评论
 --------------------------
@@ -238,10 +238,12 @@
 
 默认情况下，现代 HTTP 客户端的同源安全策略会禁止调用另一个域名的 API。在执行 ``composer req api`` 时一起安装了 CORS bundle，它会根据 ``CORS_ALLOW_ORIGIN`` 环境变量发送跨域资源共享的 HTTP 头。
 
-默认情况下，它的值定义在 ``.env`` 文件，它允许来自 ``localhost`` 和 ``127.0.0.1`` 任意端口的 HTTP 请求。这正是我们在下一个步骤中需要的，到时我们会创建一个有自己服务器的单页应用，该服务器会调用此处的 API。
+默认情况下，它的值定义在 ``.env`` 文件，它允许来自 ``localhost`` 和 ``127.0.0.1`` 任意端口的 HTTP 请求。当某个托管在其它域名上的应用（比如手机应用或外部前端）需要调用这个 API 时，请相应地调整它。
 
 .. sidebar:: 深入学习
 
-    * `SymfonyCasts 里的 API Platform 教程 <https://symfonycasts.com/screencast/api-platform>`_；
+    * `SymfonyCasts 里的 API Platform 教程`_；
 
     * 运行 ``composer require webonyx/graphql-php`` 来启用 GraphQL 支持，然后浏览 ``/api/graphql`` 路径。
+
+.. _`SymfonyCasts 里的 API Platform 教程`: https://symfonycasts.com/screencast/api-platform

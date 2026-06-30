@@ -17,13 +17,13 @@
 
 .. code-block:: terminal
 
-    $ symfony console make:form CommentFormType Comment
+    $ symfony console make:form CommentType Comment
 
 .. code-block:: text
     :class: ignore
     :emphasize-lines: 1
 
-     created: src/Form/CommentFormType.php
+     created: src/Form/CommentType.php
 
 
       Success!
@@ -32,10 +32,10 @@
      Next: Add fields to your form and start using it.
      Find the documentation at https://symfony.com/doc/current/forms.html
 
-``App\Form\CommentFormType`` 类为 ``App\Entity\Comment`` 这个实体类定义了一个表单：
+``App\Form\CommentType`` 类为 ``App\Entity\Comment`` 这个实体类定义了一个表单：
 
 .. code-block:: php
-    :caption: src/App/Form/CommentFormType.php
+    :caption: src/Form/CommentType.php
     :class: ignore
 
     namespace App\Form;
@@ -45,9 +45,9 @@
     use Symfony\Component\Form\FormBuilderInterface;
     use Symfony\Component\OptionsResolver\OptionsResolver;
 
-    class CommentFormType extends AbstractType
+    class CommentType extends AbstractType
     {
-        public function buildForm(FormBuilderInterface $builder, array $options)
+        public function buildForm(FormBuilderInterface $builder, array $options): void
         {
             $builder
                 ->add('author')
@@ -59,7 +59,7 @@
             ;
         }
 
-        public function configureOptions(OptionsResolver $resolver)
+        public function configureOptions(OptionsResolver $resolver): void
         {
             $resolver->setDefaults([
                 'data_class' => Comment::class,
@@ -76,36 +76,35 @@
 
 .. code-block:: diff
     :caption: patch_file
-    :emphasize-lines: 18,24
+    :emphasize-lines: 19,29
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -2,7 +2,9 @@
 
      namespace App\Controller;
 
     +use App\Entity\Comment;
      use App\Entity\Conference;
-    +use App\Form\CommentFormType;
+    +use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    @@ -31,6 +33,9 @@ class ConferenceController extends AbstractController
-         #[Route('/conference/{slug}', name: 'conference')]
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+    @@ -23,5 +25,8 @@ final class ConferenceController extends AbstractController
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
     +        $comment = new Comment();
-    +        $form = $this->createForm(CommentFormType::class, $comment);
+    +        $form = $this->createForm(CommentType::class, $comment);
     +
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
-    @@ -39,6 +44,7 @@ class ConferenceController extends AbstractController
+    @@ -30,6 +35,7 @@ final class ConferenceController extends AbstractController
                  'comments' => $paginator,
-                 'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
-                 'next' => min(count($paginator), $offset + CommentRepository::PAGINATOR_PER_PAGE),
-    +            'comment_form' => $form->createView(),
-             ]));
+                 'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+                 'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
+    +            'comment_form' => $form,
+             ]);
          }
      }
 
@@ -114,16 +113,14 @@
 .. index::
     single: Twig;form
 
-当把表单传递给模板时，要使用 ``createView()`` 方法把数据转换成适合于模板的格式。
-
 在模板中展示表单可以用 ``form`` 这个 Twig 函数：
 
 .. code-block:: diff
     :caption: patch_file
     :emphasize-lines: 10
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -30,4 +30,8 @@
          {% else %}
              <div>No comments have been posted yet for this conference.</div>
@@ -151,11 +148,11 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Form/CommentFormType.php
-    +++ b/src/Form/CommentFormType.php
-    @@ -4,20 +4,31 @@ namespace App\Form;
-
-     use App\Entity\Comment;
+    --- i/src/Form/CommentType.php
+    +++ w/src/Form/CommentType.php
+    @@ -6,26 +6,32 @@ use App\Entity\Comment;
+     use App\Entity\Conference;
+     use Symfony\Bridge\Doctrine\Form\Type\EntityType;
      use Symfony\Component\Form\AbstractType;
     +use Symfony\Component\Form\Extension\Core\Type\EmailType;
     +use Symfony\Component\Form\Extension\Core\Type\FileType;
@@ -164,9 +161,9 @@
      use Symfony\Component\OptionsResolver\OptionsResolver;
     +use Symfony\Component\Validator\Constraints\Image;
 
-     class CommentFormType extends AbstractType
+     class CommentType extends AbstractType
      {
-         public function buildForm(FormBuilderInterface $builder, array $options)
+         public function buildForm(FormBuilderInterface $builder, array $options): void
          {
              $builder
     -            ->add('author')
@@ -175,32 +172,33 @@
     +            ])
                  ->add('text')
     -            ->add('email')
-    -            ->add('createdAt')
-    -            ->add('photoFilename')
-    -            ->add('conference')
+    -            ->add('createdAt', null, [
+    -                'widget' => 'single_text',
     +            ->add('email', EmailType::class)
     +            ->add('photo', FileType::class, [
     +                'required' => false,
     +                'mapped' => false,
     +                'constraints' => [
-    +                    new Image(['maxSize' => '1024k'])
+    +                    new Image(maxSize: '1024k')
     +                ],
-    +            ])
+                 ])
+    -            ->add('photoFilename')
+    -            ->add('conference', EntityType::class, [
+    -                'class' => Conference::class,
+    -                'choice_label' => 'id',
+    -            ])
+    -        ;
     +            ->add('submit', SubmitType::class)
-             ;
+    +       ;
          }
+
+         public function configureOptions(OptionsResolver $resolver): void
 
 请注意我们增加了一个提交按钮（它允许我们在模板中继续使用 ``{{ form(comment_form) }}`` 这个简单的表达式）。
 
 有一些字段无法去自动配置，比如 ``photoFilename`` 字段。``Comment`` 实体只需要保存照片的文件名，但表单需要处理文件上传。为了处理这种情况，我们需要在表单中增加一个非 ``mapped`` 字段 ``photo``：它不会被映射到 ``Comment`` 的任何属性。我们会手工管理它，以此来实现一些特别的逻辑（比如把上传的照片存储在磁盘上）。
 
 为了演示定制功能，我们也修改了一些字段对应 label 标签的默认值。
-
-图片约束是通过检查 mime 类型来实现的；加入 Mime 组件来使它工作：
-
-.. code-block:: terminal
-
-    $ symfony composer req mime
 
 .. figure:: screenshots/form-customized.png
     :alt: /conference/amsterdam-2019
@@ -240,7 +238,7 @@
         </div>
     </form>
 
-在评论的邮箱字段，表单使用了 ``email`` 类型的 input 元素，而且在大多数字段上使用了 ``required`` 属性。请留意表单还包含了一个名为 ``_token`` 的隐藏字段，它会保护表单免受 `CSRF 攻击 <https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)>`_。
+在评论的邮箱字段，表单使用了 ``email`` 类型的 input 元素，而且在大多数字段上使用了 ``required`` 属性。请留意表单还包含了一个名为 ``_token`` 的隐藏字段，它会保护表单免受 `CSRF 攻击`_。
 
 但如果表单提交绕过了 HTML 验证（比如，表单是通过一个类似 cURL 的 HTTP 客户端提交，数据就不会进行强制验证），那不合格的数据就会送达服务器。
 
@@ -249,37 +247,33 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -4,6 +4,7 @@ namespace App\Entity;
-
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -5,6 +5,7 @@ namespace App\Entity;
      use App\Repository\CommentRepository;
+     use Doctrine\DBAL\Types\Types;
      use Doctrine\ORM\Mapping as ORM;
     +use Symfony\Component\Validator\Constraints as Assert;
 
-     /**
-      * @ORM\Entity(repositoryClass=CommentRepository::class)
-    @@ -21,16 +22,20 @@ class Comment
-         /**
-          * @ORM\Column(type="string", length=255)
-          */
-    +    #[Assert\NotBlank]
-         private $author;
+     #[ORM\Entity(repositoryClass: CommentRepository::class)]
+     #[ORM\HasLifecycleCallbacks]
+    @@ -16,12 +17,16 @@ class Comment
+         private ?int $id = null;
 
-         /**
-          * @ORM\Column(type="text")
-          */
+         #[ORM\Column(length: 255)]
     +    #[Assert\NotBlank]
-         private $text;
+         private ?string $author = null;
 
-         /**
-          * @ORM\Column(type="string", length=255)
-          */
+         #[ORM\Column(type: Types::TEXT)]
+    +    #[Assert\NotBlank]
+         private ?string $text = null;
+
+         #[ORM\Column(length: 255)]
     +    #[Assert\NotBlank]
     +    #[Assert\Email]
-         private $email;
+         private ?string $email = null;
 
-         /**
+         #[ORM\Column]
 
 处理表单
 ------------
@@ -291,34 +285,39 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -7,6 +7,7 @@ use App\Entity\Conference;
-     use App\Form\CommentFormType;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -7,7 +7,9 @@ use App\Entity\Conference;
+     use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
     +use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-     use Symfony\Component\HttpFoundation\Request;
+    +use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-    @@ -16,10 +17,12 @@ use Twig\Environment;
-     class ConferenceController extends AbstractController
-     {
-         private $twig;
-    +    private $entityManager;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
+    @@ -14,6 +15,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
-    -    public function __construct(Environment $twig)
-    +    public function __construct(Environment $twig, EntityManagerInterface $entityManager)
+     final class ConferenceController extends AbstractController
+     {
+    +    public function __construct(
+    +        private EntityManagerInterface $entityManager,
+    +    ) {
+    +    }
+    +
+         #[Route('/', name: 'homepage')]
+         public function index(ConferenceRepository $conferenceRepository): Response
          {
-             $this->twig = $twig;
-    +        $this->entityManager = $entityManager;
+    @@ -24,9 +30,18 @@ final class ConferenceController extends AbstractController
          }
 
-         #[Route('/', name: 'homepage')]
-    @@ -35,6 +38,15 @@ class ConferenceController extends AbstractController
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+    -    public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
+             $form = $this->createForm(CommentType::class, $comment);
     +        $form->handleRequest($request);
     +        if ($form->isSubmitted() && $form->isValid()) {
     +            $comment->setConference($conference);
@@ -329,7 +328,6 @@
     +            return $this->redirectToRoute('conference', ['slug' => $conference->getSlug()]);
     +        }
 
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
 当表单提交后，``Comment`` 对象会按照提交的数据进行更新。
@@ -343,40 +341,66 @@
 上传文件
 ------------
 
-上传的照片需要存储在本地磁盘上，而且前端页面要可以访问到它们，这样在会议页面就能找事这些照片。我们会把照片存储在 ``public/uploads/photos`` 目录下：
+上传的照片需要存储在本地磁盘上，而且前端页面要可以访问到它们，这样在会议页面就能找事这些照片。我们会把照片存储在 ``public/uploads/photos`` 目录下。
+
+.. index::
+    single: Attribute;Autowire
+    single: Autowire
+
+由于我们不想在代码里硬编码目录路径，我们需要一种方式把它存储在全局配置中。Symfony 容器除了存储服务，还能存储 *参数*，参数是一些用来帮助配置服务的标量：
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/config/services.yaml
+    +++ w/config/services.yaml
+    @@ -4,6 +4,7 @@
+     # Put parameters here that don't need to change on each machine where the app is deployed
+     # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+     parameters:
+    +    photo_dir: "%kernel.project_dir%/public/uploads/photos"
+
+     services:
+         # default configuration for services in *this* file
+
+我们已经看到服务是如何被自动注入到构造函数参数中的。对于容器参数，我们可以通过 ``Autowire`` 属性显式地注入它们。
+
+现在，要实现把上传文件存储到最终目的地所需的逻辑，我们已经掌握了所需的全部知识：
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -9,6 +9,7 @@ use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
      use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Component\HttpFoundation\File\Exception\FileException;
+    +use Symfony\Component\DependencyInjection\Attribute\Autowire;
      use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
-    @@ -34,13 +35,22 @@ class ConferenceController extends AbstractController
+     use Symfony\Component\Routing\Attribute\Route;
+    @@ -29,13 +30,23 @@ final class ConferenceController extends AbstractController
          }
 
-         #[Route('/conference/{slug}', name: 'conference')]
-    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-         {
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    -    {
+    +    public function show(
+    +        Request $request,
+    +        Conference $conference,
+    +        CommentRepository $commentRepository,
+    +        #[Autowire('%photo_dir%')] string $photoDir,
+    +        #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0,
+    +    ): Response {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
+             $form = $this->createForm(CommentType::class, $comment);
              $form->handleRequest($request);
              if ($form->isSubmitted() && $form->isValid()) {
                  $comment->setConference($conference);
     +            if ($photo = $form['photo']->getData()) {
     +                $filename = bin2hex(random_bytes(6)).'.'.$photo->guessExtension();
-    +                try {
-    +                    $photo->move($photoDir, $filename);
-    +                } catch (FileException $e) {
-    +                    // unable to upload the photo, give up
-    +                }
+    +                $photo->move($photoDir, $filename);
     +                $comment->setPhotoFilename($filename);
     +            }
 
@@ -384,29 +408,6 @@
                  $this->entityManager->flush();
 
 为了管理照片上传，我们给每个文件一个随机的名字。然后，我们把上传的文件移动到目的地（那个照片目录）。最后，我们把文件名存储在 Comment 对象里。
-
-.. index::
-    single: Container;Bind
-    single: Bind
-
-注意到 ``show()`` 方法里的新参数了吗？``$photoDir`` 是一个字符串，不是一个服务。Symfony 是如何知道要注入什么参数呢？Symfony 的服务容器除了存储服务外，也可以存储 *参数*。参数是一些用来帮助配置服务的标量。这些参数可以被显式地注入到服务中，也可以通过 *绑定名字* 来注入：
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -10,6 +10,8 @@ services:
-         _defaults:
-             autowire: true      # Automatically injects dependencies in your services.
-             autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
-    +        bind:
-    +            $photoDir: "%kernel.project_dir%/public/uploads/photos"
-
-         # makes classes in src/ available to be used as services
-         # this creates a service per class whose id is the fully-qualified class name
-
-通过 ``bind`` 里的设置，当一个服务有名为 ``$photoDir`` 的参数时，Symfony 就会注入对应的值。
 
 试着上传一个 PDF 文件，而不是图片。你应该会看到错误消息。目前页面设计很难看，但别担心，再过几个步骤我们会去处理网站设计，到时一切都会变好看的。对于这些表单，我们会修改一行配置来给所有元素设置样式。
 
@@ -450,17 +451,17 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/Admin/CommentCrudController.php
-    +++ b/src/Controller/Admin/CommentCrudController.php
-    @@ -9,6 +9,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
-     use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+    --- i/src/Controller/Admin/CommentCrudController.php
+    +++ w/src/Controller/Admin/CommentCrudController.php
+    @@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
     +use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-     use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
-    @@ -45,7 +46,9 @@ class CommentCrudController extends AbstractCrudController
+    @@ -47,7 +48,9 @@ class CommentCrudController extends AbstractCrudController
              yield TextareaField::new('text')
                  ->hideOnIndex()
              ;
@@ -479,8 +480,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.gitignore
-    +++ b/.gitignore
+    --- i/.gitignore
+    +++ w/.gitignore
     @@ -1,3 +1,4 @@
     +/public/uploads
 
@@ -501,35 +502,44 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -36,6 +36,7 @@ web:
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -41,6 +41,7 @@ applications:
+             mounts:
+                 "/var/cache": { source: instance, source_path: var/cache }
+                 "/var/share": { source: storage, source_path: var/share }
+    +            "/public/uploads": { source: storage, source_path: uploads }
 
-     mounts:
-         "/var": { source: local, source_path: var }
-    +    "/public/uploads": { source: local, source_path: uploads }
 
-     hooks:
-         build: |
+             relationships:
 
 现在你可以部署代码，之后照片就会存储在 ``public/uploads/`` 目录，和本地版本一样。
 
 .. sidebar:: 深入学习
 
-    * `SymfonyCasts 的表单教程 <https://symfonycasts.com/screencast/symfony-forms>`_；
+    * `SymfonyCasts 的表单教程`_；
 
-    * 如何 `定制 Symfony 表单在 HTML 里的渲染  <https://symfony.com/doc/current/form/form_customization.html>`_；
+    * 如何 `定制 Symfony 表单在 HTML 里的渲染`_；
 
-    * `验证 Symfony 表单 <https://symfony.com/doc/current/forms.html#validating-forms>`_；
+    * `验证 Symfony 表单`_；
 
-    * `Symfony 表单类型参考 <https://symfony.com/doc/current/reference/forms/types.html>`_；
+    * `Symfony 表单类型参考`_；
 
-    * `FlysystemBundle 文档 <https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md>`_，它提供了和多个云存储服务的集成，比如 AWS S3、Azure 和 Google Cloud Storage；
+    * `FlysystemBundle 文档`_，它提供了和多个云存储服务的集成，比如 AWS S3、Azure 和 Google Cloud Storage；
 
-    * `Symfony 配置参数 <https://symfony.com/doc/current/configuration.html#configuration-parameters>`_。
+    * `Symfony 配置参数`_。
 
-    * `Symfony 用于验证的约束 <https://symfony.com/doc/current/validation.html#basic-constraints>`_；
+    * `Symfony 用于验证的约束`_；
 
-    * `Symfony 表单速查表 <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony2/how_symfony2_forms_works_en.pdf>`_。
+    * `Symfony 表单速查表`_。
 
 .. _`form type`: https://symfony.com/doc/current/forms.html#form-types
+.. _`CSRF 攻击`: https://owasp.org/www-community/attacks/csrf
+.. _`SymfonyCasts 的表单教程`: https://symfonycasts.com/screencast/symfony-forms
+.. _`定制 Symfony 表单在 HTML 里的渲染`: https://symfony.com/doc/current/form/form_customization.html
+.. _`验证 Symfony 表单`: https://symfony.com/doc/current/forms.html#validating-forms
+.. _`Symfony 表单类型参考`: https://symfony.com/doc/current/reference/forms/types.html
+.. _`FlysystemBundle 文档`: https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
+.. _`Symfony 配置参数`: https://symfony.com/doc/current/configuration.html#configuration-parameters
+.. _`Symfony 用于验证的约束`: https://symfony.com/doc/current/validation.html#basic-constraints
+.. _`Symfony 表单速查表`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony2/how_symfony2_forms_works_en.pdf

@@ -87,4 +87,6 @@
 
 .. sidebar:: 深入学习
 
-    * `Redis 文档 <https://redis.io/documentation>`_。
+    * `Redis 文档`_。
+
+.. _`Redis 文档`: https://redis.io/documentation
