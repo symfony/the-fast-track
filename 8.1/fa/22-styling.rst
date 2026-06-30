@@ -1,32 +1,32 @@
-Styling the User Interface
-==========================
+طراحی ظاهر رابط کاربری
+==================================================
 
 .. index::
     single: AssetMapper
     single: Components;AssetMapper
     single: Stylesheet
 
-We have spent no time on the design of the user interface. To style like a pro, we will use a modern stack based on *AssetMapper*, the Symfony component that has been managing our assets since the very first step of this book.
+ما هیچ زمانی را صرف طراحی رابط کاربری نکرده‌ایم. برای طراحی همچون یک حرفه‌ای، از یک پشته‌ی مدرن مبتنی بر *AssetMapper* استفاده می‌کنیم، یعنی کامپوننت سیمفونی که از همان نخستین گام این کتاب، دارایی‌های (assets) ما را مدیریت کرده است.
 
-AssetMapper embraces modern web standards: JavaScript and CSS files are served as-is and wired together with an *importmap*, letting the browser load native *ES modules* directly. No bundler, no build step, no Node.js.
+AssetMapper استانداردهای مدرن وب را در آغوش می‌گیرد: فایل‌های JavaScript و CSS همان‌گونه که هستند سرو می‌شوند و با یک *importmap* به هم متصل می‌گردند، که به مرورگر اجازه می‌دهد *ES modules* بومی را مستقیماً بارگیری کند. بدون bundler، بدون گام ساخت (build)، بدون Node.js.
 
-Have a look at the ``importmap.php`` file at the root of the project: it describes the JavaScript packages used by the application. The ``importmap()`` Twig function called in ``templates/base.html.twig`` exposes them to the browser.
+به فایل ``importmap.php`` در ریشه‌ی پروژه نگاهی بیندازید: این فایل بسته‌های JavaScript استفاده‌شده توسط اپلیکیشن را توصیف می‌کند. تابع ``importmap()`` در Twig که در ``templates/base.html.twig`` فراخوانی می‌شود، آن‌ها را به مرورگر عرضه می‌کند.
 
-Leveraging Bootstrap
---------------------
+بهره‌گیری از Bootstrap
+------------------------------------
 
 .. index::
     single: Bootstrap
 
-To start with good defaults and build a responsive website, a CSS framework like `Bootstrap`_ can go a long way. Install it as an importmap package:
+برای شروع با مقادیر پیش‌فرض خوب و ساخت یک وب‌سایت واکنش‌گرا (responsive)، یک چارچوب CSS مانند `Bootstrap`_ می‌تواند راه درازی را برایتان هموار کند. آن را به عنوان یک بسته‌ی importmap نصب کنید:
 
 .. code-block:: terminal
 
     $ symfony console importmap:require bootstrap bootstrap/dist/css/bootstrap.min.css
 
-The command registers the package in ``importmap.php`` and downloads it (and its ``@popperjs/core`` dependency) into ``assets/vendor/``; the application does not depend on a CDN at runtime.
+این فرمان بسته را در ``importmap.php`` ثبت کرده و آن را (به همراه وابستگی ``@popperjs/core`` آن) در ``assets/vendor/`` بارگیری می‌کند؛ اپلیکیشن در زمان اجرا به یک CDN وابسته نیست.
 
-Import Bootstrap in the main JavaScript entrypoint (we have also cleaned up the default welcome message):
+Bootstrap را در مدخل اصلی JavaScript وارد (import) کنید (ما همچنین پیغام خوش‌آمدگویی پیش‌فرض را پاک کرده‌ایم):
 
 .. code-block:: diff
     :caption: patch_file
@@ -43,9 +43,9 @@ Import Bootstrap in the main JavaScript entrypoint (we have also cleaned up the 
     -
     -console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
 
-Note that ``app.css`` is imported *after* the Bootstrap styles so that our customizations win.
+توجه کنید که ``app.css`` *پس از* استایل‌های Bootstrap وارد می‌شود تا سفارشی‌سازی‌های ما برنده شوند.
 
-The Symfony form system supports Bootstrap natively with a special theme, enable it:
+سیستم فرم سیمفونی به صورت بومی و با یک تم ویژه از Bootstrap پشتیبانی می‌کند، آن را فعال کنید:
 
 .. code-block:: yaml
     :caption: config/packages/twig.yaml
@@ -53,10 +53,10 @@ The Symfony form system supports Bootstrap natively with a special theme, enable
     twig:
         form_themes: ['bootstrap_5_layout.html.twig']
 
-Styling the HTML
-----------------
+طراحی ظاهر HTML
+----------------------------
 
-We are now ready to style the application. Download and expand the archive at the root of the project:
+ما اکنون آماده‌ی طراحی ظاهر اپلیکیشن هستیم. آرشیو موجود در ریشه‌ی پروژه را بارگیری و باز کنید:
 
 .. code-block:: terminal
 
@@ -64,17 +64,17 @@ We are now ready to style the application. Download and expand the archive at th
     $ unzip -o guestbook-8.1.zip
     $ rm guestbook-8.1.zip
 
-Have a look at the templates, you might learn a trick or two about Twig.
+به قالب‌ها نگاهی بیندازید، شاید یکی دو ترفند درباره‌ی Twig یاد بگیرید.
 
-Serving the Assets
-------------------
+سرو کردن دارایی‌ها (Assets)
+---------------------------------------------
 
 .. index::
     single: AssetMapper;asset-map:compile
 
-There is nothing to build: refresh a page and the changes are live. In development, AssetMapper serves the asset files directly.
+چیزی برای ساختن وجود ندارد: یک صفحه را تازه‌سازی کنید و تغییرات زنده هستند. در محیط توسعه، AssetMapper فایل‌های دارایی را مستقیماً سرو می‌کند.
 
-Take the time to discover the visual changes. Have a look at the new design in a browser.
+زمانی را صرف کشف تغییرات بصری کنید. به طراحی جدید در یک مرورگر نگاهی بیندازید.
 
 .. figure:: screenshots/design-homepage.png
     :alt: /
@@ -86,24 +86,24 @@ Take the time to discover the visual changes. Have a look at the new design in a
     :align: center
     :figclass: with-browser
 
-The generated login form is now styled as well as the Maker bundle uses Bootstrap CSS classes by default:
+فرم ورود تولیدشده نیز اکنون طراحی ظاهری دارد، زیرا باندل Maker به صورت پیش‌فرض از کلاس‌های CSS مربوط به Bootstrap استفاده می‌کند:
 
 .. figure:: screenshots/login-styled.png
     :alt: /login
     :align: center
     :figclass: with-browser
 
-For production, Upsun automatically runs the ``asset-map:compile`` command during the build phase: all assets are copied to ``public/assets/`` with a version hash in their file names, enabling safe, long-term HTTP caching.
+برای محیط عمل‌آوری، Upsun به صورت خودکار فرمان ``asset-map:compile`` را در طول مرحله‌ی build اجرا می‌کند: تمام دارایی‌ها به همراه یک hash نسخه در نام فایل‌هایشان به ``public/assets/`` کپی می‌شوند، که نهان‌سازی HTTP امن و بلندمدت را ممکن می‌سازد.
 
-.. sidebar:: Going Further
+.. sidebar:: بیشتر بدانید
 
-    * The `AssetMapper component docs`_;
+    * `مستندات کامپوننت AssetMapper`_؛
 
-    * The `importmap specification`_;
+    * `مشخصات فنی importmap`_؛
 
-    * The `Bootstrap docs`_.
+    * `مستندات Bootstrap`_.
 
 .. _`Bootstrap`: https://getbootstrap.com/
-.. _`AssetMapper component docs`: https://symfony.com/doc/current/frontend/asset_mapper.html
-.. _`importmap specification`: https://html.spec.whatwg.org/multipage/webappapis.html#import-maps
-.. _`Bootstrap docs`: https://getbootstrap.com/docs/
+.. _`مستندات کامپوننت AssetMapper`: https://symfony.com/doc/current/frontend/asset_mapper.html
+.. _`مشخصات فنی importmap`: https://html.spec.whatwg.org/multipage/webappapis.html#import-maps
+.. _`مستندات Bootstrap`: https://getbootstrap.com/docs/

@@ -15,7 +15,7 @@
 
 ارائه‌ی یک API با نوشتن مقداری کد امکان‌پذیر است. اما اگر می‌خواهیم از استانداردها استفاده کنیم، بهتر است از راهکاری بهره بگیریم که بخش سخت کار را انجام دهد. راهکاری مثل API Platform:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony composer req api
 
@@ -23,84 +23,74 @@
 -------------------------------------------------------
 
 .. index::
-    single: Annotations;@ApiResource
-    single: Annotations;@Groups
+    single: Attributes;ApiResource
+    single: Attributes;Groups
 
-تعدادی حاشیه‌نویسی بر روی کلاس Conference، تمام چیزی است که برای پیکربندی API احتیاج داریم:
+تعدادی attribute بر روی کلاس Conference، تمام چیزی است که برای پیکربندی API احتیاج داریم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
-    @@ -2,16 +2,25 @@
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
+    @@ -2,29 +2,45 @@
 
      namespace App\Entity;
 
-    +use ApiPlatform\Core\Annotation\ApiResource;
+    +use ApiPlatform\Metadata\ApiResource;
+    +use ApiPlatform\Metadata\Get;
+    +use ApiPlatform\Metadata\GetCollection;
      use App\Repository\ConferenceRepository;
      use Doctrine\Common\Collections\ArrayCollection;
      use Doctrine\Common\Collections\Collection;
      use Doctrine\ORM\Mapping as ORM;
      use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
-    +use Symfony\Component\Serializer\Annotation\Groups;
+    +use Symfony\Component\Serializer\Attribute\Groups;
      use Symfony\Component\String\Slugger\SluggerInterface;
 
-     /**
-      * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-      * @UniqueEntity("slug")
-    + *
-    + * @ApiResource(
-    + *     collectionOperations={"get"={"normalization_context"={"groups"="conference:list"}}},
-    + *     itemOperations={"get"={"normalization_context"={"groups"="conference:item"}}},
-    + *     order={"year"="DESC", "city"="ASC"},
-    + *     paginationEnabled=false
-    + * )
-      */
+     #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
+     #[UniqueEntity('slug')]
+    +#[ApiResource(
+    +    operations: [
+    +        new Get(normalizationContext: ['groups' => 'conference:item']),
+    +        new GetCollection(normalizationContext: ['groups' => 'conference:list'])
+    +    ],
+    +    order: ['year' => 'DESC', 'city' => 'ASC'],
+    +    paginationEnabled: false,
+    +)]
      class Conference
      {
-    @@ -19,21 +28,29 @@ class Conference
-          * @ORM\Id
-          * @ORM\GeneratedValue
-          * @ORM\Column(type="integer")
-    +     *
-    +     * @Groups({"conference:list", "conference:item"})
-          */
-         private $id;
+         #[ORM\Id]
+         #[ORM\GeneratedValue]
+         #[ORM\Column]
+    +    #[Groups(['conference:list', 'conference:item'])]
+         private ?int $id = null;
+
+         #[ORM\Column(length: 255)]
+    +    #[Groups(['conference:list', 'conference:item'])]
+         private ?string $city = null;
+
+         #[ORM\Column(length: 4)]
+    +    #[Groups(['conference:list', 'conference:item'])]
+         private ?string $year = null;
+
+         #[ORM\Column]
+    +    #[Groups(['conference:list', 'conference:item'])]
+         private ?bool $isInternational = null;
 
          /**
-          * @ORM\Column(type="string", length=255)
-    +     *
-    +     * @Groups({"conference:list", "conference:item"})
-          */
-         private $city;
+    @@ -34,6 +50,7 @@ class Conference
+         private Collection $comments;
 
-         /**
-          * @ORM\Column(type="string", length=4)
-    +     *
-    +     * @Groups({"conference:list", "conference:item"})
-          */
-         private $year;
+         #[ORM\Column(length: 255, unique: true)]
+    +    #[Groups(['conference:list', 'conference:item'])]
+         private ?string $slug = null;
 
-         /**
-          * @ORM\Column(type="boolean")
-    +     *
-    +     * @Groups({"conference:list", "conference:item"})
-          */
-         private $isInternational;
+         public function __construct()
 
-    @@ -44,6 +61,8 @@ class Conference
+attribute اصلی ``ApiResource``، API را برای کنفرانس‌ها پیکربندی می‌کند. این attribute عملیات‌های ممکن را به ``get`` محدود می‌کند و چیزهای مختلفی را پیکربندی می‌کند: همچون اینکه چه فیلدهایی نمایش داده شود و ترتیب کنفرانس‌ها به چه شکل باشد.
 
-         /**
-          * @ORM\Column(type="string", length=255, unique=true)
-    +     *
-    +     * @Groups({"conference:list", "conference:item"})
-          */
-         private $slug;
-
-حاشیه‌نویسی اصلی ``@ApiResource``، API را برای کنفرانس‌ها پیکربندی می‌کند. این حاشیه‌نویسی عملیات‌های ممکن را به ``get`` محدود می‌کند و چیزهای مختلفی را پیکربندی می‌کند: همچون اینکه چه فیلدهایی نمایش داده شود و ترتیب کنفرانس‌ها به چه شکل باشد.
-
-به صورت پیشفرض و به لطف پیکربندی موجود در ``config/routes/api_platform.yaml`` که توسط recipe‌ مربوط به بسته اضافه شده است، مدخل اصلی برای API همان ``/api`` است.
+به صورت پیش‌فرض و به لطف پیکربندی موجود در ``config/routes/api_platform.yaml`` که توسط recipe‌ مربوط به بسته اضافه شده است، مدخل اصلی برای API همان ``/api`` است.
 
 رابط وب به شما اجازه می‌ده تا با API فعل‌وانفعال داشته باشید:
 
@@ -122,134 +112,117 @@
 ----------------------------------------------
 
 .. index::
-    single: Annotations;@ApiResource
-    single: Annotations;@ApiFilter
-    single: Annotations;@Groups
+    single: Attributes;ApiResource
+    single: Attributes;ApiFilter
+    single: Attributes;Groups
 
 همین کار را برای کامنت‌ها بکنید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -2,13 +2,26 @@
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -2,41 +2,63 @@
 
      namespace App\Entity;
 
-    +use ApiPlatform\Core\Annotation\ApiFilter;
-    +use ApiPlatform\Core\Annotation\ApiResource;
-    +use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+    +use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+    +use ApiPlatform\Metadata\ApiFilter;
+    +use ApiPlatform\Metadata\ApiResource;
+    +use ApiPlatform\Metadata\Get;
+    +use ApiPlatform\Metadata\GetCollection;
      use App\Repository\CommentRepository;
+     use Doctrine\DBAL\Types\Types;
      use Doctrine\ORM\Mapping as ORM;
-    +use Symfony\Component\Serializer\Annotation\Groups;
+    +use Symfony\Component\Serializer\Attribute\Groups;
      use Symfony\Component\Validator\Constraints as Assert;
 
-     /**
-      * @ORM\Entity(repositoryClass=CommentRepository::class)
-      * @ORM\HasLifecycleCallbacks()
-    + *
-    + * @ApiResource(
-    + *     collectionOperations={"get"={"normalization_context"={"groups"="comment:list"}}},
-    + *     itemOperations={"get"={"normalization_context"={"groups"="comment:item"}}},
-    + *     order={"createdAt"="DESC"},
-    + *     paginationEnabled=false
-    + * )
-    + *
-    + * @ApiFilter(SearchFilter::class, properties={"conference": "exact"})
-      */
+     #[ORM\Entity(repositoryClass: CommentRepository::class)]
+     #[ORM\HasLifecycleCallbacks]
+    +#[ApiResource(
+    +    operations: [
+    +        new Get(normalizationContext: ['groups' => 'comment:item']),
+    +        new GetCollection(normalizationContext: ['groups' => 'comment:list'])
+    +    ],
+    +    order: ['createdAt' => 'DESC'],
+    +    paginationEnabled: false,
+    +)]
+    +#[ApiFilter(SearchFilter::class, properties: ['conference' => 'exact'])]
      class Comment
      {
-    @@ -16,18 +29,24 @@ class Comment
-          * @ORM\Id
-          * @ORM\GeneratedValue
-          * @ORM\Column(type="integer")
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $id;
+         #[ORM\Id]
+         #[ORM\GeneratedValue]
+         #[ORM\Column]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?int $id = null;
 
-         /**
-          * @ORM\Column(type="string", length=255)
-          * @Assert\NotBlank
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $author;
+         #[ORM\Column(length: 255)]
+         #[Assert\NotBlank]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?string $author = null;
 
-         /**
-          * @ORM\Column(type="text")
-          * @Assert\NotBlank
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $text;
+         #[ORM\Column(type: Types::TEXT)]
+         #[Assert\NotBlank]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?string $text = null;
 
-    @@ -35,22 +54,30 @@ class Comment
-          * @ORM\Column(type="string", length=255)
-          * @Assert\NotBlank
-          * @Assert\Email
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $email;
+         #[ORM\Column(length: 255)]
+         #[Assert\NotBlank]
+         #[Assert\Email]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?string $email = null;
 
-         /**
-          * @ORM\Column(type="datetime")
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $createdAt;
+         #[ORM\Column]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?\DateTimeImmutable $createdAt = null;
 
-         /**
-          * @ORM\ManyToOne(targetEntity=Conference::class, inversedBy="comments")
-          * @ORM\JoinColumn(nullable=false)
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $conference;
+         #[ORM\ManyToOne(inversedBy: 'comments')]
+         #[ORM\JoinColumn(nullable: false)]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?Conference $conference = null;
 
-         /**
-          * @ORM\Column(type="string", length=255, nullable=true)
-    +     *
-    +     * @Groups({"comment:list", "comment:item"})
-          */
-         private $photoFilename;
+         #[ORM\Column(length: 255, nullable: true)]
+    +    #[Groups(['comment:list', 'comment:item'])]
+         private ?string $photoFilename = null;
 
-از حاشیه‌نویسی‌های مشابه‌ای برای پیکربندی کلاس استفاده شده است.
+         #[ORM\Column(length: 255, options: ['default' => 'submitted'])]
+
+از attributeهای مشابه‌ای برای پیکربندی کلاس استفاده شده است.
 
 محدودسازی کامنت‌هایی که توسط API ارائه گردیده
 ----------------------------------------------------------------------------------
 
-به صورت پیشفرض، API Platform تمام کامنت‌های درون پایگاه‌داده را ارائه می‌کند. اما برای کامنت‌ها، تنها باید آن‌هایی که منتشر‌شده هستند بخشی از API باشند.
+به صورت پیش‌فرض، API Platform تمام کامنت‌های درون پایگاه‌داده را ارائه می‌کند. اما برای کامنت‌ها، تنها باید آن‌هایی که منتشر‌شده هستند بخشی از API باشند.
 
 زمانی که لازم دارید آیتم‌های بازگردانده‌شده توسط API را محدود کنید، سرویسی ایجاد کنید که یا رابط ``QueryCollectionExtensionInterface`` را که برای کنترل پرس‌وجو‌های Doctrine مربوط برای collectionها است، پیاده‌سازی کند یا اینکه رابط ``QueryItemExtensionInterface`` را پیاده‌سازی کند که برای کنترل آیتم‌ها مورد استفاده قرار می‌گیرد:
 
 .. code-block:: php
     :caption: src/Api/FilterPublishedCommentQueryExtension.php
-    :emphasize-lines: 13-15,20-22
+    :emphasize-lines: 14-16,21-23
 
     namespace App\Api;
 
-    use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
-    use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryItemExtensionInterface;
-    use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+    use ApiPlatform\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
+    use ApiPlatform\Doctrine\Orm\Extension\QueryItemExtensionInterface;
+    use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+    use ApiPlatform\Metadata\Operation;
     use App\Entity\Comment;
     use Doctrine\ORM\QueryBuilder;
 
     class FilterPublishedCommentQueryExtension implements QueryCollectionExtensionInterface, QueryItemExtensionInterface
     {
-        public function applyToCollection(QueryBuilder $qb, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, string $operationName = null)
+        public function applyToCollection(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, Operation $operation = null, array $context = []): void
         {
             if (Comment::class === $resourceClass) {
-                $qb->andWhere(sprintf("%s.state = 'published'", $qb->getRootAliases()[0]));
+                $queryBuilder->andWhere(sprintf("%s.state = 'published'", $queryBuilder->getRootAliases()[0]));
             }
         }
 
-        public function applyToItem(QueryBuilder $qb, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, array $identifiers, string $operationName = null, array $context = [])
+        public function applyToItem(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, array $identifiers, Operation $operation = null, array $context = []): void
         {
             if (Comment::class === $resourceClass) {
-                $qb->andWhere(sprintf("%s.state = 'published'", $qb->getRootAliases()[0]));
+                $queryBuilder->andWhere(sprintf("%s.state = 'published'", $queryBuilder->getRootAliases()[0]));
             }
         }
     }
@@ -263,12 +236,14 @@
     single: CORS
     single: Cross-Origin Resource Sharing
 
-به صورت پیشفرض، در تمام کلاینت‌های مدرن HTTP، سیاست امنیتی same-origin، فراخوانی API از سایر دامنه‌ها را ممنوع می‌کند. باندل CORS، که به عنوان بخشی از ``composer req api`` نصب گردیده است، سربرگ Cross-Origin Resource Sharing را بر اساس متغیر محیط ``CORS_ALLOW_ORIGIN``، ارسال می‌کند.
+به صورت پیش‌فرض، در تمام کلاینت‌های مدرن HTTP، سیاست امنیتی same-origin، فراخوانی API از سایر دامنه‌ها را ممنوع می‌کند. باندل CORS، که به عنوان بخشی از ``composer req api`` نصب گردیده است، سربرگ Cross-Origin Resource Sharing را بر اساس متغیر محیط ``CORS_ALLOW_ORIGIN``، ارسال می‌کند.
 
-به صورت پیشفرض، مقدار آن که در ``.env`` تعریف شده است، درخواست‌های HTTP از ``localhost`` و ``127.0.0.1`` را بر روی هر درگاهی  (port) اجازه می‌دهد. این دقیقاً همان چیزی است که ما در گام بعدی لازم داریم، چرا که می‌خواهیم یک SPA ایجاد کنیم که وب سرور خود را خواهد داشت که API را فراخوانی می‌کند.
+به صورت پیش‌فرض، مقدار آن که در ``.env`` تعریف شده است، درخواست‌های HTTP از ``localhost`` و ``127.0.0.1`` را بر روی هر درگاهی  (port) اجازه می‌دهد. زمانی که یک اپلیکیشن میزبانی‌شده بر روی دامنه‌ای دیگر، مانند یک اپلیکیشن موبایل یا یک فرانت‌اند خارجی، نیاز به فراخوانی API داشته باشد، آن را تطبیق دهید.
 
 .. sidebar:: بیشتر بدانید
 
-    * `آموزش تصویری API Platform در SymfonyCasts <https://symfonycasts.com/screencast/api-platform>`_؛
+    * `آموزش تصویری API Platform در SymfonyCasts`_؛
 
     * برای فعال‌سازی پشتیبانی از GraphQL، فرمان ``composer require webonyx/graphql-php`` را اجرا کنید و سپس آدرس ``/api/graphql`` را مرور کنید.
+
+.. _`آموزش تصویری API Platform در SymfonyCasts`: https://symfonycasts.com/screencast/api-platform

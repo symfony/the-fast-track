@@ -3,7 +3,7 @@
 
 من پیشروی سریع را دوست دارم. می‌خواهم پروژه‌ی کوچک‌مان به سر‌یع‌ترین وجه ممکن حیات یابد. دوست دارم همین الان در محیط عمل‌آوری باشد. از آنجایی که هنوز چیزی توسعه نداده‌ایم، با استقرار یک صفحه‌ی «دردست احداث» زیبا و ساده کار را آغاز می‌کنیم. شما عاشقش خواهید شد!
 
-برای پیدا‌کردن یک GIF ساده‌ی «در دست احداث» و در عین حال ایده‌آل، انیمیشنی و با سبکی قدیمی، کمی زمان صرف کنید. من تصمیم دارم از `این <http://clipartmag.com/images/website-under-construction-image-6.gif>`_ استفاده کنم.
+برای پیدا‌کردن یک GIF ساده‌ی «در دست احداث» و در عین حال ایده‌آل، انیمیشنی و با سبکی قدیمی، کمی زمان صرف کنید. من تصمیم دارم از `این`_ استفاده کنم.
 
 .. image:: images/under-construction.gif
     :align: center
@@ -15,20 +15,28 @@
 
 به کمک رابط خط فرمان ``symfony`` که قبلاً با هم نصب کردیم، یک پروژه‌ی سیمفونی جدید ایجاد نمایید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony new guestbook --version=5.0
+    $ symfony new guestbook --version=8.1 --php=8.5 --webapp --docker --upsun
     $ cd guestbook
 
-این فرمان یک پوشش کوچک بر روی ``Composer`` است که ایجاد پروژه‌های سیمفونی را آسان می‌کند. این فرمان از `یک اسکلت پروژه‌ <https://github.com/symfony/skeleton>`_ که شامل حداقل وابستگی‌هاست، استفاده می‌کند. این وابستگی‌ها در حقیقت کامپوننت‌های سیمفونی هستند که تقریباً برای هر پروژه‌ای الزامی‌اند: یک ابزار کنسولی و انتزاع‌ HTTP که برای ایجاد وب اپلیکیشن‌ها لازم است.
+این فرمان یک پوشش کوچک بر روی ``Composer`` است که ایجاد پروژه‌های سیمفونی را آسان می‌کند. این فرمان از `یک اسکلت پروژه‌`_ که شامل حداقل وابستگی‌هاست، استفاده می‌کند. این وابستگی‌ها در حقیقت کامپوننت‌های سیمفونی هستند که تقریباً برای هر پروژه‌ای الزامی‌اند: یک ابزار کنسولی و انتزاع‌ HTTP که برای ایجاد وب اپلیکیشن‌ها لازم است.
 
-اگر به مخزن مربوط به شالوده‌ی پروژه در GitHub نگاهی بیاندازید، متوجه می‌شوید که تقریباً خالی است. تنها یک فایل ``composer.json`` وجود دارد. با این حال پوشه‌ی ``guestbook`` پر از فایل است. چطور همچین چیزی امکان دارد؟ جواب این مسئله در بسته‌ی ``symfony/flex`` است. سیمفونی Flex یک افزونه‌ی Composer است که خود را به فرآیند نصب قلاب می‌کند و درصورتی که بسته‌ای دارای یک *recipe* باشد،‌ آن را اجرا می‌کند.
+از آنجایی که در حال ایجاد یک وب اپلیکیشن کاملاً مجهز هستیم، چند گزینه افزوده‌ایم که زندگی ما را آسان‌تر می‌کنند:
+
+* ``--webapp``: به‌صورت پیش‌فرض، اپلیکیشنی با کمترین وابستگی‌های ممکن ایجاد می‌شود. برای اکثر پروژه‌های وب، توصیه می‌شود که علاوه بر آن از بسته‌ی ``webapp`` استفاده کنید. این بسته بیشتر بسته‌های موردنیاز برای وب اپلیکیشن‌های «مدرن» را در بر می‌گیرد. بسته‌ی ``webapp`` تعداد زیادی بسته‌ی سیمفونی، از جمله Symfony Messenger و PostgreSQL از طریق Doctrine را اضافه می‌کند.
+
+* ``--docker``: بر روی رایانه‌ی محلی شما، از Docker برای مدیریت سرویس‌هایی مانند PostgreSQL استفاده خواهیم کرد. این گزینه Docker را فعال می‌کند تا سیمفونی به‌صورت خودکار سرویس‌های Docker را بر اساس بسته‌های موردنیاز اضافه کند (برای نمونه، یک سرویس PostgreSQL هنگام افزودن ORM یا یک mail catcher هنگام افزودن Symfony Mailer).
+
+* ``--upsun``: اگر می‌خواهید پروژه‌ی خود را بر روی Upsun مستقر کنید، این گزینه به‌صورت خودکار یک پیکربندی منطقی برای Upsun تولید می‌کند. Upsun ساده‌ترین و ترجیح‌داده‌شده‌ترین راه برای استقرار محیط‌های آزمایش، staging و عمل‌آوری سیمفونی در فضای ابری است.
+
+اگر به مخزن مربوط به شالوده‌ی پروژه در GitHub نگاهی بیندازید، متوجه می‌شوید که تقریباً خالی است. تنها یک فایل ``composer.json`` وجود دارد. با این حال پوشه‌ی ``guestbook`` پر از فایل است. چطور چنین چیزی امکان دارد؟ جواب این مسئله در بسته‌ی ``symfony/flex`` است. سیمفونی Flex یک افزونه‌ی Composer است که خود را به فرآیند نصب قلاب می‌کند و در صورتی که بسته‌ای دارای یک *recipe* باشد،‌ آن را اجرا می‌کند.
 
 مدخل اصلی یک Recipe در سیمفونی، یک فایل manifest است که عملیات‌های لازم برای ثبت خودکار یک بسته در یک اپلیکیشن سیمفونی را شرح می‌دهد. برای نصب یک بسته در سیمفونی، هرگز نیازی به خواندن فایل README نخواهید داشت. اتوماسیون یکی از ویژگی‌های کلیدی سیمفونی است.
 
 همچنین در صورتی که Git بر روی سیستم ما نصب باشد،‌ فرمان ``symfony new`` یک مخزن Git برای ما ایجاد کرده و اولین commit را به آن اضافه می‌کند.
 
-نگاهی به ساختار پوشه‌ها بیاندازید:
+نگاهی به ساختار پوشه‌ها بیندازید:
 
 .. code-block:: text
     :class: ignore
@@ -64,10 +72,10 @@
 
 تصویر gif من را از اینجا دانلود کنید.
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ mkdir public/images/
-    $ php -r "copy('http://clipartmag.com/images/website-under-construction-image-6.gif', 'public/images/under-construction.gif');"
+    $ php -r "copy('https://clipartmag.com/images/website-under-construction-image-6.gif', 'public/images/under-construction.gif');"
 
 راه‌اندازی یک وب سرور محلی
 -------------------------------------------------
@@ -79,13 +87,13 @@
 
 از داخل پوشه‌ی پروژه، وب سرور را در بک‌گراند (با پرچم ``-d``) استارت بزنید.
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony server:start -d
 
 سرور روی اولین درگاه (port) آزادی که با 8000 شروع شود آغاز به کار می‌کند. به عنوان یک میانبر، مرورگر را از طریق CLI باز کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ symfony open:local
@@ -114,113 +122,91 @@
 
 راضی هستید؟ بیایید کارمان را commit کنیم:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ git add public/images
     $ git commit -m'Add the under construction image'
 
-افزودن favicon
---------------------
-
-برای جلوگیری از «اسپم‌شدن» توسط خطاهای ۴۰۴ در لاگ‌ها به علت نیافتن favicon برای درخواست‌های مرورگر، بیایید یک favicon اضافه کنیم:
-
-.. code-block:: bash
-
-    $ php -r "copy('https://symfony.com/favicon.ico', 'public/favicon.ico');"
-    $ git add public/
-    $ git commit -m'Add a favicon'
-
 آماده‌سازی برای عمل‌آوری
 ------------------------------------------------
 
 .. index::
-    single: SymfonyCloud;Initialization
+    single: Upsun;Initialization
 
 نظرتان در مورد مستقرکردن کارمان در محیط عمل‌آوری چیست؟ می‌دانم که حتی یک صفحه‌ی HTML مناسب برای خوش‌آمدگویی به کاربرانمان هم نداریم. اما اینکه بتوانیم تصویر کوچک «دردست احداث» را بر روی یک سرور عمل‌آوری ببینیم، یک گام عالی رو به جلو خواهد بود. شما حتماً با این شعار آشنا هستید: *استقرار را زود و مکرر انجام بده*.
 
 شما می‌توانید این اپلیکیشن را بر روی هر ارائه‌دهنده‌ی PHP میزبانی کنید ... که در حقیقت شامل تمام ارائه‌دهندگان خدمت میزبانی وب می‌شود. البته چند موضوع را در نظر بگیرید: ما به آخرین نسخه‌ی PHP و امکان میزبانی از خدماتی همچون پایگاه‌داده، صف و شماری دیگر از خدمات نیاز داریم.
 
-من تصمیم خودم را گرفته‌ام، و آن `SymfonyCloud <https://symfony.com/cloud>`_ است. SymfonyCloud، تمام چیزهایی که به آن احتیاج داریم را فراهم‌کرده و به تأمین‌سرمایه‌ی توسعه سیمفونی کمک می‌کند.
+من تصمیم خودم را گرفته‌ام، و آن `Upsun`_ است. Upsun، تمام چیزهایی که به آن احتیاج داریم را فراهم‌کرده و به تأمین‌سرمایه‌ی توسعه سیمفونی کمک می‌کند.
 
 .. index::
     single: Symfony CLI;project:init
 
-رابط خط فرمان ``symfony`` به صورت داخلی از SymfonyCloud پشتیبانی می‌کند. بیایید یک پروژه‌ی SymfonyCloud ایجاد کنیم:
-
-.. code-block:: bash
-
-    $ symfony project:init
-
-این فرمان تعدادی فایل که برای SymfonyCloud لازم است را ایجاد می‌کند، یعنی فایل‌های ``.symfony/services.yaml``، ``.symfony/routes.yaml``، and ``.symfony.cloud.yaml``.
-
-آن‌ها را به Git بیافزاید و commit کنید:
-
-.. code-block:: bash
-
-    $ git add .
-    $ git commit -m"Add SymfonyCloud configuration"
-
-.. note::
-
-    به علت اینکه فایل ``.gitignore`` تولید شده است و به صورت خودکار فایل‌هایی که نیاز به commit ندارند را مستثنی کرده است، استفاده از فرمانِ عام و خطرناک ``git add .`` به خوبی جواب می‌دهد و مشکلی ایجاد نمی‌کند.
+از آنجایی که هنگام ایجاد پروژه از گزینه‌ی ``--upsun`` استفاده کردیم، Upsun از پیش با تنها فایل پیکربندی‌ای که نیاز دارد، یعنی ``.upsun/config.yaml``، مقداردهی اولیه شده است.
 
 پیش به سوی عمل‌آوری
 ------------------------------------
 
 .. index::
-    single: Symfony CLI;project:create
-    single: Symfony CLI;deploy
+    single: Symfony CLI;cloud:project:create
+    single: Symfony CLI;cloud:push
 
 زمان استقرار فرا رسیده است؟
 
-یک پروژه‌ی SymfonyCloud ایجاد کنید:
+یک پروژه‌ی ریموت جدید Upsun ایجاد کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony project:create --title="Guestbook" --plan=development
+    $ symfony cloud:project:create --title="Guestbook" --plan=development
 
 این فرمان کارهای زیادی انجام می‌دهد:
 
-* اولین‌بار که این فرمان را اجرا می‌کنید، اگر تا به حال احراز هویت نکرده‌اید، با اعتبارنامه‌های SymfonyConnect متعلق به خودتان، احراز هویت کنید.
+* اولین‌بار که این فرمان را اجرا می‌کنید، اگر تا به حال احراز هویت نکرده‌اید، با اعتبارنامه‌های Upsun متعلق به خودتان، احراز هویت کنید.
 
-* این فرمان یک پروژه‌ی جدید بر روی SymfonyCloud تدارک می‌بیند (به ازای هر پروژه‌ی توسعه‌ای جدید،‌ ۷ روز *به صورت رایگان* دریافت می‌کند).
+* این فرمان یک پروژه‌ی جدید بر روی Upsun تدارک می‌بیند (در اولین پروژه‌ای که ایجاد می‌کنید، ۳۰ روز *به صورت رایگان* دریافت می‌کنید).
 
 سپس مستقر کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony deploy
+    $ symfony cloud:push
 
 کد با pushکردن آن به مخزن Git، مستقر می‌گردد. در پایان این فرمان، پروژه دارای یک دامنه مشخص خواهد بود که می‌توانید از آن برای دسترسی به پروژه استفاده کنید.
 
 .. index::
-    single: Symfony CLI;open:remote
+    single: Symfony CLI;cloud:url
 
 بررسی کنید که همه چیز به‌درستی کار می‌کند:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
-    $ symfony open:remote
+    $ symfony cloud:url -1
 
 شما باید خطای ۴۰۴ دریافت کنید، اما رفتن به آدرس ``/images/under-construction.gif``، باید کارمان را آشکار نماید.
 
-دقت کنید که صفحه‌ی پیشفرض و زیبای سیمفونی را بر روی SymfonyCloud نخواهید داشت. چرا؟ شما به زودی یاد خواهید گرفت که سیمفونی از محیط‌های متفاوتی پشتیبانی می‌کند و SymfonyCloud به صورت خودکار کد را در محیط عمل‌آوری (که فاقد صفحه‌ی ذکرشده است) مستقر می‌کند.
+دقت کنید که صفحه‌ی پیش‌فرض و زیبای سیمفونی را بر روی Upsun نخواهید داشت. چرا؟ شما به زودی یاد خواهید گرفت که سیمفونی از محیط‌های متفاوتی پشتیبانی می‌کند و Upsun به صورت خودکار کد را در محیط عمل‌آوری (که فاقد صفحه‌ی ذکرشده است) مستقر می‌کند.
 
 .. index::
-    single: Symfony CLI;project:delete
+    single: Symfony CLI;cloud:project:delete
 
 .. tip::
 
-    اگر می‌خواهید پروژه را از روی SymfonyCloud حذف کنید، از فرمان ``project:delete`` استفاده کنید.
+    اگر می‌خواهید پروژه را از روی Upsun حذف کنید، از فرمان ``cloud:project:delete`` استفاده کنید.
 
 .. sidebar:: بیشتر بدانید
 
-    * `سرور Recipe‌های سیمفونی <https://flex.symfony.com/>`_، جایی که می‌توانید تمام recipeهای در دسترس را برای اپلیکیشن سیمفونی خود پیدا کنید.
+    * مخازن `recipeهای رسمی سیمفونی`_ و `recipeهای مهیا‌شده توسط جامعه‌ی سیمفونی`_، جایی که شما می‌توانید recipe‌های خودتان را ثبت کنید؛
 
-    * مخازن `recipeهای رسمی سیمفونی <https://github.com/symfony/recipes>`_ و `recipeهای مهیا‌شده توسط جامعه‌ی سیمفونی <https://github.com/symfony/recipes-contrib>`_، جایی که شما می‌توانید recipe‌های خودتان را ثبت کنید.
+    * `وب سرور محلی سیمفونی`_؛
 
-    * `وب سرور محلی سیمفونی <https://symfony.com/doc/current/setup/symfony_server.html>`_؛
+    * `مستندات Upsun`_.
 
-    * `مستندات SymfonyCloud <https://symfony.com/doc/cloud>`_.
+.. _`این`: https://clipartmag.com/images/website-under-construction-image-6.gif
+.. _`یک اسکلت پروژه‌`: https://github.com/symfony/skeleton
+.. _`Upsun`:     https://upsun.com/symfony/?utm_source=symfony-cloud-sign-up&utm_medium=backlink&utm_campaign=Symfony-Cloud-sign-up&utm_content=symfony-book
+.. _`recipeهای رسمی سیمفونی`: https://github.com/symfony/recipes
+.. _`recipeهای مهیا‌شده توسط جامعه‌ی سیمفونی`: https://github.com/symfony/recipes-contrib
+.. _`وب سرور محلی سیمفونی`: https://symfony.com/doc/current/setup/symfony_server.html
+.. _`مستندات Upsun`: https://developer.upsun.com/docs/get-started/stacks/symfony/index?utm_source=symfony-cloud-sign-up&utm_medium=backlink&utm_campaign=Symfony-Cloud-sign-up&utm_content=symfony-book

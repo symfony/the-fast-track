@@ -1,19 +1,19 @@
-Making the Website Feel Like an SPA
-===================================
+واداشتن وب‌سایت به رفتاری شبیه یک SPA
+===========================================================
 
 .. index::
     single: Symfony UX
     single: Turbo
     single: Stimulus
 
-The website is fast, but every click still reloads a full HTML page. The traditional answer is to build a *Single-Page Application* (SPA): a JavaScript application, written in another stack, that talks to the API. That means a second application to develop, secure, deploy, and keep in sync with the main one.
+وب‌سایت سریع است، اما هر کلیک همچنان یک صفحه‌ی HTML کامل را بازبارگیری می‌کند. پاسخ سنتی، ساخت یک *اپلیکیشن تک‌صفحه‌ای (SPA)* است: یک اپلیکیشن JavaScript که در پشته‌ای دیگر نوشته می‌شود و با API صحبت می‌کند. این یعنی یک اپلیکیشن دوم که باید توسعه، امن، مستقر و با اپلیکیشن اصلی هماهنگ نگه داشته شود.
 
-Symfony has a different answer. *Symfony UX* is an initiative that brings the SPA experience to server-rendered applications: keep writing Twig templates and Symfony controllers, and sprinkle JavaScript only where it adds value.
+سیمفونی پاسخ متفاوتی دارد. *Symfony UX* یک ابتکار است که تجربه‌ی SPA را به اپلیکیشن‌های سرورْرِندرشده می‌آورد: همچنان قالب‌های Twig و کنترلرهای سیمفونی بنویسید و تنها جایی که ارزش می‌افزاید، اندکی JavaScript بپاشید.
 
-Discovering Symfony UX
-----------------------
+کشف Symfony UX
+------------------------------
 
-The good news? We have been using Symfony UX since the very first step of this book. The webapp skeleton ships with two of its packages: ``symfony/stimulus-bundle`` and ``symfony/ux-turbo``. Have a look at ``importmap.php``:
+خبر خوب؟ ما از همان نخستین گام این کتاب از Symfony UX استفاده کرده‌ایم. شالوده‌ی webapp با دو بسته‌ی آن می‌آید: ``symfony/stimulus-bundle`` و ``symfony/ux-turbo``. به ``importmap.php`` نگاهی بیندازید:
 
 .. code-block:: php
     :class: ignore
@@ -25,31 +25,31 @@ The good news? We have been using Symfony UX since the very first step of this b
         '@hotwired/turbo' => ['version' => '8.0.23'],
     ];
 
-`Stimulus`_ is a small JavaScript framework that connects JavaScript *controllers* to HTML elements via ``data-`` attributes. The ``assets/stimulus_bootstrap.js`` file starts the Stimulus application and automatically registers any controller stored in the ``assets/controllers/`` directory.
+`Stimulus`_ یک چارچوب کوچک JavaScript است که *کنترلرهای* JavaScript را از طریق attributeهای ``data-`` به عناصر HTML متصل می‌کند. فایل ``assets/stimulus_bootstrap.js`` اپلیکیشن Stimulus را راه‌اندازی کرده و به صورت خودکار هر کنترلری را که در پوشه‌ی ``assets/controllers/`` ذخیره شده باشد، ثبت می‌کند.
 
-`Turbo`_ builds on this foundation to make navigation instant.
+`Turbo`_ بر روی این شالوده بنا می‌شود تا پیمایش را آنی کند.
 
-Navigating Instantly with Turbo
--------------------------------
+پیمایش آنی با Turbo
+--------------------------------------
 
 .. index::
     single: Turbo;Drive
 
-Turbo *Drive* has been silently at work all along: it intercepts every link click and form submission, fetches the page in the background, and swaps the ``<body>`` without a full page reload. The browser keeps the same JavaScript and CSS alive, so navigation feels immediate.
+Turbo *Drive* در تمام این مدت بی‌صدا در حال کار بوده است: هر کلیک روی پیوند و ارسال فرم را رهگیری می‌کند، صفحه را در پس‌زمینه واکشی کرده و ``<body>`` را بدون بازبارگیری کامل صفحه جایگزین می‌کند. مرورگر همان JavaScript و CSS را زنده نگه می‌دارد، بنابراین پیمایش آنی به نظر می‌رسد.
 
-Open the browser developer tools, switch to the "Network" tab, and click through the website: page changes are ``fetch`` requests, not full document loads.
+ابزارهای توسعه‌دهنده‌ی مرورگر را باز کنید، به تب «Network» بروید و در وب‌سایت کلیک کنید: تغییرات صفحه، درخواست‌های ``fetch`` هستند، نه بارگیری کامل سند.
 
-Turbo only asks one thing in return: proper HTTP semantics for forms. A successful submission must redirect (ours does, thanks to ``redirectToRoute()``), and a failed one must use a ``4xx`` status code. Symfony handles the latter automatically: when a submitted form is invalid, ``render()`` responds with a ``422 Unprocessable Entity`` status code.
+Turbo در ازای آن تنها یک چیز می‌خواهد: معناشناسی HTTP درست برای فرم‌ها. یک ارسال موفق باید بازهدایت کند (ارسال ما به لطف ``redirectToRoute()`` این کار را می‌کند) و یک ارسال ناموفق باید از یک کد وضعیت ``4xx`` استفاده کند. سیمفونی مورد دوم را به صورت خودکار رسیدگی می‌کند: زمانی که یک فرم ارسال‌شده نامعتبر است، ``render()`` با کد وضعیت ``422 Unprocessable Entity`` پاسخ می‌دهد.
 
-Updating Part of a Page with Turbo Frames
------------------------------------------
+به‌روزرسانی بخشی از یک صفحه با Turbo Frames
+------------------------------------------------------------------------------
 
 .. index::
     single: Turbo;Frame
 
-Turbo Drive avoids full page reloads. Turbo *Frames* go one step further: they let a fragment of the page navigate independently from the rest of it.
+Turbo Drive از بازبارگیری کامل صفحه جلوگیری می‌کند. Turbo *Frames* یک گام فراتر می‌رود: به یک قطعه از صفحه اجازه می‌دهد تا مستقل از باقی آن پیمایش کند.
 
-The comments list is a perfect candidate. When browsing comment pages via the "Previous" and "Next" links, only the list should change; re-rendering the header, the form, and the footer is wasted work. Wrap the comments in a frame:
+فهرست کامنت‌ها یک نامزد عالی است. هنگام مرور صفحات کامنت از طریق پیوندهای «Previous» و «Next»، تنها فهرست باید تغییر کند؛ رِرِندرکردن سربرگ، فرم و پاورقی کاری بیهوده است. کامنت‌ها را در یک frame در بر بگیرید:
 
 .. code-block:: diff
     :caption: patch_file
@@ -69,19 +69,19 @@ The comments list is a perfect candidate. When browsing comment pages via the "P
              </div>
              <div class="col-12 col-lg-4">
 
-Links inside a ``<turbo-frame>`` element only update that frame: when clicking on "Next", Turbo fetches the page in the background and swaps the matching frame, leaving the rest of the page untouched.
+پیوندهای درون یک عنصر ``<turbo-frame>`` تنها همان frame را به‌روزرسانی می‌کنند: هنگام کلیک روی «Next»، Turbo صفحه را در پس‌زمینه واکشی کرده و frame منطبق را جایگزین می‌کند و باقی صفحه را دست‌نخورده می‌گذارد.
 
-The ``data-turbo-action="advance"`` attribute promotes the frame navigation to a full visit: the URL in the address bar is updated (including the ``offset`` query parameter), so paginated comments remain shareable and the browser back button works as expected.
+attribute‌ی ``data-turbo-action="advance"`` پیمایش frame را به یک بازدید کامل ارتقا می‌دهد: URL موجود در نوار آدرس به‌روزرسانی می‌شود (شامل پارامتر پرس‌وجوی ``offset``)، بنابراین کامنت‌های صفحه‌بندی‌شده قابل اشتراک‌گذاری می‌مانند و دکمه‌ی بازگشت مرورگر مطابق انتظار کار می‌کند.
 
-Previewing the Comment Photo with Stimulus
-------------------------------------------
+پیش‌نمایش عکس کامنت با Stimulus
+-------------------------------------------------------
 
 .. index::
     single: Stimulus;Controller
 
-Time to write our first lines of JavaScript of the whole book. Attendees submitting a photo cannot see it before posting the comment. Let's display a preview when they select a file.
+زمان نوشتن نخستین خطوط JavaScript در کل کتاب فرا رسیده است. شرکت‌کنندگانی که عکسی ارسال می‌کنند، نمی‌توانند آن را پیش از ارسال کامنت ببینند. بیایید هنگامی که یک فایل انتخاب می‌کنند، یک پیش‌نمایش نمایش دهیم.
 
-Create a Stimulus controller (the file name determines the controller name, ``photo-preview``):
+یک کنترلر Stimulus ایجاد کنید (نام فایل، نام کنترلر را تعیین می‌کند، یعنی ``photo-preview``):
 
 .. code-block:: javascript
     :caption: assets/controllers/photo_preview_controller.js
@@ -109,7 +109,7 @@ Create a Stimulus controller (the file name determines the controller name, ``ph
         }
     }
 
-That's all the JavaScript we need. Stimulus discovers and registers the controller automatically. Connect it to the photo field of the comment form via ``data-`` attributes:
+این تمام JavaScriptی است که نیاز داریم. Stimulus کنترلر را به صورت خودکار کشف و ثبت می‌کند. آن را از طریق attributeهای ``data-`` به فیلد عکس فرم کامنت متصل کنید:
 
 .. code-block:: diff
     :caption: patch_file
@@ -128,31 +128,31 @@ That's all the JavaScript we need. Stimulus discovers and registers the controll
                          new Image(maxSize: '1024k')
                      ],
 
-The ``data-controller`` attribute binds the controller to the file input, and ``data-action`` calls its ``show()`` method whenever the input value changes. Select a photo on a conference page and enjoy the preview.
+attribute‌ی ``data-controller`` کنترلر را به ورودی فایل متصل می‌کند و ``data-action`` هرگاه مقدار ورودی تغییر کند، متد ``show()`` آن را فراخوانی می‌کند. روی یک صفحه‌ی کنفرانس عکسی انتخاب کنید و از پیش‌نمایش لذت ببرید.
 
-Stimulus controllers work hand in hand with Turbo: because Drive and Frames update the page without reloading it, controllers are automatically connected and disconnected as elements enter and leave the DOM.
+کنترلرهای Stimulus دست در دست Turbo کار می‌کنند: از آنجایی که Drive و Frames صفحه را بدون بازبارگیری به‌روزرسانی می‌کنند، کنترلرها به صورت خودکار با ورود و خروج عناصر از DOM متصل و قطع می‌شوند.
 
-What about Mobile Applications?
--------------------------------
+اپلیکیشن‌های موبایل چطور؟
+---------------------------------------------------
 
-We got the SPA experience without building a second application: no separate JavaScript stack, no second web server, no CORS configuration, nothing new to deploy.
+ما تجربه‌ی SPA را بدون ساخت یک اپلیکیشن دوم به دست آوردیم: بدون پشته‌ی JavaScript جداگانه، بدون وب سرور دوم، بدون پیکربندی CORS، بدون هیچ چیز جدیدی برای استقرار.
 
-And if you ever need a *native* mobile application, the API created in the previous step is the right entry point: it is public, documented, and framework-agnostic. The website and the mobile application can evolve independently while sharing the same backend.
+و اگر روزی به یک اپلیکیشن موبایل *بومی (native)* نیاز داشتید، APIای که در گام قبلی ایجاد شد، مدخل درستی است: عمومی، مستندشده و مستقل از چارچوب است. وب‌سایت و اپلیکیشن موبایل می‌توانند به صورت مستقل تکامل یابند در حالی که بک‌اند یکسانی را به اشتراک می‌گذارند.
 
-.. sidebar:: Going Further
+.. sidebar:: بیشتر بدانید
 
-    * The `Symfony UX initiative`_;
+    * `ابتکار Symfony UX`_؛
 
-    * The `Turbo Handbook`_ and the `Stimulus Handbook`_;
+    * `راهنمای Turbo`_ و `راهنمای Stimulus`_؛
 
-    * The `Symfony UX Turbo docs`_, including Turbo *Streams*, which broadcast page updates to all connected users via Mercure;
+    * `مستندات Symfony UX Turbo`_، شامل Turbo *Streams* که به‌روزرسانی‌های صفحه را از طریق Mercure به تمام کاربران متصل پخش می‌کند؛
 
-    * `Live Components`_, to build dynamic interfaces with no custom JavaScript at all.
+    * `Live Components`_، برای ساخت رابط‌های پویا بدون هیچ JavaScript سفارشی.
 
 .. _`Stimulus`: https://stimulus.hotwired.dev/
 .. _`Turbo`: https://turbo.hotwired.dev/
-.. _`Symfony UX initiative`: https://ux.symfony.com/
-.. _`Turbo Handbook`: https://turbo.hotwired.dev/handbook/introduction
-.. _`Stimulus Handbook`: https://stimulus.hotwired.dev/handbook/introduction
-.. _`Symfony UX Turbo docs`: https://symfony.com/bundles/ux-turbo/current/index.html
+.. _`ابتکار Symfony UX`: https://ux.symfony.com/
+.. _`راهنمای Turbo`: https://turbo.hotwired.dev/handbook/introduction
+.. _`راهنمای Stimulus`: https://stimulus.hotwired.dev/handbook/introduction
+.. _`مستندات Symfony UX Turbo`: https://symfony.com/bundles/ux-turbo/current/index.html
 .. _`Live Components`: https://symfony.com/bundles/ux-live-component/current/index.html

@@ -1,4 +1,4 @@
-جلوگیری از ارسال محتوای هرز (Spam) با کمک یک API
+جلوگیری از ارسال محتوای هرز (Spam) با کمک هوش مصنوعی
 ==============================================================================
 
 .. index::
@@ -6,104 +6,56 @@
 
 هر کسی می‌تواند یک بازخورد ارسال کند. حتی ربات‌ها، تولیدکنندگان محتواهای هرز و غیره. می‌توانیم یک «کپچا (captcha)» به فرم بیافزاییم تا در برابر ربات‌ها محافظت شویم یا اینکه از APIهای شخص ثالث استفاده کنیم.
 
-من تصمیم گرفتم تا از سرویس رایگان `Akismet <https://akismet.com>`_ استفاده کنم تا نشان دهم که چگونه می‌توان یک API را فراخوانی کرده و همچنین این فراخوانی را به «خارج از باند (out of band)» منتقل کرد.
+تصمیم گرفته‌ام از یک مدل زبانی بزرگ (Large Language Model) برای تصمیم‌گیری درباره‌ی هرز بودن یک کامنت استفاده کنم تا نشان دهم که چگونه می‌توان از هوش مصنوعی در یک اپلیکیشن سیمفونی استفاده کرد و چگونه می‌توان چنین فراخوانی‌های پرهزینه‌ای را به «خارج از باند (out of band)» منتقل کرد.
 
-ثبت‌نام در Akismet
-----------------------------
+دریافت یک کلید API برای هوش مصنوعی
+------------------------------------------------------------
 
 .. index::
-    single: Akismet
+    single: AI
+    single: OpenAI
 
-یک حساب کاربری رایگان در `akismet.com <https://akismet.com>`_ ایجاد کرده و کلید Akismet API را دریافت نمایید.
+Symfony AI از فراهم‌کنندگان مدل بسیاری پشتیبانی می‌کند: OpenAI، Anthropic، Google Gemini، Mistral و حتی مدل‌های محلی از طریق Ollama. این فصل از OpenAI استفاده می‌کند: در `platform.openai.com`_ ثبت‌نام کرده و یک کلید API بسازید. اگر فراهم‌کننده‌ی دیگری را ترجیح می‌دهید، کد یکسان می‌ماند؛ تنها پیکربندی تغییر می‌کند.
 
-تکیه بر کامپوننت HTTPClient سیمفونی
+تکیه بر باندل Symfony AI
 --------------------------------------------------------
 
 .. index::
-    single: Components;HTTP Client
-    single: HTTP Client
+    single: Components;AI
+    single: AI;Agent
+    single: AI;Platform
 
-به جای استفاده از کتابخانه‌ای که API مربوط به Akismet را انتراعی کند، ما تمام فراخوانی‌های API را به صورت مستقیم انجام می‌دهیم. انجام فراخوانی‌های HTTP توسط خودمان بهینه‌تر است (و اجازه می‌دهد تا از تمام ابزارهای اشکال‌زدایی سیمفونی همچون یکپارچگی با نمایه‌ساز سیمفونی، بهره ببریم).
+به جای فراخوانی API مربوط به HTTP مدل توسط خودمان، از باندل Symfony AI استفاده می‌کنیم. این باندل یک انتزاع *platform* برای فراهم‌کنندگان مدل ارائه می‌دهد (هر فراهم‌کننده به‌صورت بسته‌ی پل (bridge) مخصوص خودش می‌آید) و یک *agent* که یک مدل را برای انجام فراخوانی‌ها در بر می‌گیرد؛ و از تمام ابزارهای اشکال‌زدایی سیمفونی همچون یکپارچگی با نمایه‌ساز سیمفونی بهره می‌برد:
 
-برای انجام فراخوانی‌های API، از کامپوننت HttpClient سیمفونی استفاده کنید:
+.. code-block:: terminal
 
-.. code-block:: bash
+    $ symfony composer req symfony/ai-bundle symfony/ai-agent symfony/ai-open-ai-platform
 
-    $ symfony composer req http-client
+.. note::
 
-طراحی یک کلاس بررسی‌کننده‌ی محتوای هرز
--------------------------------------------------------------------------
+    Symfony AI مجموعه‌ای جوان از کامپوننت‌ها و همچنان آزمایشی است: APIهای آن ممکن است سریع‌تر از باقی سیمفونی تغییر کنند.
 
-به منظور جای دادن تمام منطق مربوط به فراخوانی API مربوط به Akismet و تفسیر پاسخ‌های آن، یک کلاس جدید در پوشه‌ی ``src/`` و با نام ``SpamChecker`` ایجاد نمایید:
+recipe مربوط به پل OpenAI، platform را از پیش برای ما پیکربندی کرده است؛ این پیکربندی به یک متغیر محیط ``OPENAI_API_KEY`` ارجاع می‌دهد (و یک مقدار پیش‌فرض خالی برای آن در ``.env`` اضافه کرده است):
 
-.. code-block:: php
-    :emphasize-lines: 14,24
-    :caption: src/SpamChecker.php
+.. code-block:: yaml
+    :caption: config/packages/ai_open_ai_platform.yaml
+    :class: ignore
 
-    namespace App;
+    ai:
+        platform:
+            openai:
+                api_key: '%env(OPENAI_API_KEY)%'
 
-    use App\Entity\Comment;
-    use Symfony\Contracts\HttpClient\HttpClientInterface;
+یک *agent* پیش‌فرض روی آن پیکربندی کنید:
 
-    class SpamChecker
-    {
-        private $client;
-        private $endpoint;
+.. code-block:: yaml
+    :caption: config/packages/ai.yaml
 
-        public function __construct(HttpClientInterface $client, string $akismetKey)
-        {
-            $this->client = $client;
-            $this->endpoint = sprintf('https://%s.rest.akismet.com/1.1/comment-check', $akismetKey);
-        }
-
-        /**
-         * @return int Spam score: 0: not spam, 1: maybe spam, 2: blatant spam
-         *
-         * @throws \RuntimeException if the call did not work
-         */
-        public function getSpamScore(Comment $comment, array $context): int
-        {
-            $response = $this->client->request('POST', $this->endpoint, [
-                'body' => array_merge($context, [
-                    'blog' => 'https://guestbook.example.com',
-                    'comment_type' => 'comment',
-                    'comment_author' => $comment->getAuthor(),
-                    'comment_author_email' => $comment->getEmail(),
-                    'comment_content' => $comment->getText(),
-                    'comment_date_gmt' => $comment->getCreatedAt()->format('c'),
-                    'blog_lang' => 'en',
-                    'blog_charset' => 'UTF-8',
-                    'is_test' => true,
-                ]),
-            ]);
-
-            $headers = $response->getHeaders();
-            if ('discard' === ($headers['x-akismet-pro-tip'][0] ?? '')) {
-                return 2;
-            }
-
-            $content = $response->getContent();
-            if (isset($headers['x-akismet-debug-help'][0])) {
-                throw new \RuntimeException(sprintf('Unable to check for spam: %s (%s).', $content, $headers['x-akismet-debug-help'][0]));
-            }
-
-            return 'true' === $content ? 1 : 0;
-        }
-    }
-
-متد ``request()`` در HTTP client، یک درخواست POST را به URL مربوط به Akismet ارسال می‌کند (``$this->endpoint``) و آرایه‌ای از پارامترها را پاس می‌دهد.
-
-متد ``getSpamScore()`` با توجه به پاسخ فراخوانی API، می‌تواند ۳ مقدار مختلف برگرداند:
-
-* ``2``: اگر کامنت آشکارا یک محتوای هرز باشد؛
-
-* ``1``: اگر کامنت امکان هرز بودن داشته باشد؛
-
-* ``0``: اگر کامنت هرز نباشد (ham)؛
-
-.. tip::
-
-    از آدرس رایانامه‌ی مخصوص ``akismet-guaranteed-spam@example.com`` استفاده کنید تا نتیجه‌ی فراخوانی را مجبور به هرز بودن کنید.
+    ai:
+        agent:
+            default:
+                platform: 'ai.platform.openai'
+                model: 'gpt-5-mini'
 
 استفاده از متغیر‌های محیط
 ------------------------------------------------
@@ -113,31 +65,15 @@
     single: .env
     single: .env.local
 
-کلاس ``SpamChecker``، به آرگمان ``$akismetKey`` وابسته است. همچون آدرس پوشه‌ی بارگذاری، می‌توانیم آن را از طریق تنظیم ``bind`` در کانتینر، تزریق کنیم:
+ما مطمئناً نمی‌خواهیم که مقدار کلید را در پیکربندی هاردکد کنیم؛ به همین دلیل آن از متغیر محیط ``OPENAI_API_KEY`` خوانده می‌شود.
 
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -12,6 +12,7 @@ services:
-             autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
-             bind:
-                 $photoDir: "%kernel.project_dir%/public/uploads/photos"
-    +            $akismetKey: "%env(AKISMET_KEY)%"
-
-         # makes classes in src/ available to be used as services
-         # this creates a service per class whose id is the fully-qualified class name
-
-ما مطمئناً نمی‌خواهیم که مقدار کلید Akismet را در فایل پیکربندی ``services.yaml`` هاردکد کنیم، بنابراین به جای آن از یک متغیر محیط استفاده می‌کنیم  (``AKISMET_KEY``).
-
-پس از این هر توسعه‌دهنده وظیفه دارد تا یک متغیر محیط «واقعی» را تنظیم یا مقدار آن را در فایل (``AKISMET_KEY``) ذخیره کند:
+پس از این هر توسعه‌دهنده وظیفه دارد تا یک متغیر محیط «واقعی» را تنظیم کند یا مقدار آن را در فایل ``.env.local`` ذخیره کند:
 
 .. code-block:: text
     :caption: .env.local
     :class: ignore
 
-    AKISMET_KEY=abcdef
+    OPENAI_API_KEY=sk-...
 
 برای محیط عمل‌آوری، باید یک متغیر محیط «واقعی» تعریف شود.
 
@@ -155,12 +91,12 @@
 
 رمز‌ها همان متغیرهای محیط در لباس مبدل هستند.
 
-کلید Akismet را به گاوصندوق اضافه کنید:
+کلید OpenAI API را به گاوصندوق اضافه کنید:
 
-.. code-block:: bash
-    :class: answers(AKISMET_KEY_VALUE)
+.. code-block:: terminal
+    :class: answers(OPENAI_API_KEY_VALUE)
 
-    $ symfony console secrets:set AKISMET_KEY
+    $ symfony console secrets:set OPENAI_API_KEY
 
 .. code-block:: text
     :class: ignore
@@ -168,13 +104,104 @@
      Please type the secret value:
      >
 
-     [OK] Secret "AKISMET_KEY" encrypted in "config/secrets/dev/"; you can commit it.
+     [OK] Secret "OPENAI_API_KEY" encrypted in "config/secrets/dev/"; you can commit it.
 
-چون این اولین باری است که این فرمان را اجرا می‌کنیم، فرمان دو عدد کلید را در پوشه‌ی ``config/secret/dev/`` تولید می‌کند. سپس رمز ``AKISMET_KEY`` را نیز در همان پوشه ذخیره می‌کند.
+چون این اولین باری است که این فرمان را اجرا می‌کنیم، فرمان دو عدد کلید را در پوشه‌ی ``config/secret/dev/`` تولید می‌کند. سپس رمز ``OPENAI_API_KEY`` را نیز در همان پوشه ذخیره می‌کند.
 
 برای رمز‌های محیط توسعه، می‌توانید تصمیم بگیرید که گاوصندوق را به همراه کلیدهایی که برایش تولید شده و در پوشه‌ی ``config/secret/dev/`` قرار دارد، commit کنید.
 
 همچنین رمزها می‌توانند از طریق تنظیم یک متغیر محیط با نام یکسان، بازنویسی (override) شوند.
+
+.. index::
+    single: Command;secrets:reveal
+
+برای خواندن یک رمز از گاوصندوق، از ``secrets:reveal`` استفاده کنید:
+
+.. code-block:: terminal
+
+    $ symfony console secrets:reveal OPENAI_API_KEY
+
+طراحی یک کلاس بررسی‌کننده‌ی محتوای هرز
+-------------------------------------------------------------------------
+
+.. index::
+    single: AI;Prompt
+
+به منظور جای دادن منطق پرسش از مدل درباره‌ی هرز بودن یک کامنت، یک کلاس جدید در پوشه‌ی ``src/`` و با نام ``SpamChecker`` ایجاد نمایید:
+
+.. code-block:: php
+    :caption: src/SpamChecker.php
+
+    namespace App;
+
+    use App\Entity\Comment;
+    use Symfony\AI\Agent\AgentInterface;
+    use Symfony\AI\Platform\Exception\ExceptionInterface;
+    use Symfony\AI\Platform\Message\Message;
+    use Symfony\AI\Platform\Message\MessageBag;
+
+    class SpamChecker
+    {
+        public function __construct(
+            private AgentInterface $agent,
+        ) {
+        }
+
+        /**
+         * @return int Spam score: 0: not spam, 1: maybe spam, 2: blatant spam
+         */
+        public function getSpamScore(Comment $comment, array $context): int
+        {
+            $messages = new MessageBag(
+                Message::forSystem(<<<PROMPT
+                    You moderate comments submitted to a conference guestbook.
+                    Classify the comment as "ham", "maybe spam", or "blatant spam".
+                    Only answer with the classification.
+                    PROMPT),
+                Message::ofUser(sprintf(<<<COMMENT
+                    IP: %s
+                    User agent: %s
+                    Author: %s (%s)
+                    Comment: %s
+                    COMMENT,
+                    $context['user_ip'] ?? '',
+                    $context['user_agent'] ?? '',
+                    $comment->getAuthor(),
+                    $comment->getEmail(),
+                    $comment->getText(),
+                )),
+            );
+
+            try {
+                $answer = strtolower($this->agent->call($messages)->getContent());
+            } catch (ExceptionInterface) {
+                // when the model cannot answer, let a human moderate the comment
+                return 1;
+            }
+
+            return match (true) {
+                str_contains($answer, 'blatant spam') => 2,
+                str_contains($answer, 'maybe spam') => 1,
+                default => 0,
+            };
+        }
+    }
+
+*system prompt* به مدل نقش آن را می‌گوید و پاسخ‌هایش را محدود می‌کند؛ *user message* حاوی کامنت و زمینه‌ی ارسال آن (آدرس IP، user agent) است.
+
+متد ``getSpamScore()`` با توجه به پاسخ مدل، می‌تواند ۳ مقدار مختلف برگرداند:
+
+* ``2``: اگر کامنت آشکارا یک محتوای هرز باشد؛
+
+* ``1``: اگر کامنت امکان هرز بودن داشته باشد، یا زمانی که مدل در دسترس نباشد؛
+
+* ``0``: اگر کامنت هرز نباشد (ham).
+
+خروجی یک مدل، متن آزاد است، حتی زمانی که prompt آن را محدود می‌کند: آن را با انعطاف تجزیه کنید (با حروف کوچک، با استفاده از ``str_contains()``). و زمانی که مدل اصلاً نمی‌تواند پاسخ دهد، به جای شکست‌خوردن به تعدیل انسانی پناه ببرید: هوش مصنوعی باید به مدیر کمک کند، نه اینکه هرگز guestbook را مسدود کند.
+
+.. tip::
+
+    سعی کنید کامنتی که آشکارا هرز به نظر می‌رسد ارسال کنید، مانند «Buy cheap watches at http://example.com/!!!»، تا مدل را در حال کار ببینید.
 
 بررسی کامنت‌ها برای یافتن محتوای هرز
 --------------------------------------------------------------------
@@ -184,26 +211,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -7,6 +7,7 @@ use App\Entity\Conference;
-     use App\Form\CommentFormType;
+     use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
     +use App\SpamChecker;
      use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-     use Symfony\Component\HttpFoundation\File\Exception\FileException;
-    @@ -39,7 +40,7 @@ class ConferenceController extends AbstractController
-         /**
-          * @Route("/conference/{slug}", name="conference")
-          */
-    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, SpamChecker $spamChecker, string $photoDir): Response
-         {
+     use Symfony\Component\DependencyInjection\Attribute\Autowire;
+    @@ -34,7 +35,8 @@ final class ConferenceController extends AbstractController
+             Request $request,
+             Conference $conference,
+             CommentRepository $commentRepository,
+    +        SpamChecker $spamChecker,
+             #[Autowire('%photo_dir%')] string $photoDir,
+             #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0,
+         ): Response {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
-    @@ -57,6 +58,17 @@ class ConferenceController extends AbstractController
+    @@ -48,6 +50,17 @@ final class ConferenceController extends AbstractController
                  }
 
                  $this->entityManager->persist($comment);
@@ -224,59 +251,154 @@
 
 بررسی کنید که این روش به درستی کار می‌کند.
 
+محدودسازی نرخ ارسال کامنت‌ها
+-----------------------------------------------------------
+
+.. index::
+    single: Rate Limiter
+    single: Components;RateLimiter
+
+تشخیص محتوای هرز، وب‌سایت را در برابر اسپمرهای پیچیده محافظت می‌کند. یک محافظت مکمل و بسیار کم‌هزینه‌تر، محدودکردن سرعتی است که یک کلاینت می‌تواند کامنت ارسال کند: هیچ‌کس به‌طور قانونی ده‌ها کامنت در ساعت روی یک guestbook ارسال نمی‌کند.
+
+کامپوننت Symfony Rate Limiter را اضافه کنید:
+
+.. code-block:: terminal
+
+    $ symfony composer req rate-limiter
+
+یک محدودکننده پیکربندی کنید که حداکثر ۵ کامنت در ساعت از یک کلاینت بپذیرد:
+
+.. code-block:: yaml
+    :caption: config/packages/rate_limiter.yaml
+
+    framework:
+        rate_limiter:
+            comment_submission:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '1 hour'
+
+    when@test:
+        framework:
+            rate_limiter:
+                comment_submission:
+                    limit: 1000
+
+آزمون‌های خودکار به‌طور قانونی تعداد زیادی کامنت را در بازه‌ی زمانی کوتاهی ارسال می‌کنند، بنابراین این محدودیت برای محیط ``test`` افزایش داده شده است.
+
+محدودکننده را روی ارسال کامنت‌ها با attribute‌ی ``#[RateLimit]`` اعمال کنید؛ به‌صورت پیش‌فرض، کلاینت‌ها را با آدرس IP آن‌ها شناسایی می‌کند:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -15,6 +15,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
+     use Symfony\Component\HttpFoundation\Request;
+     use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+    +use Symfony\Component\HttpKernel\Attribute\RateLimit;
+     use Symfony\Component\Routing\Attribute\Route;
+
+     final class ConferenceController extends AbstractController
+    @@ -31,6 +32,7 @@ final class ConferenceController extends AbstractController
+             ]);
+         }
+
+    +    #[RateLimit('comment_submission', methods: ['POST'])]
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(
+             Request $request,
+
+به آرگمان ``methods`` توجه کنید: مرور یک صفحه‌ی کنفرانس یک درخواست ``GET`` است و نباید محدود شود؛ تنها ارسال کامنت‌ها (درخواست‌های ``POST``) محدود می‌شوند.
+
+زمانی که به محدودیت رسیده شود، سیمفونی به‌صورت خودکار یک پاسخ ``429 Too Many Requests`` به همراه سربرگ HTTP ``Retry-After`` بازمی‌گرداند که به کلاینت می‌گوید چه زمانی می‌تواند دوباره تلاش کند.
+
+همین کامپوننت همچنین فرم ورود مدیر را در برابر حملات brute-force محافظت می‌کند؛ فعال‌سازی *throttling ورود* روی دیوارآتش تنها یک خط می‌خواهد:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -19,6 +19,7 @@ security:
+             main:
+                 lazy: true
+                 provider: app_user_provider
+    +            login_throttling: ~
+                 form_login:
+                     login_path: app_login
+                     check_path: app_login
+
+به‌صورت پیش‌فرض، سیمفونی پس از ۵ تلاش ناموفق ورود برای یک نام کاربری در یک دقیقه، یک IP را مسدود می‌کند (یک ورود موفق شمارنده را بازنشانی می‌کند). از گزینه‌های ``max_attempts`` و ``interval`` برای تنظیم این سیاست استفاده کنید.
+
 مدیریت رمز‌ها در محیط عمل‌آوری
 ----------------------------------------------------------
 
 .. index::
-    single: SymfonyCloud;Secret
-    single: SymfonyCloud;Environment Variable
+    single: Upsun;Secret
+    single: Upsun;Environment Variable
     single: Secret
-    single: Symfony CLI;var:set
+    single: Symfony CLI;cloud:variable:create
 
-در محیط عمل‌آوری، SymfonyCloud از تنظیم *متغیرهای محیط حساس* پشتیبانی می‌کند:
+در محیط عمل‌آوری، Upsun از تنظیم *متغیرهای محیط حساس* پشتیبانی می‌کند:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
-    $ symfony var:set --sensitive AKISMET_KEY=abcdef
+    $ symfony cloud:variable:create --sensitive=1 --level=project -y --name=env:OPENAI_API_KEY --value=sk-abcdef
 
-اما همانطور که در بالا بحث شد، استفاده از رمزهای سیمفونی می‌تواند راه بهتری باشد. البته نه از لحاظ امنیت، بلکه از نظر سهولت مدیریت رمز برای تیم پروژه. به این ترتیب، تمام رمزها در مخزن ذخیره شده و تنها متغیر محیط که نیاز دارید در محیط عمل‌آوری مدیریت کنید، کلید رمزگشایی است. این روش این امکان را به وجود می‌آورد که هر یک از اعضای تیم بدون آنکه به سرورهای عمل‌آوری دسترسی داشته باشند، بتوانند رمزهای عمل‌آوری اضافه کنند.
+اما همانطور که در بالا بحث شد، استفاده از رمزهای سیمفونی می‌تواند راه بهتری باشد. البته نه از لحاظ امنیت، بلکه از نظر سهولت مدیریت رمز برای تیم پروژه. به این ترتیب، تمام رمزها در مخزن ذخیره شده و تنها متغیر محیط که نیاز دارید در محیط عمل‌آوری مدیریت کنید، کلید رمزگشایی است. این روش این امکان را به وجود می‌آورد که هر یک از اعضای تیم بدون آنکه به سرورهای عمل‌آوری دسترسی داشته باشند، بتوانند رمزهای عمل‌آوری اضافه کنند. البته راه‌اندازی آن کمی پیچیده‌تر است.
 
 .. index::
     single: Command;secrets:generate-keys
 
 ابتدا یک جفت کلید برای استفاده در محیط عمل‌آوری تولید کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ APP_ENV=prod symfony console secrets:generate-keys
+    $ symfony console secrets:generate-keys --env=prod
+
+.. note::
+
+    بر روی Linux و سیستم‌عامل‌های مشابه، به جای ``--env=prod`` از ``APP_RUNTIME_ENV=prod`` استفاده کنید زیرا این کار از کامپایل اپلیکیشن برای محیط ``prod`` جلوگیری می‌کند:
+
+    .. code-block:: terminal
+        :class: ignore
+
+        $ APP_RUNTIME_ENV=prod symfony console secrets:generate-keys
 
 .. index::
     single: Command;secrets:set
 
-مجدداً رمز Akismet را به گاوصندوق عمل‌آوری اضافه کنید اما با مقدار آن در محیط عمل‌آوری:
+مجدداً رمز کلید OpenAI API را به گاوصندوق عمل‌آوری اضافه کنید اما با مقدار آن در محیط عمل‌آوری:
 
-.. code-block:: bash
-    :class: answers(abcdef)
+.. code-block:: terminal
+    :class: answers(sk-abcdef)
 
-    $ APP_ENV=prod symfony console secrets:set AKISMET_KEY
+    $ symfony console secrets:set OPENAI_API_KEY --env=prod
 
-آخرین گام، ارسال کلید رمزگشایی به SymfonyCloud از طریق تنظیم یک متغیر محیط حساس می‌باشد:
+آخرین گام، ارسال کلید رمزگشایی به Upsun از طریق تنظیم یک متغیر محیط حساس می‌باشد:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony var:set --sensitive SYMFONY_DECRYPTION_SECRET=`php -r 'echo base64_encode(include("config/secrets/prod/prod.decrypt.private.php"));'`
+    $ symfony cloud:variable:create --sensitive=1 --level=project -y --name=env:SYMFONY_DECRYPTION_SECRET --value=`php -r 'echo base64_encode(include("config/secrets/prod/prod.decrypt.private.php"));'`
 
 می‌توانید تمام فایل‌ها را اضافه کرده و commit کنید؛ کلید رمزگشایی به صورت خودکار به فایل ``.gitignore`` اضافه شده است، و بنابراین هرگز commit نخواهد شد. برای ایمنی بیشتر، می‌توانید کلید را از روی رایانه‌ی محلی خود پاک نمایید زیرا که دیگر مستقر شده است:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ rm -f config/secrets/prod/prod.decrypt.private.php
 
 .. sidebar:: بیشتر بدانید
 
-    * `مستندات کامپوننت HttpClient <https://symfony.com/doc/current/components/http_client.html>`_؛
+    * `مستندات Symfony AI`_؛
 
-    * `پردازشگر متغیرهای محیط <https://symfony.com/doc/current/configuration/env_var_processors.html>`_؛
+    * `پردازشگر متغیرهای محیط`_؛
 
-    * `برگه‌تقلب سیمفونی HttpClient <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/httpclient_en_43.pdf>`_.
+    * `چگونه اطلاعات حساس را محرمانه نگه داریم`_.
+
+.. _`platform.openai.com`: https://platform.openai.com
+.. _`مستندات Symfony AI`: https://symfony.com/doc/current/ai/index.html
+.. _`پردازشگر متغیرهای محیط`: https://symfony.com/doc/current/configuration/env_var_processors.html
+.. _`چگونه اطلاعات حساس را محرمانه نگه داریم`: https://symfony.com/doc/current/configuration/secrets.html

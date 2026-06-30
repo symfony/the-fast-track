@@ -10,7 +10,7 @@
     single: Components;Routing
     single: Routing;Locale
     single: Routing;Requirements
-    single: Annotations;@Route
+    single: Attributes;Route
 
 اولین گام در بین‌المللی‌سازی وب‌سایت، بین‌المللی‌سازی URLها است. وقتی رابط کاربری یک وب‌سایت را ترجمه می‌کنید، URL باید به ازای هر ناحیه (locale) متفاوت باشد تا با نهان‌سازی‌های HTTP به خوبی کار کند (هرگز از URL یکسان و ذخیره‌ی ناحیه در نشست استفاده نکنید).
 
@@ -20,17 +20,17 @@
     :caption: patch_file
     :emphasize-lines: 8
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -34,7 +34,7 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -28,7 +28,7 @@ final class ConferenceController extends AbstractController
          }
 
-         /**
-    -     * @Route("/", name="homepage")
-    +     * @Route("/{_locale}/", name="homepage")
-          */
+         #[Cache(smaxage: 3600)]
+    -    #[Route('/', name: 'homepage')]
+    +    #[Route('/{_locale}/', name: 'homepage')]
          public function index(ConferenceRepository $conferenceRepository): Response
          {
+             return $this->render('conference/index.html.twig', [
 
 در حال حاضر در صفحه‌ی اصلی، ناحیه به صورت داخلی و با توجه به URL تنظیم می‌گردد؛ برای مثال اگر ``/fr/`` را وارد کرده باشید، ``$request->getLocale()`` مقدار ``fr`` را بازمی‌گرداند.
 
@@ -40,17 +40,17 @@
     :caption: patch_file
     :emphasize-lines: 8
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -34,7 +34,7 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -28,7 +28,7 @@ final class ConferenceController extends AbstractController
          }
 
-         /**
-    -     * @Route("/{_locale}/", name="homepage")
-    +     * @Route("/{_locale<en|fr>}/", name="homepage")
-          */
+         #[Cache(smaxage: 3600)]
+    -    #[Route('/{_locale}/', name: 'homepage')]
+    +    #[Route('/{_locale<en|fr>}/', name: 'homepage')]
          public function index(ConferenceRepository $conferenceRepository): Response
          {
+             return $this->render('conference/index.html.twig', [
 
 هر پارامترِ راه می‌تواند از طریق یک regular expression در درون ``<`` ``>`` محدود گردد. حالا راه مربوط به ``homepage``، تنها وقتی که پارامتر ``_locale`` دارای یکی از مقادیر ``en`` یا ``fr`` باشد، تطبیق می‌یابد. سعی کنید ``/es/`` را وارد کنید، شما باید با یک 404 مواجه شوید چرا که هیچ راهی مطابقت پیدا نخواهد کرد.
 
@@ -59,27 +59,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -7,6 +7,7 @@ parameters:
-         default_admin_email: admin@example.com
-         default_domain: '127.0.0.1'
-         default_scheme: 'http'
+    --- i/config/services.yaml
+    +++ w/config/services.yaml
+    @@ -9,5 +9,6 @@ parameters:
+         admin_email: "%env(string:default:default_admin_email:ADMIN_EMAIL)%"
+         default_base_url: 'http://127.0.0.1'
     +    app.supported_locales: 'en|fr'
 
-         router.request_context.host: '%env(default:default_domain:SYMFONY_DEFAULT_ROUTE_HOST)%'
-         router.request_context.scheme: '%env(default:default_scheme:SYMFONY_DEFAULT_ROUTE_SCHEME)%'
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -34,7 +34,7 @@ class ConferenceController extends AbstractController
+     services:
+         # default configuration for services in *this* file
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -28,7 +28,7 @@ final class ConferenceController extends AbstractController
          }
 
-         /**
-    -     * @Route("/{_locale<en|fr>}/", name="homepage")
-    +     * @Route("/{_locale<%app.supported_locales%>}/", name="homepage")
-          */
+         #[Cache(smaxage: 3600)]
+    -    #[Route('/{_locale<en|fr>}/', name: 'homepage')]
+    +    #[Route('/{_locale<%app.supported_locales%>}/', name: 'homepage')]
          public function index(ConferenceRepository $conferenceRepository): Response
          {
+             return $this->render('conference/index.html.twig', [
 
 افزودن یک زبان می‌تواند از طریق به‌روزرسانی پارامتر ``app.supported_languages`` انجام شود.
 
@@ -88,49 +87,48 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -47,7 +47,7 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -38,7 +38,7 @@ final class ConferenceController extends AbstractController
          }
 
-         /**
-    -     * @Route("/conference_header", name="conference_header")
-    +     * @Route("/{_locale<%app.supported_locales%>}/conference_header", name="conference_header")
-          */
+         #[Cache(smaxage: 3600)]
+    -    #[Route('/conference_header', name: 'conference_header')]
+    +    #[Route('/{_locale<%app.supported_locales%>}/conference_header', name: 'conference_header')]
          public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
          {
-    @@ -60,7 +60,7 @@ class ConferenceController extends AbstractController
+             return $this->render('conference/header.html.twig', [
+    @@ -46,8 +46,8 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
-         /**
-    -     * @Route("/conference/{slug}", name="conference")
-    +     * @Route("/{_locale<%app.supported_locales%>}/conference/{slug}", name="conference")
-          */
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository, NotifierInterface $notifier, string $photoDir): Response
-         {
+         #[RateLimit('comment_submission', methods: ['POST'])]
+    -    #[Route('/conference/{slug:conference}', name: 'conference')]
+    +    #[Route('/{_locale<%app.supported_locales%>}/conference/{slug:conference}', name: 'conference')]
+         public function show(
+             Request $request,
+             Conference $conference,
 
 کار ما تقریباً تمام است. ما دیگر راهی که با ``/`` مطابقت داشته باشد نداریم. بیایید آن را مجدداً اضافه کرده و به ``/en/`` بازهدایت کنیم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -33,6 +33,14 @@ class ConferenceController extends AbstractController
-             $this->bus = $bus;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -27,6 +27,12 @@ final class ConferenceController extends AbstractController
+         ) {
          }
 
-    +    /**
-    +     * @Route("/")
-    +     */
+    +    #[Route('/')]
     +    public function indexNoLocale(): Response
     +    {
     +        return $this->redirectToRoute('homepage', ['_locale' => 'en']);
     +    }
     +
-         /**
-          * @Route("/{_locale<%app.supported_locales%>}/", name="homepage")
-          */
+         #[Cache(smaxage: 3600)]
+         #[Route('/{_locale<%app.supported_locales%>}/', name: 'homepage')]
+         public function index(ConferenceRepository $conferenceRepository): Response
 
 حالا که تمام راه‌ها از ناحیه آگاه هستند، توجه کنید که URLهای تولید شده در صفحات نیز، ناحیه‌ی فعلی را به صورت خودکار در نظر می‌گیرند.
 
@@ -141,26 +139,26 @@
     single: Twig;path
     single: Twig;Locale
 
-برای اجازه به کاربران برای تعویض ناحیه‌ی پیشفرض ``en`` به ناحیه‌ای دیگر، بیایید یک تعویض‌گر در سربرگ اضافه کنیم:
+برای اجازه به کاربران برای تعویض ناحیه‌ی پیش‌فرض ``en`` به ناحیه‌ای دیگر، بیایید یک تعویض‌گر در سربرگ اضافه کنیم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
     @@ -34,6 +34,16 @@
                                          Admin
                                      </a>
                                  </li>
     +<li class="nav-item dropdown">
     +    <a class="nav-link dropdown-toggle" href="#" id="dropdown-language" role="button"
-    +        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    +        data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
     +        English
     +    </a>
-    +    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown-language">
-    +        <a class="dropdown-item" href="{{ path('homepage', {_locale: 'en'}) }}">English</a>
-    +        <a class="dropdown-item" href="{{ path('homepage', {_locale: 'fr'}) }}">Français</a>
-    +    </div>
+    +    <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown-language">
+    +        <li><a class="dropdown-item" href="{{ path('homepage', {_locale: 'en'}) }}">English</a></li>
+    +        <li><a class="dropdown-item" href="{{ path('homepage', {_locale: 'fr'}) }}">Français</a></li>
+    +    </ul>
     +</li>
                              </ul>
                          </div>
@@ -177,17 +175,17 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
     @@ -37,7 +37,7 @@
      <li class="nav-item dropdown">
          <a class="nav-link dropdown-toggle" href="#" id="dropdown-language" role="button"
-             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+             data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
     -        English
     +        {{ app.request.locale|locale_name(app.request.locale) }}
          </a>
-         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown-language">
-             <a class="dropdown-item" href="{{ path('homepage', {_locale: 'en'}) }}">English</a>
+         <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown-language">
+             <li><a class="dropdown-item" href="{{ path('homepage', {_locale: 'en'}) }}">English</a></li>
 
 ``app`` یک متغیر جهانی در Twig است که دسترسی به درخواست فعلی را ارائه می‌کند. برای تبدیل ناحیه به یک رشته‌ی (string) قابل فهم برای انسان، ما می‌خواهیم از یک فیلتر Twig با نام ``locale_name`` استفاده کنیم.
 
@@ -196,7 +194,7 @@
 
 بسته به ناحیه، نام ناحیه همواره حرف اولش بزرگ نیست. برای اینکه جملات را به صورت صحیح capitalize کنیم، به یک فیلترِ آگاه از Unicode نیاز داریم که کامپوننت رشته‌ی سیمفونی (Symfony String) و پیاده‌سازی آن در Twig از این قابلیت برخوردار هستند:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony composer req twig/string-extra
 
@@ -206,17 +204,17 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
     @@ -37,7 +37,7 @@
      <li class="nav-item dropdown">
          <a class="nav-link dropdown-toggle" href="#" id="dropdown-language" role="button"
-             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+             data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
     -        {{ app.request.locale|locale_name(app.request.locale) }}
     +        {{ app.request.locale|locale_name(app.request.locale)|u.title }}
          </a>
-         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown-language">
-             <a class="dropdown-item" href="{{ path('homepage', {_locale: 'en'}) }}">English</a>
+         <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown-language">
+             <li><a class="dropdown-item" href="{{ path('homepage', {_locale: 'en'}) }}">English</a></li>
 
 حالا می‌توانید از طریق تعویض‌گر، ناحیه را از فرانسوی به انگلیسی تغییر دهید و تمام رابط کاربری به زیبایی خود را منطبق می‌کند:
 
@@ -233,30 +231,24 @@
     single: Translation
     single: Twig;trans
 
-برای شروع به ترجمه‌ی وب‌سایت، نیاز داریم که کامپوننت ترجمه‌ی سیمفونی (Symfony Translation) را نصب کنیم:
-
-.. code-block:: bash
-
-    $ symfony composer req translation
-
 ترجمه‌ی تک تک جملات یک وب‌سایت بزرگ می‌تواند خسته‌کننده باشد، اما خوشبختانه ما تنها تعداد انگشت شماری پیغام در وب‌سایتمان داریم. بیایید با تمام جملات موجود در صفحه‌ی اصلی شروع کنیم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
     @@ -20,7 +20,7 @@
                  <nav class="navbar navbar-expand-xl navbar-light bg-light">
                      <div class="container mt-4 mb-3">
-                         <a class="navbar-brand mr-4 pr-2" href="{{ path('homepage') }}">
+                         <a class="navbar-brand me-4 pr-2" href="{{ path('homepage') }}">
     -                        &#128217; Conference Guestbook
     +                        &#128217; {{ 'Conference Guestbook'|trans }}
                          </a>
 
-                         <button class="navbar-toggler border-0" type="button" data-toggle="collapse" data-target="#header-menu" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Show/Hide navigation">
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+                         <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#header-menu" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Show/Hide navigation">
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -4,7 +4,7 @@
 
      {% block body %}
@@ -269,14 +261,14 @@
     @@ -21,7 +21,7 @@
 
                                  <a href="{{ path('conference', { slug: conference.slug }) }}"
-                                    class="btn btn-sm btn-blue stretched-link">
+                                    class="btn btn-sm btn-primary stretched-link">
     -                                View
     +                                {{ 'View'|trans }}
                                  </a>
                              </div>
                          </div>
 
-فیلتر ``trans`` در Twig،  برای ورودی داده‌شده، به دنبال ترجمه‌ای منطبق با ناحیه‌ی فعلی می‌گردد. اگر آن را پیدا نکند، به *ناحیه‌ی پیشفرض* که در ``config/packages/translation.yaml`` پیکربندی شده است، برمی‌گردد:
+فیلتر ``trans`` در Twig،  برای ورودی داده‌شده، به دنبال ترجمه‌ای منطبق با ناحیه‌ی فعلی می‌گردد. اگر آن را پیدا نکند، به *ناحیه‌ی پیش‌فرض* که در ``config/packages/translation.yaml`` پیکربندی شده است، برمی‌گردد:
 
 .. code-block:: yaml
     :class: ignore
@@ -310,23 +302,29 @@
 
 همانطور که ممکن است در ``config/packages/translation.yaml`` دیده باشید، ترجمه‌ها در درون پوشه‌ی ریشه‌ی ``translations/`` ذخیره می شوند که به صورت خودکار برای شما ایجاد شده است.
 
-به‌جای ایجاد فایل‌های ترجمه به صورت دستی، از فرمان ``translation:update`` استفاده کنید:
+به‌جای ایجاد فایل‌های ترجمه به صورت دستی، از فرمان ``translation:extract`` استفاده کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony console translation:update fr --force --domain=messages
+    $ symfony console translation:extract fr --force --domain=messages
 
 این فرمان برای ناحیه‌ی ``fr`` و دامنه‌ی ``messages`` (که تمام پیغام‌ها به جز پیغام‌های هسته‌ای -همچون خطاهای اعتبارسنجی و امنیتی- را شامل می‌شود)، یک فایل ترجمه تولید می‌کند (پرچم ``--force``).
 
-فایل ``translations/messages+intl-icu.fr.xlf`` را وایرایش و پیغام‌ها را به فرانسوی ترجمه کنید. فرانسوی بلد نیستید؟ بگذارید من کمکتان کنم:
+فایل ``translations/messages+intl-icu.fr.xlf`` را ویرایش و پیغام‌ها را به فرانسوی ترجمه کنید. فرانسوی بلد نیستید؟ بگذارید من کمکتان کنم:
 
 .. code-block:: diff
     :caption: patch_file
+    :class: ignore
 
-    --- a/translations/messages+intl-icu.fr.xlf
-    +++ b/translations/messages+intl-icu.fr.xlf
+    --- i/translations/messages+intl-icu.fr.xlf
+    +++ w/translations/messages+intl-icu.fr.xlf
     @@ -7,15 +7,15 @@
          <body>
+           <trans-unit id="eOy4.6V" resname="Conference Guestbook">
+             <source>Conference Guestbook</source>
+    -        <target>__Conference Guestbook</target>
+    +        <target>Livre d'Or pour Conferences</target>
+           </trans-unit>
            <trans-unit id="LNAVleg" resname="Give your feedback!">
              <source>Give your feedback!</source>
     -        <target>__Give your feedback!</target>
@@ -337,13 +335,35 @@
     -        <target>__View</target>
     +        <target>Sélectionner</target>
            </trans-unit>
-           <trans-unit id="eOy4.6V" resname="Conference Guestbook">
-             <source>Conference Guestbook</source>
-    -        <target>__Conference Guestbook</target>
-    +        <target>Livre d'Or pour Conferences</target>
-           </trans-unit>
          </body>
        </file>
+
+.. code-block:: xml
+    :caption: translations/messages+intl-icu.fr.xlf
+    :class: hide
+
+    <?xml version="1.0" encoding="utf-8"?>
+    <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="fr" datatype="plaintext" original="file.ext">
+        <header>
+        <tool tool-id="symfony" tool-name="Symfony" />
+        </header>
+        <body>
+        <trans-unit id="LNAVleg" resname="Give your feedback!">
+            <source>Give your feedback!</source>
+            <target>Donnez votre avis !</target>
+        </trans-unit>
+        <trans-unit id="3Mg5pAF" resname="View">
+            <source>View</source>
+            <target>Sélectionner</target>
+        </trans-unit>
+        <trans-unit id="eOy4.6V" resname="Conference Guestbook">
+            <source>Conference Guestbook</source>
+            <target>Livre d'Or pour Conferences</target>
+        </trans-unit>
+        </body>
+    </file>
+    </xliff>
 
 توجه کنید که ما تمام قالب‌ها را ترجمه نمی‌کنیم، اما شما آزادید که این کار را انجام دهید:
 
@@ -395,8 +415,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -44,7 +44,7 @@
                              </div>
                          </div>
@@ -414,18 +434,18 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/translations/messages+intl-icu.fr.xlf
-    +++ b/translations/messages+intl-icu.fr.xlf
+    --- i/translations/messages+intl-icu.fr.xlf
+    +++ w/translations/messages+intl-icu.fr.xlf
     @@ -17,6 +17,10 @@
              <source>Conference Guestbook</source>
              <target>Livre d'Or pour Conferences</target>
-           </trans-unit>
-    +      <trans-unit id="Dg2dPd6" resname="nb_of_comments">
+         </trans-unit>
+    +    <trans-unit id="Dg2dPd6" resname="nb_of_comments">
     +        <source>nb_of_comments</source>
     +        <target>{count, plural, =0 {Aucun commentaire.} =1 {1 commentaire.} other {# commentaires.}}</target>
-    +      </trans-unit>
+    +    </trans-unit>
          </body>
-       </file>
+     </file>
      </xliff>
 
 از آنجایی که نیاز داریم ترجمه‌ی انگلیسی را فراهم کنیم، پس هنوز کار ما تمام نشده‌ است. فایل ``translations/messages+intl-icu.en.xlf`` را ایجاد کنید:
@@ -438,7 +458,7 @@
     <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
       <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
         <header>
-          <tool tool-id="symfony" tool-name="Symfony"/>
+          <tool tool-id="symfony" tool-name="Symfony" />
         </header>
         <body>
           <trans-unit id="maMQz7W" resname="nb_of_comments">
@@ -457,10 +477,10 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/tests/Controller/ConferenceControllerTest.php
-    +++ b/tests/Controller/ConferenceControllerTest.php
-    @@ -11,7 +11,7 @@ class ConferenceControllerTest extends WebTestCase
-         public function testIndex()
+    --- i/tests/Controller/ConferenceControllerTest.php
+    +++ w/tests/Controller/ConferenceControllerTest.php
+    @@ -16,7 +16,7 @@ class ConferenceControllerTest extends WebTestCase
+         public function testIndex(): void
          {
              $client = static::createClient();
     -        $client->request('GET', '/');
@@ -468,25 +488,25 @@
 
              $this->assertResponseIsSuccessful();
              $this->assertSelectorTextContains('h2', 'Give your feedback');
-    @@ -20,7 +20,7 @@ class ConferenceControllerTest extends WebTestCase
-         public function testCommentSubmission()
-         {
-             $client = static::createClient();
-    -        $client->request('GET', '/conference/amsterdam-2019');
-    +        $client->request('GET', '/en/conference/amsterdam-2019');
+    @@ -29,7 +29,7 @@ class ConferenceControllerTest extends WebTestCase
+             $berlin = ConferenceFactory::createOne(['city' => 'Berlin', 'year' => '2021', 'isInternational' => false]);
+             CommentFactory::createOne(['conference' => $berlin]);
+
+    -        $client->request('GET', '/conference/berlin-2021');
+    +        $client->request('GET', '/en/conference/berlin-2021');
              $client->submitForm('Submit', [
-                 'comment_form[author]' => 'Fabien',
-                 'comment_form[text]' => 'Some feedback from an automated functional test',
-    @@ -41,7 +41,7 @@ class ConferenceControllerTest extends WebTestCase
-         public function testConferencePage()
-         {
-             $client = static::createClient();
+                 'comment[author]' => 'Fabien',
+                 'comment[text]' => 'Some feedback from an automated functional test',
+    @@ -50,7 +50,7 @@ class ConferenceControllerTest extends WebTestCase
+             ConferenceFactory::createOne(['city' => 'Paris', 'year' => '2020', 'isInternational' => false]);
+             CommentFactory::createOne(['conference' => $amsterdam]);
+
     -        $crawler = $client->request('GET', '/');
     +        $crawler = $client->request('GET', '/en/');
 
              $this->assertCount(2, $crawler->filter('h4'));
 
-    @@ -50,6 +50,6 @@ class ConferenceControllerTest extends WebTestCase
+    @@ -59,6 +59,6 @@ class ConferenceControllerTest extends WebTestCase
              $this->assertPageTitleContains('Amsterdam');
              $this->assertResponseIsSuccessful();
              $this->assertSelectorTextContains('h2', 'Amsterdam 2019');
@@ -497,6 +517,9 @@
 
 .. sidebar:: بیشتر بدانید
 
-    * `ترجمه‌ی پیغام‌ها با استفاده از ICU formatter <https://symfony.com/doc/current/translation/message_format.html>`_؛
+    * `ترجمه‌ی پیغام‌ها با استفاده از ICU formatter`_؛
 
-    * `استفاده از فیلترهای ترجمه‌ی Twig <https://symfony.com/doc/current/translation/templates.html#translation-filters>`_.
+    * `استفاده از فیلترهای ترجمه‌ی Twig`_.
+
+.. _`ترجمه‌ی پیغام‌ها با استفاده از ICU formatter`: https://symfony.com/doc/current/translation/message_format.html
+.. _`استفاده از فیلترهای ترجمه‌ی Twig`: https://symfony.com/doc/current/translation/templates.html#translation-filters

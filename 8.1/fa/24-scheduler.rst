@@ -1,17 +1,17 @@
-Scheduling Tasks
-================
+زمان‌بندی وظایف
+==========================
 
 .. index::
     single: Cron
 
-Some maintenance tasks must run on a schedule. Unlike workers, which run continuously, scheduled tasks run periodically for a short period of time.
+برخی وظایف نگهداری باید بر اساس یک زمان‌بندی اجرا شوند. برخلاف کارگرها (workers) که به صورت مستمر اجرا می‌شوند، وظایف زمان‌بندی‌شده به صورت دوره‌ای و برای مدت کوتاهی اجرا می‌گردند.
 
-Cleaning up Comments
---------------------
+پاک‌سازی کامنت‌ها
+------------------------------
 
-Comments marked as spam or rejected by the admin are kept in the database as the admin might want to inspect them for a little while. But they should probably be removed after some time. Keeping them around for a week after their creation is probably enough.
+کامنت‌هایی که به عنوان هرز علامت‌گذاری شده یا توسط مدیر رد شده‌اند، در پایگاه‌داده نگه داشته می‌شوند، زیرا مدیر ممکن است بخواهد آن‌ها را برای مدتی کوتاه بررسی کند. اما احتمالاً باید پس از مدتی حذف شوند. نگه‌داشتن آن‌ها به مدت یک هفته پس از ایجادشان، احتمالاً کافی است.
 
-Create some utility methods in the comment repository to find rejected comments, count them, and delete them:
+چند متد کمکی در مخزن کامنت ایجاد کنید تا کامنت‌های ردشده را پیدا کرده، آن‌ها را بشمارد و حذف کند:
 
 .. code-block:: diff
     :caption: patch_file
@@ -68,32 +68,32 @@ Create some utility methods in the comment repository to find rejected comments,
 
 .. tip::
 
-    For more complex queries, it is sometimes useful to have a look at the generated SQL statements (they can be found in the logs and in the profiler for Web requests).
+    برای پرس‌وجوهای پیچیده‌تر، گاهی اوقات نگاه‌کردن به دستورات SQL تولیدشده مفید است (آن‌ها را می‌توان در لاگ‌ها و در نمایه‌ساز برای درخواست‌های وب یافت).
 
-Using Class Constants, Container Parameters, and Environment Variables
-----------------------------------------------------------------------
+استفاده از ثابت‌های کلاس، پارامترهای کانتینر و متغیرهای محیط
+------------------------------------------------------------------------------------------------------------------------------------
 
 .. index::
     single: Container;Parameters
 
-7 days? We could have chosen another number, maybe 10 or 20. This number might evolve over time. We have decided to store it as a constant on the class, but we might have stored it as a parameter in the container, or we might have even defined it as an environment variable.
+۷ روز؟ می‌توانستیم عدد دیگری انتخاب کنیم، شاید ۱۰ یا ۲۰. این عدد ممکن است در طول زمان تغییر کند. ما تصمیم گرفتیم آن را به عنوان یک ثابت روی کلاس ذخیره کنیم، اما می‌توانستیم آن را به عنوان یک پارامتر در کانتینر ذخیره کنیم، یا حتی می‌توانستیم آن را به عنوان یک متغیر محیط تعریف کنیم.
 
-Here are some rules of thumb to decide which abstraction to use:
+در اینجا چند قاعده‌ی سرانگشتی برای تصمیم‌گیری درباره‌ی اینکه از کدام انتزاع استفاده کنیم آمده است:
 
-* If the value is sensitive (passwords, API tokens, ...), use the Symfony *secret storage* or a Vault;
+* اگر مقدار حساس است (رمزهای عبور، توکن‌های API و ...)، از *انبار رمز (secret storage)* سیمفونی یا یک Vault استفاده کنید؛
 
-* If the value is dynamic and you should be able to change it *without* re-deploying, use an *environment variable*;
+* اگر مقدار پویاست و باید بتوانید آن را *بدون* استقرار مجدد تغییر دهید، از یک *متغیر محیط* استفاده کنید؛
 
-* If the value can be different between environments, use a *container parameter*;
+* اگر مقدار می‌تواند بین محیط‌ها متفاوت باشد، از یک *پارامتر کانتینر* استفاده کنید؛
 
-* For everything else, store the value in code, like in a *class constant*.
+* برای هر چیز دیگر، مقدار را در کد ذخیره کنید، مانند یک *ثابت کلاس*.
 
-Creating a CLI Command
-----------------------
+ایجاد یک فرمان CLI
+--------------------------------
 
-Removing the old comments is the perfect task for a cron job. It should be done on a regular basis, and a little delay does not have any major impact.
+حذف کامنت‌های قدیمی، وظیفه‌ی مناسبی برای یک cron job است. باید به صورت منظم انجام شود و کمی تأخیر تأثیر عمده‌ای ندارد.
 
-Create a CLI command named ``app:comment:cleanup`` by creating a ``src/Command/CommentCleanupCommand.php`` file:
+با ایجاد یک فایل ``src/Command/CommentCleanupCommand.php``، یک فرمان CLI با نام ``app:comment:cleanup`` ایجاد کنید:
 
 .. code-block:: php
     :caption: src/Command/CommentCleanupCommand.php
@@ -129,33 +129,33 @@ Create a CLI command named ``app:comment:cleanup`` by creating a ``src/Command/C
         }
     }
 
-All application commands are registered alongside Symfony built-in ones and they are all accessible via ``symfony console``. As the number of available commands can be large, you should namespace them. By convention, the application commands should be stored under the ``app`` namespace. Add any number of sub-namespaces by separating them by a colon (``:``).
+تمام فرمان‌های اپلیکیشن در کنار فرمان‌های توکار سیمفونی ثبت می‌شوند و همگی از طریق ``symfony console`` قابل دسترسی هستند. از آنجایی که تعداد فرمان‌های موجود می‌تواند زیاد باشد، باید آن‌ها را در فضای نام قرار دهید. طبق قرارداد، فرمان‌های اپلیکیشن باید در فضای نام ``app`` ذخیره شوند. هر تعداد زیرفضای‌نام را با جداکردن آن‌ها به وسیله‌ی یک علامت دونقطه (``:``) اضافه کنید.
 
-A command declares its *arguments* and *options* with the ``#[Argument]`` and ``#[Option]`` attributes on the parameters of ``__invoke()`` (the ``$dryRun`` parameter becomes the ``--dry-run`` option). Symfony injects the other parameters based on their type: ``SymfonyStyle`` to write nicely-formatted output to the console, and any service, like the comment repository, the same way it does for controller arguments.
+یک فرمان *آرگمان‌ها* و *گزینه‌های* خود را با attributeهای ``#[Argument]`` و ``#[Option]`` روی پارامترهای ``__invoke()`` اعلام می‌کند (پارامتر ``$dryRun`` به گزینه‌ی ``--dry-run`` تبدیل می‌شود). سیمفونی سایر پارامترها را بر اساس نوعشان تزریق می‌کند: ``SymfonyStyle`` برای نوشتن خروجی خوش‌قالب به کنسول، و هر سرویسی مانند مخزن کامنت، به همان روشی که برای آرگمان‌های کنترلر انجام می‌دهد.
 
-Clean up the database by running the command:
+با اجرای این فرمان، پایگاه‌داده را پاک‌سازی کنید:
 
 .. code-block:: terminal
 
     $ symfony console app:comment:cleanup
 
-Scheduling the Command
-----------------------
+زمان‌بندی فرمان
+------------------------------
 
 .. index::
     single: Scheduler
     single: Components;Scheduler
     single: Attributes;AsCronTask
 
-Running the command by hand works, but it should run every night. The Symfony Scheduler component generates messages on a schedule; they are then consumed by a worker, like any other Messenger messages.
+اجرای دستی فرمان کار می‌کند، اما باید هر شب اجرا شود. کامپوننت Scheduler سیمفونی، پیغام‌هایی را بر اساس یک زمان‌بندی تولید می‌کند؛ سپس این پیغام‌ها مانند هر پیغام پیغام‌رسان دیگری، توسط یک کارگر مصرف می‌شوند.
 
-Add the Scheduler component, along with the library that parses cron expressions:
+کامپوننت Scheduler را به همراه کتابخانه‌ای که عبارات cron را تجزیه می‌کند، اضافه کنید:
 
 .. code-block:: terminal
 
     $ symfony composer req scheduler dragonmantank/cron-expression
 
-Schedule the command with the ``#[AsCronTask]`` attribute:
+فرمان را با attribute‌ی ``#[AsCronTask]`` زمان‌بندی کنید:
 
 .. code-block:: diff
     :caption: patch_file
@@ -174,25 +174,25 @@ Schedule the command with the ``#[AsCronTask]`` attribute:
      {
          public function __invoke(
 
-The attribute registers the command on the default *schedule* with a cron expression: every night at 11.50 pm (UTC). Check it:
+این attribute فرمان را با یک عبارت cron روی *زمان‌بندیِ* پیش‌فرض ثبت می‌کند: هر شب ساعت ۱۱:۵۰ بعدازظهر (به وقت UTC). آن را بررسی کنید:
 
 .. code-block:: terminal
 
     $ symfony console debug:scheduler
 
-A schedule is exposed as a regular Messenger transport named after it; consume it like any other transport:
+یک زمان‌بندی به صورت یک صف معمولی پیغام‌رسان که هم‌نام آن است عرضه می‌شود؛ آن را مانند هر صف دیگری مصرف کنید:
 
 .. code-block:: terminal
 
     $ symfony run -d symfony console messenger:consume scheduler_default -vv
 
-Deploying the Schedule
-----------------------
+استقرار زمان‌بندی
+------------------------------
 
 .. index::
     single: Upsun;Workers
 
-On Upsun, the worker only consumes the ``async`` transport. Make it consume the schedule as well:
+در Upsun، کارگر تنها صف ``async`` را مصرف می‌کند. آن را وادارید تا زمان‌بندی را نیز مصرف کند:
 
 .. code-block:: diff
     :caption: patch_file
@@ -206,24 +206,24 @@ On Upsun, the worker only consumes the ``async`` transport. Make it consume the 
     -                    start: symfony console --time-limit=3600 --memory-limit=64M messenger:consume async
     +                    start: symfony console --time-limit=3600 --memory-limit=64M messenger:consume async scheduler_default
 
-That's all it takes: no crontab, no extra process; the schedule lives in the PHP code, next to the task it triggers, and it is deployed and versioned like the rest of the application.
+همین کافی است: بدون crontab، بدون فرایند اضافه؛ زمان‌بندی در کد PHP، در کنار وظیفه‌ای که آن را راه‌اندازی می‌کند، زندگی می‌کند و مانند باقی اپلیکیشن مستقر و نسخه‌بندی می‌شود.
 
-What about System Crons?
-------------------------
+cronهای سیستمی چطور؟
+------------------------------------------
 
 .. index::
     single: Upsun;Cron
     single: Upsun;Croncape
 
-Upsun also supports OS-level cron jobs, described in ``.upsun/config.yaml`` alongside the web container and the workers; the default configuration already defines one that cleans up expired PHP sessions. System crons are a good fit for tasks that are not implemented in PHP.
+Upsun از cron jobهای سطح سیستم‌عامل نیز پشتیبانی می‌کند که در ``.upsun/config.yaml`` در کنار کانتینر وب و کارگرها توصیف می‌شوند؛ پیکربندی پیش‌فرض از پیش یکی را تعریف می‌کند که نشست‌های منقضی‌شده‌ی PHP را پاک می‌کند. cronهای سیستمی برای وظایفی که در PHP پیاده‌سازی نشده‌اند، گزینه‌ی مناسبی هستند.
 
-The ``croncape`` utility used by the default cron monitors the execution of the command and sends an email to the addresses defined in the ``MAILTO`` environment variable if the command returns any exit code different than ``0``:
+ابزار ``croncape`` که توسط cron پیش‌فرض استفاده می‌شود، اجرای فرمان را پایش می‌کند و در صورتی که فرمان هر کد خروجی متفاوت از ``0`` بازگرداند، یک رایانامه به آدرس‌های تعریف‌شده در متغیر محیط ``MAILTO`` می‌فرستد:
 
 .. code-block:: terminal
 
     $ symfony cloud:variable:create --sensitive=1 --level=project -y --name=env:MAILTO --value=ops@example.com
 
-Note that crons are set up on all Upsun branches. If you don't want to run some on non-production environments, check the ``$PLATFORM_ENVIRONMENT_TYPE`` environment variable:
+توجه کنید که cronها روی تمام شاخه‌های Upsun راه‌اندازی می‌شوند. اگر نمی‌خواهید برخی را روی محیط‌های غیرعمل‌آوری اجرا کنید، متغیر محیط ``$PLATFORM_ENVIRONMENT_TYPE`` را بررسی کنید:
 
 .. code-block:: bash
     :class: ignore
@@ -232,20 +232,20 @@ Note that crons are set up on all Upsun branches. If you don't want to run some 
         croncape symfony app:invoices:send
     fi
 
-.. sidebar:: Going Further
+.. sidebar:: بیشتر بدانید
 
-    * The `Scheduler component docs`_;
+    * `مستندات کامپوننت Scheduler`_؛
 
-    * `Cron/crontab syntax`_;
+    * `نحو Cron/crontab`_؛
 
-    * `Croncape repository`_;
+    * `مخزن Croncape`_؛
 
-    * `Symfony Console commands`_;
+    * `فرمان‌های کنسول سیمفونی`_؛
 
-    * The `Symfony Console Cheat Sheet`_.
+    * `برگه‌تقلب کنسول سیمفونی`_.
 
-.. _`Scheduler component docs`: https://symfony.com/doc/current/scheduler.html
-.. _`Cron/crontab syntax`: https://en.wikipedia.org/wiki/Cron
-.. _`Croncape repository`: https://github.com/symfonycorp/croncape
-.. _`Symfony Console commands`: https://symfony.com/doc/current/console.html
-.. _`Symfony Console Cheat Sheet`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/console_en_42.pdf
+.. _`مستندات کامپوننت Scheduler`: https://symfony.com/doc/current/scheduler.html
+.. _`نحو Cron/crontab`: https://en.wikipedia.org/wiki/Cron
+.. _`مخزن Croncape`: https://github.com/symfonycorp/croncape
+.. _`فرمان‌های کنسول سیمفونی`: https://symfony.com/doc/current/console.html
+.. _`برگه‌تقلب کنسول سیمفونی`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/console_en_42.pdf

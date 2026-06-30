@@ -15,15 +15,15 @@
 
 برای ساخت کلاسِ فرم از باندل Maker استفاده کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony console make:form CommentFormType Comment
+    $ symfony console make:form CommentType Comment
 
 .. code-block:: text
     :class: ignore
     :emphasize-lines: 1
 
-     created: src/Form/CommentFormType.php
+     created: src/Form/CommentType.php
 
 
       Success!
@@ -32,10 +32,10 @@
      Next: Add fields to your form and start using it.
      Find the documentation at https://symfony.com/doc/current/forms.html
 
-کلاس ``App\Form\CommentFormType`` یک فرم برای موجودیت ``App\Entity\Comment`` تعریف می‌کند.
+کلاس ``App\Form\CommentType`` یک فرم برای موجودیت ``App\Entity\Comment`` تعریف می‌کند.
 
 .. code-block:: php
-    :caption: src/App/Form/CommentFormType.php
+    :caption: src/Form/CommentType.php
     :class: ignore
 
     namespace App\Form;
@@ -45,9 +45,9 @@
     use Symfony\Component\Form\FormBuilderInterface;
     use Symfony\Component\OptionsResolver\OptionsResolver;
 
-    class CommentFormType extends AbstractType
+    class CommentType extends AbstractType
     {
-        public function buildForm(FormBuilderInterface $builder, array $options)
+        public function buildForm(FormBuilderInterface $builder, array $options): void
         {
             $builder
                 ->add('author')
@@ -59,7 +59,7 @@
             ;
         }
 
-        public function configureOptions(OptionsResolver $resolver)
+        public function configureOptions(OptionsResolver $resolver): void
         {
             $resolver->setDefaults([
                 'data_class' => Comment::class,
@@ -67,7 +67,7 @@
         }
     }
 
-یک `form type`_، *فیلدهای فرم* مرتبط با یک مدل را توصیف می‌کند و کار تبدیل داده بین اطلاعات وارد شده و ویژگی‌های کلاس مدل را انجام می‌دهد. به صورت پیشفرض،‌ سیمفونی از فراداده‌های موجودیت ``Comment`` - همچون فراداده‌های Doctrine - استفاده می‌کند، تا بتواند پیکربندی هر فیلد را حدس بزند. مثلاً، یک فیلد متنی (``text``) به شکل ``textarea``، render می‌شود، چون در پایگاه‌داده، ستون مربط به آن، فضای بیشتری را اشغال می‌کند.
+یک `form type`_، *فیلدهای فرم* مرتبط با یک مدل را توصیف می‌کند و کار تبدیل داده بین اطلاعات وارد شده و ویژگی‌های کلاس مدل را انجام می‌دهد. به صورت پیش‌فرض،‌ سیمفونی از فراداده‌های موجودیت ``Comment``، همچون فراداده‌های Doctrine، استفاده می‌کند تا بتواند پیکربندی هر فیلد را حدس بزند. مثلاً، یک فیلد متنی (``text``) به شکل ``textarea``، render می‌شود، چون در پایگاه‌داده، ستون مربوط به آن، فضای بیشتری را اشغال می‌کند.
 
 نمایش یک فرم
 ----------------------
@@ -76,36 +76,35 @@
 
 .. code-block:: diff
     :caption: patch_file
-    :emphasize-lines: 18,24
+    :emphasize-lines: 19,29
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -2,7 +2,9 @@
 
      namespace App\Controller;
 
     +use App\Entity\Comment;
      use App\Entity\Conference;
-    +use App\Form\CommentFormType;
+    +use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    @@ -35,6 +37,9 @@ class ConferenceController extends AbstractController
-          */
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+    @@ -23,5 +25,8 @@ final class ConferenceController extends AbstractController
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
     +        $comment = new Comment();
-    +        $form = $this->createForm(CommentFormType::class, $comment);
+    +        $form = $this->createForm(CommentType::class, $comment);
     +
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
-    @@ -43,6 +48,7 @@ class ConferenceController extends AbstractController
+    @@ -30,6 +35,7 @@ final class ConferenceController extends AbstractController
                  'comments' => $paginator,
-                 'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
-                 'next' => min(count($paginator), $offset + CommentRepository::PAGINATOR_PER_PAGE),
-    +            'comment_form' => $form->createView(),
-             ]));
+                 'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+                 'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
+    +            'comment_form' => $form,
+             ]);
          }
      }
 
@@ -114,16 +113,14 @@
 .. index::
     single: Twig;form
 
-هنگام دادن یک فرم به قالب، از ``()createView`` استفاده کنید تا اطلاعات به فرمت مناسب برای قالب تبدیل شود.
-
 نمایش فرم در قالب، می‌تواند از طریق تابع ``form`` در Twig انجام شود:
 
 .. code-block:: diff
     :caption: patch_file
     :emphasize-lines: 10
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -30,4 +30,8 @@
          {% else %}
              <div>No comments have been posted yet for this conference.</div>
@@ -151,11 +148,11 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Form/CommentFormType.php
-    +++ b/src/Form/CommentFormType.php
-    @@ -4,20 +4,31 @@ namespace App\Form;
-
-     use App\Entity\Comment;
+    --- i/src/Form/CommentType.php
+    +++ w/src/Form/CommentType.php
+    @@ -6,26 +6,32 @@ use App\Entity\Comment;
+     use App\Entity\Conference;
+     use Symfony\Bridge\Doctrine\Form\Type\EntityType;
      use Symfony\Component\Form\AbstractType;
     +use Symfony\Component\Form\Extension\Core\Type\EmailType;
     +use Symfony\Component\Form\Extension\Core\Type\FileType;
@@ -164,9 +161,9 @@
      use Symfony\Component\OptionsResolver\OptionsResolver;
     +use Symfony\Component\Validator\Constraints\Image;
 
-     class CommentFormType extends AbstractType
+     class CommentType extends AbstractType
      {
-         public function buildForm(FormBuilderInterface $builder, array $options)
+         public function buildForm(FormBuilderInterface $builder, array $options): void
          {
              $builder
     -            ->add('author')
@@ -175,20 +172,27 @@
     +            ])
                  ->add('text')
     -            ->add('email')
-    -            ->add('createdAt')
-    -            ->add('photoFilename')
-    -            ->add('conference')
+    -            ->add('createdAt', null, [
+    -                'widget' => 'single_text',
     +            ->add('email', EmailType::class)
     +            ->add('photo', FileType::class, [
     +                'required' => false,
     +                'mapped' => false,
     +                'constraints' => [
-    +                    new Image(['maxSize' => '1024k'])
+    +                    new Image(maxSize: '1024k')
     +                ],
-    +            ])
+                 ])
+    -            ->add('photoFilename')
+    -            ->add('conference', EntityType::class, [
+    -                'class' => Conference::class,
+    -                'choice_label' => 'id',
+    -            ])
+    -        ;
     +            ->add('submit', SubmitType::class)
-             ;
+    +       ;
          }
+
+         public function configureOptions(OptionsResolver $resolver): void
 
 توجه داشته باشید که ما یک دکمه سابمیت هم اضافه کردیم (این به ما امکان استفاده ساده از عبارت ``{{ form(comment_form) }}`` را در تمپلیت می‌دهد).
 
@@ -234,7 +238,7 @@
         </div>
     </form>
 
-فرم از ورودی ``email`` برای رایانامه‌ی کامنت‌ها استفاده کرده و بیشتر فیلدها را الزامی (``required``) می‌کند. توجه داشته باشید که فرم شامل یک  ``_token`` مخفی است تا فرم را از `حمله‌های CSRF <https://owasp.org/www-community/attacks/csrf>`_ محافظت نماید.
+فرم از ورودی ``email`` برای رایانامه‌ی کامنت‌ها استفاده کرده و بیشتر فیلدها را الزامی (``required``) می‌کند. توجه داشته باشید که فرم شامل یک  ``_token`` مخفی است تا فرم را از `حمله‌های CSRF`_ محافظت نماید.
 
 اما اگر تحویل و ثبت فرم، اعتبارسنجی HTML را دور بزند (با استفاده از یک ابزار مانند cURL که اعتبارسنجی‌های HTML را تحمیل نمی‌کند)، آنگاه داده‌های نامعتبر می‌توانند به سرور برسند.
 
@@ -243,36 +247,33 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -4,6 +4,7 @@ namespace App\Entity;
-
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -5,6 +5,7 @@ namespace App\Entity;
      use App\Repository\CommentRepository;
+     use Doctrine\DBAL\Types\Types;
      use Doctrine\ORM\Mapping as ORM;
     +use Symfony\Component\Validator\Constraints as Assert;
 
-     /**
-      * @ORM\Entity(repositoryClass=CommentRepository::class)
-    @@ -20,16 +21,20 @@ class Comment
+     #[ORM\Entity(repositoryClass: CommentRepository::class)]
+     #[ORM\HasLifecycleCallbacks]
+    @@ -16,12 +17,16 @@ class Comment
+         private ?int $id = null;
 
-         /**
-          * @ORM\Column(type="string", length=255)
-    +     * @Assert\NotBlank
-          */
-         private $author;
+         #[ORM\Column(length: 255)]
+    +    #[Assert\NotBlank]
+         private ?string $author = null;
 
-         /**
-          * @ORM\Column(type="text")
-    +     * @Assert\NotBlank
-          */
-         private $text;
+         #[ORM\Column(type: Types::TEXT)]
+    +    #[Assert\NotBlank]
+         private ?string $text = null;
 
-         /**
-          * @ORM\Column(type="string", length=255)
-    +     * @Assert\NotBlank
-    +     * @Assert\Email
-          */
-         private $email;
+         #[ORM\Column(length: 255)]
+    +    #[Assert\NotBlank]
+    +    #[Assert\Email]
+         private ?string $email = null;
+
+         #[ORM\Column]
 
 رسیدگی به یک فرم
 -----------------------------
@@ -284,34 +285,39 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -7,6 +7,7 @@ use App\Entity\Conference;
-     use App\Form\CommentFormType;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -7,7 +7,9 @@ use App\Entity\Conference;
+     use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
     +use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-     use Symfony\Component\HttpFoundation\Request;
+    +use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-    @@ -16,10 +17,12 @@ use Twig\Environment;
-     class ConferenceController extends AbstractController
-     {
-         private $twig;
-    +    private $entityManager;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
+    @@ -14,6 +15,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
-    -    public function __construct(Environment $twig)
-    +    public function __construct(Environment $twig, EntityManagerInterface $entityManager)
+     final class ConferenceController extends AbstractController
+     {
+    +    public function __construct(
+    +        private EntityManagerInterface $entityManager,
+    +    ) {
+    +    }
+    +
+         #[Route('/', name: 'homepage')]
+         public function index(ConferenceRepository $conferenceRepository): Response
          {
-             $this->twig = $twig;
-    +        $this->entityManager = $entityManager;
+    @@ -24,9 +30,18 @@ final class ConferenceController extends AbstractController
          }
 
-         /**
-    @@ -39,6 +42,15 @@ class ConferenceController extends AbstractController
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+    -    public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
+             $form = $this->createForm(CommentType::class, $comment);
     +        $form->handleRequest($request);
     +        if ($form->isSubmitted() && $form->isValid()) {
     +            $comment->setConference($conference);
@@ -322,8 +328,9 @@
     +            return $this->redirectToRoute('conference', ['slug' => $conference->getSlug()]);
     +        }
 
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
+
+توجه کنید که شیء ``Request`` اکنون در کنترلر تزریق شده است، زیرا فرم برای بازرسی داده‌های ارسال‌شده از طریق ``handleRequest()`` به آن نیاز دارد.
 
 وقتی فرم (از طرف کاربر) ثبت می‌گردد، شیء``Comment`` با توجه به اطلاعات ارسال شده به روزرسانی می‌شود.
 
@@ -336,40 +343,66 @@
 بارگذاری فایل‌ها
 --------------------------------
 
-تصاویر بارگذاری‌شده باید بر روی دیسک محلی و جایی در دسترس جلو صحنه (frontend) ذخیره شوند تا بتوان آن‌ها را در صفحه‌ی کنفرانس نمایش داد. ما تصاویر را در پوشه‌ی ``public/uploads/photos`` ذخیره خواهیم کرد:
+تصاویر بارگذاری‌شده باید بر روی دیسک محلی و جایی در دسترس جلو صحنه (frontend) ذخیره شوند تا بتوان آن‌ها را در صفحه‌ی کنفرانس نمایش داد. ما تصاویر را در پوشه‌ی ``public/uploads/photos`` ذخیره خواهیم کرد.
+
+.. index::
+    single: Attribute;Autowire
+    single: Autowire
+
+از آنجایی که نمی‌خواهیم مسیر پوشه را در کد هاردکد کنیم، به راهی نیاز داریم تا آن را به صورت سراسری در پیکربندی ذخیره کنیم. کانتینر سیمفونی می‌تواند علاوه بر سرویس‌ها، *پارامترها* را نیز ذخیره کند که مقادیر اسکالری‌اند و به پیکربندی سرویس‌ها کمک می‌کنند:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/config/services.yaml
+    +++ w/config/services.yaml
+    @@ -4,6 +4,7 @@
+     # Put parameters here that don't need to change on each machine where the app is deployed
+     # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+     parameters:
+    +    photo_dir: "%kernel.project_dir%/public/uploads/photos"
+
+     services:
+         # default configuration for services in *this* file
+
+پیش از این دیدیم که چگونه سرویس‌ها به صورت خودکار در آرگمان‌های سازنده تزریق می‌شوند. برای پارامترهای کانتینر، می‌توانیم آن‌ها را صریحاً از طریق attribute‌ی ``Autowire`` تزریق کنیم.
+
+اکنون هر آنچه برای پیاده‌سازی منطق لازم جهت ذخیره‌ی فایل بارگذاری‌شده در مقصد نهایی‌اش نیاز داریم را می‌دانیم:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -9,6 +9,7 @@ use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
      use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Component\HttpFoundation\File\Exception\FileException;
+    +use Symfony\Component\DependencyInjection\Attribute\Autowire;
      use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
-    @@ -38,13 +39,22 @@ class ConferenceController extends AbstractController
-         /**
-          * @Route("/conference/{slug}", name="conference")
-          */
-    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-         {
+     use Symfony\Component\Routing\Attribute\Route;
+    @@ -29,13 +30,23 @@ final class ConferenceController extends AbstractController
+         }
+
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    -    {
+    +    public function show(
+    +        Request $request,
+    +        Conference $conference,
+    +        CommentRepository $commentRepository,
+    +        #[Autowire('%photo_dir%')] string $photoDir,
+    +        #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0,
+    +    ): Response {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
+             $form = $this->createForm(CommentType::class, $comment);
              $form->handleRequest($request);
              if ($form->isSubmitted() && $form->isValid()) {
                  $comment->setConference($conference);
     +            if ($photo = $form['photo']->getData()) {
     +                $filename = bin2hex(random_bytes(6)).'.'.$photo->guessExtension();
-    +                try {
-    +                    $photo->move($photoDir, $filename);
-    +                } catch (FileException $e) {
-    +                    // unable to upload the photo, give up
-    +                }
+    +                $photo->move($photoDir, $filename);
     +                $comment->setPhotoFilename($filename);
     +            }
 
@@ -377,29 +410,6 @@
                  $this->entityManager->flush();
 
 برای مدیریت تصاویر بارگذاری‌شده، برای فایل‌ یک نام تصادفی ایجاد می‌کنیم. پس از آن، تصویر را به محل نهایی آن (پوشه‌ی تصاویر) انتقال می‌دهیم. در نهایت، نام فایل را در شیء Comment ذخیره می‌کنیم.
-
-.. index::
-    single: Container;Bind
-    single: Bind
-
-به آرگمان جدید در متد ``show()`` توجه کردید؟ آرگمان ``$photoDir``، یک رشته (string) است و سرویس نیست. سیمفونی چگونه می‌داند که چه چیزی را در اینجا تزریق کند؟ کانتینر سرویس، می‌تواند علاوه بر سرویس‌ها، *پارامترها* را نیز ذخیره کند. پارامترها، مقادیری هستند که سرویس‌ها را پیکربندی می‌کنند. این پارامترها می‌توانند صریحاً به سرویس‌ها تزریق شوند یا اینکه به صورت *مقید به نام (bound by name)* باشند.
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -10,6 +10,8 @@ services:
-         _defaults:
-             autowire: true      # Automatically injects dependencies in your services.
-             autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
-    +        bind:
-    +            $photoDir: "%kernel.project_dir%/public/uploads/photos"
-
-         # makes classes in src/ available to be used as services
-         # this creates a service per class whose id is the fully-qualified class name
-
-تنظیم ``bind`` این امکان را به سیمفونی می‌دهد تا هر زمان که سرویس یک آرگمان ``$photoDir`` داشت، تزریق را انجام دهد.
 
 سعی کنید که یک فایل PDF به جای تصویر بارگذاری کنید. باید پیغام‌های خطا ببینید. در حال حاظر طراحی‌کاملاً زشت است، اما نگران نباشید، همه چیز در چند گام دیگر هنگامی که بر روی طراحی وب‌سایت کار کنیم، زیبا خواهد شد. برای فرم‌ها، ما یک خط از پیکربندی را تغییر خواهیم داد تا به تمام المان‌های فرم یک سبک ببخشیم.
 
@@ -425,7 +435,7 @@
 
 بر روی آن کلیک کنید تا به پروفایل درخواست POST دسترسی پیدا کنید و سپس به پنل «Form» بروید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: hide
 
     $ rm -rf var/cache
@@ -443,16 +453,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/easy_admin.yaml
-    +++ b/config/packages/easy_admin.yaml
-    @@ -17,6 +17,7 @@ easy_admin:
-                     fields:
-                         - author
-                         - { property: 'email', type: 'email' }
-    +                    - { property: 'photoFilename', type: 'image', 'base_path': "/uploads/photos", label: 'Photo' }
-                         - { property: 'createdAt', type: 'datetime' }
-                     sort: ['createdAt', 'ASC']
-                     filters: ['conference']
+    --- i/src/Controller/Admin/CommentCrudController.php
+    +++ w/src/Controller/Admin/CommentCrudController.php
+    @@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
+    +use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+    @@ -47,7 +48,9 @@ class CommentCrudController extends AbstractCrudController
+             yield TextareaField::new('text')
+                 ->hideOnIndex()
+             ;
+    -        yield TextField::new('photoFilename')
+    +        yield ImageField::new('photoFilename')
+    +            ->setBasePath('/uploads/photos')
+    +            ->setLabel('Photo')
+                 ->onlyOnIndex()
+             ;
 
 مستثنی کردن تصاویر بارگذاری‌شده از Git
 ---------------------------------------------------------------------
@@ -462,8 +482,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.gitignore
-    +++ b/.gitignore
+    --- i/.gitignore
+    +++ w/.gitignore
     @@ -1,3 +1,4 @@
     +/public/uploads
 
@@ -473,46 +493,55 @@
 ذخیره‌ی فایل‌های بارگذاری‌شده در سرورهای عمل‌آوری
 -------------------------------------------------------------------------------------------------
 
-آخرین گام، ذخیره‌ی فایل‌های بارگذاری‌شده در سرورهای عمل‌آوری است. چرا مجبوریم یک سری کار خاص انجام دهیم؟ زیرا اکثر سکوهای ابری مدرن به دلایل مختلف از کانتینرهای فقط‌خواندنی استفاده می‌کنند. SymfonyCloud نیز از این موضوع مستثنی نیست.
+آخرین گام، ذخیره‌ی فایل‌های بارگذاری‌شده در سرورهای عمل‌آوری است. چرا مجبوریم یک سری کار خاص انجام دهیم؟ زیرا اکثر سکوهای ابری مدرن به دلایل مختلف از کانتینرهای فقط‌خواندنی استفاده می‌کنند. Upsun نیز از این موضوع مستثنی نیست.
 
 تمام بخش‌ها در پروژه‌ی سیمفونی فقط‌خواندنی نیستند. ما به سختی تلاش می‌کنیم تا جایی که ممکن است در هنگام تولید کانتینر، cache تولید کنیم (در طول فاز cache warmup). اما سیمفونی هنوز هم به جایی برای نوشتن cache‌های کاربر، لاگ‌ها، نشست‌ها (اگر در filesystem ذخیره می‌شوند) و ... نیاز دارد.
 
-نگاهی به فایل ``.symfony.cloud.yaml`` بیاندازید، یک *mount* قابل نوشتن برای پوشه‌ی ``var/`` وجود دارد. پوشه‌ی ``var/`` تنها پوشه‌ای است که سیمفونی در آن می‌نویسد (cacheها، لاگ‌ها و غیره).
+نگاهی به فایل ``.upsun/config.yaml`` بیندازید، یک *mount* قابل نوشتن برای پوشه‌ی ``var/`` وجود دارد. پوشه‌ی ``var/`` تنها پوشه‌ای است که سیمفونی در آن می‌نویسد (cacheها، لاگ‌ها و غیره).
 
 بیایید یک mount جدید برای تصاویر بارگذاری‌شده ایجاد کنیم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -38,6 +38,7 @@ web:
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -41,6 +41,7 @@ applications:
+             mounts:
+                 "/var/cache": { source: instance, source_path: var/cache }
+                 "/var/share": { source: storage, source_path: var/share }
+    +            "/public/uploads": { source: storage, source_path: uploads }
 
-     mounts:
-         "/var": { source: local, source_path: var }
-    +    "/public/uploads": { source: local, source_path: uploads }
 
-     hooks:
-         build: |
+             relationships:
 
 حالا می‌توانید کد را مستقر کنید و تصاویر همچون نسخه‌ی محلی، در پوشه‌ی ``public/uploads/`` ذخیره خواهند شد.
 
 .. sidebar:: بیشتر بدانید
 
-    * `آموزش تصویری فرم‌ها در SymfonyCasts <https://symfonycasts.com/screencast/symfony-forms>`_؛
+    * `آموزش تصویری فرم‌ها در SymfonyCasts`_؛
 
-    * چگونگی `شخصی‌سازی renderشدن فرم‌های سیمفونی به HTML <https://symfony.com/doc/current/form/form_customization.html>`_؛
+    * چگونگی `شخصی‌سازی renderشدن فرم‌های سیمفونی به HTML`_؛
 
-    * `اعتبارسنجی فرم‌های سیمفونی <https://symfony.com/doc/current/forms.html#validating-forms>`_؛
+    * `اعتبارسنجی فرم‌های سیمفونی`_؛
 
-    * `مرجع نوع‌های فرم (Form Types) در سیمفونی <https://symfony.com/doc/current/reference/forms/types.html>`_؛
+    * `مرجع نوع‌های فرم (Form Types) در سیمفونی`_؛
 
-    * `مستندات FlysystemBundle  <https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md>`_، که ادغام با فراهم‌کنندگان انبارهای ابری همچون AWS S3، Azure و  Google Cloud Storage را فراهم می‌آورد؛
+    * `مستندات FlysystemBundle`_، که ادغام با فراهم‌کنندگان انبارهای ابری همچون AWS S3، Azure و  Google Cloud Storage را فراهم می‌آورد؛
 
-    * `پارمترهای پیکربندی سیمفونی <https://symfony.com/doc/current/configuration.html#configuration-parameters>`_.
+    * `پارمترهای پیکربندی سیمفونی`_.
 
-    * `قیود اعتبارسنجی در سیمفونی <https://symfony.com/doc/current/validation.html#basic-constraints>`_؛
+    * `قیود اعتبارسنجی در سیمفونی`_؛
 
-    * `برگه‌تقلب فرم سیمفونی <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony2/how_symfony2_forms_works_en.pdf>`_.
+    * `برگه‌تقلب فرم سیمفونی`_.
 
 .. _`form type`: https://symfony.com/doc/current/forms.html#form-types
+.. _`حمله‌های CSRF`: https://owasp.org/www-community/attacks/csrf
+.. _`آموزش تصویری فرم‌ها در SymfonyCasts`: https://symfonycasts.com/screencast/symfony-forms
+.. _`شخصی‌سازی renderشدن فرم‌های سیمفونی به HTML`: https://symfony.com/doc/current/form/form_customization.html
+.. _`اعتبارسنجی فرم‌های سیمفونی`: https://symfony.com/doc/current/forms.html#validating-forms
+.. _`مرجع نوع‌های فرم (Form Types) در سیمفونی`: https://symfony.com/doc/current/reference/forms/types.html
+.. _`مستندات FlysystemBundle`: https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
+.. _`پارمترهای پیکربندی سیمفونی`: https://symfony.com/doc/current/configuration.html#configuration-parameters
+.. _`قیود اعتبارسنجی در سیمفونی`: https://symfony.com/doc/current/validation.html#basic-constraints
+.. _`برگه‌تقلب فرم سیمفونی`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony2/how_symfony2_forms_works_en.pdf

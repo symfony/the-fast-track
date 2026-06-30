@@ -12,11 +12,6 @@
 
 یک گردش‌کار ممکن، ایجاد یک شاخه برای هر ویژگی جدید یا رفع اشکال است. این  روش ساده و کارآمد است.
 
-Describing your Infrastructure
-------------------------------
-
-You might not have realized it yet, but having the infrastructure stored in files alongside of the code helps a lot. Docker and SymfonyCloud use configuration files to describe the project infrastructure. When a new feature needs an additional service, the code changes and the infrastructure changes are part of the same patch.
-
 ایجاد شاخه‌ها
 --------------------------
 
@@ -26,27 +21,24 @@ You might not have realized it yet, but having the infrastructure stored in file
 
 گردش‌کار با ایجاد یک شاخه‌ی Git آغاز می‌شود:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: hide
 
-    $ git branch -D sessions-in-redis || true
+    $ git branch -D sessions-in-db || true
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ git checkout -b sessions-in-redis
+    $ git checkout -b sessions-in-db
 
-این فرمان یک شاخه‌ی ``sessions-in-redis`` از روی شاخه ``master`` ایجاد می‌کند. این فرمان کد و پیکربندی زیرساخت را «منشعب (fork)» می‌کند.
+این فرمان یک شاخه‌ی ``sessions-in-db`` از روی شاخه ``master`` ایجاد می‌کند. این فرمان کد و پیکربندی زیرساخت را «منشعب (fork)» می‌کند.
 
-ذخیره نشست‌ها (Sessions) در Redis
-------------------------------------------------
+ذخیره نشست‌ها (Sessions) در پایگاه‌داده
+----------------------------------------------------------
 
 .. index::
-    single: Session;Redis
-    single: Redis
-    single: Docker;Redis
-    single: SymfonyCloud;Redis
+    single: Session;Database
 
-همانطور که احتمالاً از نام شاخه حدس زده‌اید، می‌خواهیم محل ذخیره‌ی نشست‌ها را از filesystem به Redis تغییر دهیم.
+همانطور که احتمالاً از نام شاخه حدس زده‌اید، می‌خواهیم محل ذخیره‌ی نشست‌ها را از filesystem به یک محل ذخیره‌ی پایگاه‌داده (در اینجا پایگاه‌داده‌ی PostgreSQL ما) تغییر دهیم.
 
 اقدامات لازم برای واقعیت بخشیدن به این امر، معمول و مورد انتظار است:
 
@@ -56,9 +48,9 @@ You might not have realized it yet, but having the infrastructure stored in file
 
 #. در صورت لزوم مقداری کد بنویسید و یا کد را به‌روز کنید.
 
-#. پیکربندی PHP را به‌روز کنید (افزونه‌ی Redis PHP را اضافه کنید)؛
+#. در صورت لزوم پیکربندی PHP را به‌روز کنید (مانند افزودن افزونه‌ی PostgreSQL PHP)؛
 
-#. زیرساخت Docker و SymfonyCloud را به‌روز کنید (سرویس Redis را اضافه کنید)؛
+#. در صورت لزوم زیرساخت Docker و Upsun را به‌روز کنید (سرویس PostgreSQL را اضافه کنید)؛
 
 #. آزمودن محلی؛
 
@@ -70,105 +62,77 @@ You might not have realized it yet, but having the infrastructure stored in file
 
 #. شاخه را حذف کنید.
 
-All changes needed for 2 to 5 can be done in one patch:
+برای ذخیره‌ی نشست‌ها در پایگاه‌داده، پیکربندی ``session.handler_id`` را تغییر دهید تا به DSN پایگاه‌داده اشاره کند:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -4,6 +4,7 @@ type: php:7.4
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -3,7 +3,8 @@ framework:
+         secret: '%env(APP_SECRET)%'
 
-     runtime:
-         extensions:
-    +        - redis
-             - pdo_pgsql
-             - apcu
-             - mbstring
-    @@ -24,6 +25,7 @@ disk: 512
+         # Note that the session will be started ONLY if you read or write from it.
+    -    session: true
+    +    session:
+    +        handler_id: '%env(resolve:DATABASE_URL)%'
 
-     relationships:
-         database: "db:postgresql"
-    +    redis: "rediscache:redis"
+         #esi: true
+         #fragments: true
 
-     web:
-         locations:
-    --- a/.symfony/services.yaml
-    +++ b/.symfony/services.yaml
-    @@ -2,3 +2,6 @@ db:
-         type: postgresql:13
-         disk: 1024
-         size: S
-    +
-    +rediscache:
-    +    type: redis:5.0
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -7,7 +7,7 @@ framework:
-         # Enables session support. Note that the session will ONLY be started if you read or write from it.
-         # Remove or comment this section to explicitly disable session support.
-         session:
-    -        handler_id: null
-    +        handler_id: '%env(REDIS_URL)%'
-             cookie_secure: auto
-             cookie_samesite: lax
+برای ذخیره‌ی نشست‌ها در پایگاه‌داده، لازم است جدول ``sessions`` را ایجاد کنیم. این کار را با یک migration در Doctrine انجام دهید:
 
-    --- a/docker-compose.yaml
-    +++ b/docker-compose.yaml
-    @@ -8,3 +8,7 @@ services:
-                 POSTGRES_PASSWORD: main
-                 POSTGRES_DB: main
-             ports: [5432]
-    +
-    +    redis:
-    +        image: redis:5-alpine
-    +        ports: [6379]
+.. code-block:: terminal
 
-Isn't it *beautiful*?
+    $ symfony console make:migration
 
-"Reboot" Docker to start the Redis service:
+پایگاه‌داده را migrate کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
+    :class: answers(y)
 
-    $ docker-compose stop
-    $ docker-compose up -d
+    $ symfony console doctrine:migrations:migrate
 
-به شما اجازه می‌دهم تا با مرور وب‌سایت، به صورت محلی آن را بیازمایید. از آنجایی که هیچ تغییر بصری‌ای وجود ندارد و ما هنوز از نشست‌ها استفاده نمی‌کنیم، باید همه چیز باید مانند گذشته کار کند.
+با مرور وب‌سایت، به صورت محلی آن را بیازمایید. از آنجایی که هیچ تغییر بصری‌ای وجود ندارد و ما هنوز از نشست‌ها استفاده نمی‌کنیم، باید همه چیز مانند گذشته کار کند.
+
+.. note::
+
+    در اینجا به گام‌های ۳ تا ۵ نیازی نداریم، زیرا از همان پایگاه‌داده به‌عنوان محل ذخیره‌ی نشست‌ها استفاده می‌کنیم، اما فصل مربوط به استفاده از Redis نشان می‌دهد که افزودن، آزمودن و استقرار یک سرویس جدید در Docker و Upsun چقدر ساده است.
+
+تغییرات خود را در شاخه‌ی جدید commit کنید:
+
+.. code-block:: terminal
+    :class: ignore
+
+    $ git add .
+    $ git commit -m'Configure database sessions'
 
 استقرار یک شاخه
 ----------------------------
 
 .. index::
-    single: SymfonyCloud;Environment
+    single: Upsun;Environment
 
 قبل از استقرار در محیط عمل‌آوری، باید شاخه را در زیرساختی مشابه محیط عمل‌آوری، مورد آزمون قرار دهیم. ما همچنین باید اعتبار اینکه همه چیز برای محیط سیمفونیِ ``prod`` به‌خوبی کار می‌کند را، تأیید کنیم. (وب‌سایت محلی از محیط سیمفونیِ ``dev`` استفاده کرده است).
 
 .. index::
-    single: Symfony CLI;env:delete
-    single: Symfony CLI;env:create
+    single: Symfony CLI;cloud:env:delete
+    single: Symfony CLI;cloud:env:create
 
-First, make sure to commit your changes to the new branch:
+حال بیایید یک *محیطِ Upsun* بر اساس *شاخه‌ی Git* ایجاد کنیم:
 
-.. code-block:: bash
-    :class: ignore
-
-    $ git add .
-    $ git commit -m'Configure redis sessions'
-
-حال بیایید یک *محیطِ SymfonyCloud* بر اساس *شاخه‌ی Git* ایجاد کنیم:
-
-.. code-block:: bash
+.. code-block:: terminal
     :class: hide
 
-    $ symfony env:delete sessions-in-redis --no-interaction
+    $ symfony cloud:env:delete sessions-in-db
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony env:create
+    $ symfony cloud:push
 
 این فرمان یک محیط جدید به صورت زیر ایجاد می‌کند:
 
-* این شاخه‌ی جدید، کد و زیرساخت را از شاخه‌ی فعلی Git به ارث می‌برد (``sessions-in-redis``)؛
+* این شاخه‌ی جدید، کد و زیرساخت را از شاخه‌ی فعلی Git به ارث می‌برد (``sessions-in-db``)؛
 
 * داده‌ها از محیط اصلی (همان محیط عمل‌آوری) و از طریق گرفتن تصویر آنی (snapshot) از کلیه‌ی داده‌های سرویس، از جمله فایل‌ها (مثلاً فایل‌های بارگذاری شده توسط کاربر) و پایگاه‌داده‌ها، بدست می‌آیند؛
 
@@ -176,58 +140,58 @@ First, make sure to commit your changes to the new branch:
 
 از آنجا که استقرار همان مراحل استقرار به محیط عمل‌آوری را دنبال می‌کند، migrateکردن پایگاه‌داده نیز اجرا می‌شود. این یک روش عالی برای تأیید این است که migration‌ها با داده‌های محیط عمل‌آوری کار می‌کنند.
 
-محیط‌های غیر از محیطِ اصلی (non-``master`)، بسیار شبیه به ``master`` هستند، به جز برخی از تفاوت‌های کوچک: به عنوان مثال، رایانامه‌ها به طور پیشفرض ارسال نمی‌شوند.
+محیط‌های غیر از محیطِ اصلی (non-``master``)، بسیار شبیه به ``master`` هستند، به جز برخی از تفاوت‌های کوچک: به عنوان مثال، رایانامه‌ها به طور پیش‌فرض ارسال نمی‌شوند.
 
 .. index::
-    single: Symfony CLI;open:remote
+    single: Symfony CLI;cloud:url
 
-زمانیکه استقرار تمام شد، شاخه‌ی جدید را در یک مرورگر باز کنید:
+زمانی که استقرار تمام شد، شاخه‌ی جدید را در یک مرورگر باز کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
-    $ symfony open:remote
+    $ symfony cloud:url -1
 
-توجه داشته باشید که تمام فرامین SymfonyCloud، بر روی شاخه‌ی فعلی Git کار می‌کنند. این فرمان، URL مستقرشده برای شاخه‌ی ``sessions-in-redis`` را باز می‌کند؛ این URL شبیه به ``/https://session-in-redis-xxx.eu.s5y.io`` خواهد بود.
+توجه داشته باشید که تمام فرمان‌های Upsun، بر روی شاخه‌ی فعلی Git کار می‌کنند. این فرمان، URL مستقرشده برای شاخه‌ی ``sessions-in-db`` را باز می‌کند؛ این URL شبیه به ``https://sessions-in-db-xxx.eu-5.platformsh.site`` خواهد بود.
 
 وب‌سایت را در این محیط جدید بیازمایید، باید تمام داده‌هایی را که در محیط اصلی (master) ایجاد کرده‌اید، مشاهده کنید.
 
-اگر کنفرانس‌های بیشتری را به محیط ``master`` اضافه کنید، آن‌ها در محیط ``sessions-in-redis`` ظاهر نمی‌شوند و همچنین بالعکس. محیط‌ها مستقل و ایزوله هستند.
+اگر کنفرانس‌های بیشتری را به محیط ``master`` اضافه کنید، آن‌ها در محیط ``sessions-in-db`` ظاهر نمی‌شوند و همچنین بالعکس. محیط‌ها مستقل و ایزوله هستند.
 
 اگر کدِ روی شاخه‌ی اصلی تکامل یابد، همیشه می‌توانید شاخه‌ی Git را پایه‌گذاریِ مجدد (rebase) کنید. سپس نسخه‌ی به‌روز‌شده را مستقر کرده و تداخلات (conflicts) را هم برای کد و هم برای زیرساخت، مرتفع کنید.
 
 .. index::
-    single: Symfony CLI;env:sync
+    single: Symfony CLI;cloud:env:sync
 
-حتی شما می‌توانید داده‌ها را از شاخه‌ی اصلی، به محیط ``sessions-in-redis`` همگام‌سازی کنید:
+حتی شما می‌توانید داده‌ها را از شاخه‌ی اصلی، به محیط ``sessions-in-db`` همگام‌سازی کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(y)
 
-    $ symfony env:sync
+    $ symfony cloud:env:sync
 
 اشکال‌زدایی استقرارهای محصول نهایی، قبل از استقرار
 -----------------------------------------------------------------------------------------------
 
 .. index::
-    single: SymfonyCloud;Debugging
+    single: Upsun;Debugging
 
-به طور پیش فرض، تمام محیط‌های SymfonyCloud، از همان تنظیمات محیط ``master``/``prod`` (یا همان محیط سیمفونیِ ``prod``) استفاده می‌کنند. این به شما این امکان را می‌دهد تا برنامه را در شرایط واقعی آزمایش کنید. این موضوع،  احساس توسعه و آزمایش مستقیم روی سرورهای نهایی را به شما القا می‌کند، اما بدون خطرات مرتبط با انجام واقعی این کار. این مرا به یاد روزهای خوب قدیمی می‌اندازد که از طریق FTP این کار را انجام می‌دادیم.
+به طور پیش فرض، تمام محیط‌های Upsun، از همان تنظیمات محیط ``master``/``prod`` (یا همان محیط سیمفونیِ ``prod``) استفاده می‌کنند. این به شما این امکان را می‌دهد تا برنامه را در شرایط واقعی آزمایش کنید. این موضوع،  احساس توسعه و آزمایش مستقیم روی سرورهای نهایی را به شما القا می‌کند، اما بدون خطرات مرتبط با انجام واقعی این کار. این مرا به یاد روزهای خوب قدیمی می‌اندازد که از طریق FTP این کار را انجام می‌دادیم.
 
 .. index::
-    single: Symfony CLI;env:debug
+    single: Symfony CLI;cloud:env:debug
 
-در صورت بروز مشکل ، ممکن است بخواهید به محیط Symfony `` dev`` بروید:
+در صورت بروز مشکل، ممکن است بخواهید به محیط ``dev`` سیمفونی بروید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony env:debug
+    $ symfony cloud:env:debug
 
 پس از اتمام کارتان، به تنظیمات محیط عمل‌آوری برگردید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony env:debug --off
+    $ symfony cloud:env:debug --off
 
 .. warning::
 
@@ -236,9 +200,9 @@ First, make sure to commit your changes to the new branch:
 آزمودن استقرارهای محصول نهایی، قبل از استقرار
 ------------------------------------------------------------------------------------
 
-دسترسی به نسخه‌ی آینده وب‌سایت با داده‌های عمل‌آوری، فرصت‌های زیادی را ایجاد می‌کند: از آزمون رگرسیون بصری (visual regression testing) گرفته تا آزمون کارایی (performance testin). `Blackfire <https://blackfire.io>`_ یک ابزار عالی برای انجام این کار است.
+دسترسی به نسخه‌ی آینده وب‌سایت با داده‌های عمل‌آوری، فرصت‌های زیادی را ایجاد می‌کند: از آزمون رگرسیون بصری (visual regression testing) گرفته تا آزمون کارایی (performance testing). `Blackfire`_ یک ابزار عالی برای انجام این کار است.
 
-برای کسب اطلاعات بیشتر در مورد نحوه استفاده از Blackfire برای تست کدهای خود قبل از استقرار، به گام «کارایی» مراجعه کنید.
+برای کسب اطلاعات بیشتر در مورد نحوه استفاده از Blackfire برای تست کدهای خود قبل از استقرار، به گام :doc:`کارایی <29-performance>` مراجعه کنید.
 
 ادغام در محصول نهایی
 -------------------------------------
@@ -250,18 +214,18 @@ First, make sure to commit your changes to the new branch:
 
 هنگامی که از تغییرات شاخه راضی شدید، کد و زیرساخت را در شاخه‌ی اصلی Git ادغام کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ git checkout master
-    $ git merge sessions-in-redis
+    $ git merge sessions-in-db
 
 و استقرار:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony deploy
+    $ symfony cloud:push
 
-هنگام استقرار، تنها تغییرات در کد و زیرساخت به SymfonyCloud ارسال می‌شود؛ داده‌های دیگر به هیچ وجه تحت تأثیر قرار نمی‌گیرند.
+هنگام استقرار، تنها تغییرات در کد و زیرساخت به Upsun ارسال می‌شود؛ داده‌های دیگر به هیچ وجه تحت تأثیر قرار نمی‌گیرند.
 
 تمیزکاری
 ----------------
@@ -270,17 +234,17 @@ First, make sure to commit your changes to the new branch:
     single: Symfony CLI;env:delete
     single: Git;branch
 
-در آخر با پاک کردن شاخه‌ی Git و محیط SymfonyCloud تمیزکاری کنید:
+در آخر با پاک کردن شاخه‌ی Git و محیط Upsun تمیزکاری کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ git branch -d sessions-in-redis
-    $ symfony env:delete --env=sessions-in-redis --no-interaction
+    $ git branch -d sessions-in-db
+    $ symfony cloud:env:delete -e sessions-in-db
 
 .. sidebar:: بیشتر بدانید
 
-    * `شاخه‌زنی در Git <https://www.git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell>`_؛
-
-    * `Redis docs <https://redis.io/documentation>`_.
+    * `شاخه‌زنی در Git`_؛
 
 .. _`ذی‌نفعان (stakeholders)`: https://en.wikipedia.org/wiki/Project_stakeholder
+.. _`شاخه‌زنی در Git`: https://www.git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell
+.. _`Blackfire`: https://blackfire.io

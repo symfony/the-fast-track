@@ -1,15 +1,15 @@
-Using RabbitMQ as a Message Broker
-==================================
+استفاده از RabbitMQ به عنوان دلال پیغام
+=================================================================
 
 .. index::
     single: RabbitMQ
 
-RabbitMQ is a very popular message broker that you can use as an alternative to PostgreSQL.
+RabbitMQ یک دلال پیغام (message broker) بسیار محبوب است که می‌توانید از آن به عنوان جایگزینی برای PostgreSQL استفاده کنید.
 
-Switching from PostgreSQL to RabbitMQ
--------------------------------------
+تعویض از PostgreSQL به RabbitMQ
+------------------------------------------------------
 
-To use RabbitMQ instead of PostgreSQL as a message broker:
+برای استفاده از RabbitMQ به جای PostgreSQL به عنوان دلال پیغام:
 
 .. code-block:: diff
     :caption: patch_file
@@ -26,19 +26,19 @@ To use RabbitMQ instead of PostgreSQL as a message broker:
                          max_retries: 3
                          multiplier: 2
 
-We also need to add RabbitMQ support for Messenger:
+همچنین نیاز داریم تا پشتیبانی RabbitMQ را برای پیغام‌رسان اضافه کنیم:
 
 .. code-block:: terminal
 
     $ symfony composer req amqp-messenger
 
-Adding RabbitMQ to the Docker Stack
------------------------------------
+افزودن RabbitMQ به پشته‌ی Docker
+----------------------------------------------------
 
 .. index::
     single: Docker;RabbitMQ
 
-As you might have guessed, we also need to add RabbitMQ to the Docker Compose stack:
+همان‌طور که احتمالاً حدس زده‌اید، باید RabbitMQ را نیز به پشته‌ی Docker Compose اضافه کنیم:
 
 .. code-block:: diff
     :caption: patch_file
@@ -57,10 +57,10 @@ As you might have guessed, we also need to add RabbitMQ to the Docker Compose st
      ###> doctrine/doctrine-bundle ###
        database_data:
 
-Restarting Docker Services
---------------------------
+بازراه‌اندازی سرویس‌های Docker
+--------------------------------------------------
 
-To force Docker Compose to take the RabbitMQ container into account, stop the containers and restart them:
+برای واداشتن Docker Compose به در نظر گرفتن کانتینر RabbitMQ، کانتینرها را متوقف کرده و دوباره راه‌اندازی کنید:
 
 .. code-block:: terminal
 
@@ -72,41 +72,41 @@ To force Docker Compose to take the RabbitMQ container into account, stop the co
 
     $ sleep 10
 
-Exploring the RabbitMQ Web Management Interface
------------------------------------------------
+کاوش در واسط وب مدیریت RabbitMQ
+------------------------------------------------------------
 
 .. index::
     single: Symfony CLI;open:local:rabbitmq
 
-If you want to see queues and messages flowing through RabbitMQ, open its web management interface:
+اگر می‌خواهید صف‌ها و پیغام‌هایی که از RabbitMQ عبور می‌کنند را ببینید، واسط وب مدیریت آن را باز کنید:
 
 .. code-block:: terminal
     :class: ignore
 
     $ symfony open:local:rabbitmq
 
-Or from the web debug toolbar:
+یا از طریق نوار ابزار اشکال‌زدایی وب:
 
 .. figure:: screenshots/rabbitmq-wdt.png
     :alt: /
     :align: center
     :figclass: with-browser
 
-Use ``guest``/``guest`` to login to the RabbitMQ management UI:
+برای ورود به واسط مدیریت RabbitMQ از ``guest``/``guest`` استفاده کنید:
 
 .. figure:: screenshots/rabbitmq-management.png
     :alt: /
     :align: center
     :figclass: with-browser
 
-Deploying RabbitMQ
-------------------
+استقرار RabbitMQ
+------------------------------
 
 .. index::
     single: Upsun;RabbitMQ
     single: RabbitMQ
 
-Adding RabbitMQ to the production servers can be done by adding it to the list of services:
+افزودن RabbitMQ به سرورهای عمل‌آوری می‌تواند با افزودن آن به فهرست سرویس‌ها انجام شود:
 
 .. code-block:: diff
     :caption: patch_file
@@ -123,7 +123,7 @@ Adding RabbitMQ to the production servers can be done by adding it to the list o
     +
      applications:
 
-Reference it in the web container configuration as well and enable the ``amqp`` PHP extension:
+آن را در پیکربندی کانتینر وب نیز ارجاع داده و افزونه‌ی PHP با نام ``amqp`` را فعال کنید:
 
 .. code-block:: diff
     :caption: patch_file
@@ -153,7 +153,7 @@ Reference it in the web container configuration as well and enable the ``amqp`` 
     single: Symfony CLI;cloud:tunnel:close
     single: Symfony CLI;open:remote:rabbitmq
 
-When the RabbitMQ service is installed on a project, you can access its web management interface by opening the tunnel first:
+زمانی که سرویس RabbitMQ روی یک پروژه نصب شده باشد، می‌توانید با بازکردن تونل، به واسط وب مدیریت آن دسترسی پیدا کنید:
 
 .. code-block:: terminal
     :class: ignore
@@ -164,8 +164,8 @@ When the RabbitMQ service is installed on a project, you can access its web mana
     # when done
     $ symfony cloud:tunnel:close
 
-.. sidebar:: Going Further
+.. sidebar:: بیشتر بدانید
 
-    * `RabbitMQ docs`_.
+    * `مستندات RabbitMQ`_.
 
-.. _`RabbitMQ docs`: https://www.rabbitmq.com/documentation.html
+.. _`مستندات RabbitMQ`: https://www.rabbitmq.com/documentation.html

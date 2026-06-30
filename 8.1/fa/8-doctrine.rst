@@ -5,13 +5,7 @@
     single: Doctrine
     single: Database
 
-برای کار کردن با پایگاه‌داده از طریق PHP، ما تصمیم داریم بر `Doctrine`_ تکیه کنیم. Doctrine مجموعه‌ای از کتابخانه‌ها است که برای مدیریت پایگاه‌داده‌ها به توسعه‌دهنده‌گان کمک می‌کند:
-
-.. code-block:: bash
-
-    $ symfony composer req "orm:^2"
-
-این فرمان تعدادی وابستگی نصب می‌کند: Doctrine DBAL (یک لایه‌ی انتزاعی از پایگاه‌داده)، Doctrine ORM (یک کتابخانه برای دستکاری محتوای پایگاه‌داده از طریق اشیاء PHP) و Doctrine Migrations.
+برای کار کردن با پایگاه‌داده از طریق PHP، ما تصمیم داریم بر `Doctrine`_ تکیه کنیم. Doctrine مجموعه‌ای از کتابخانه‌ها است که برای مدیریت پایگاه‌داده‌ها به توسعه‌دهنده‌گان کمک می‌کند: Doctrine DBAL (یک لایه‌ی انتزاعی از پایگاه‌داده)، Doctrine ORM (یک کتابخانه برای دستکاری محتوای پایگاه‌داده از طریق اشیاء PHP) و Doctrine Migrations.
 
 پیکربندی Doctrine ORM
 -----------------------------
@@ -19,9 +13,11 @@
 .. index::
     single: Doctrine;Configuration
 
-Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را می‌داند؟ recipe مربوط به Doctrine، یک فایل پیکربندی ``config/packages/doctrine.yaml`` که رفتار را کنترل می‌کند، اضافه می‌کند.در این فایل، *database DSN* تنظیم اصلی است. یک رشته (string) که شامل تمام اطلاعات مربوط به اتصال است: اعتبارنامه‌ها، میزبان (host)، درگاه (port) و غیره. به صورت پیشفرض، Doctrine به دنبال متغیر محیط ``DATABASE_URL`` می‌گردد.
+Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را می‌داند؟ recipe مربوط به Doctrine، یک فایل پیکربندی ``config/packages/doctrine.yaml`` که رفتار را کنترل می‌کند، اضافه می‌کند. در این فایل، *database DSN* تنظیم اصلی است. یک رشته (string) که شامل تمام اطلاعات مربوط به اتصال است: اعتبارنامه‌ها، میزبان (host)، درگاه (port) و غیره. به صورت پیش‌فرض، Doctrine به دنبال متغیر محیط ``DATABASE_URL`` می‌گردد.
 
-درک قرادادهای کار با متغیر محیط در سیمفونی
+تقریباً تمام بسته‌های نصب‌شده دارای یک پیکربندی در پوشه‌ی ``config/packages/`` هستند. بیشتر اوقات، مقادیر پیش‌فرض با دقت انتخاب شده‌اند تا برای اکثر اپلیکیشن‌ها کار کنند.
+
+درک قراردادهای کار با متغیر محیط در سیمفونی
 -----------------------------------------------------------------------------
 
 .. index::
@@ -29,49 +25,51 @@ Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را �
     single: .env
     single: .env.local
 
-شما می‌توانید ``DATABASE_URL`` را به صورت دستی در فایل ``.env`` یا ``.env.local`` تعریف کنید. در حقیقت به لطف recipe مربوط به بسته، شما یک مثال ``DATABASE_URL`` در فایل ``.env`` ‌تان می‌بینید. اما چون درگاه محلی مربوط به Postgresql که توسط Docker در ارائه شده است، می‌تواند تغییر کند، این روش بسیار مشقت‌بار خواهد بود. یک راه بهتر وجود دارد.
+شما می‌توانید ``DATABASE_URL`` را به صورت دستی در فایل ``.env`` یا ``.env.local`` تعریف کنید. در حقیقت به لطف recipe مربوط به بسته، شما یک مثال ``DATABASE_URL`` در فایل ``.env`` ‌تان می‌بینید. اما چون درگاه محلی PostgreSQL که توسط Docker ارائه شده است، می‌تواند تغییر کند، این روش بسیار مشقت‌بار خواهد بود. یک راه بهتر وجود دارد.
 
-به جای هاردکد کردن ``DATABASE_URL`` درون فایل، می‌توانیم برای تمام فرامین یک پیشوند ``symfony`` قرار دهیم. به این طریق، تمام سرویس‌های اجرا‌شده توسط Docker و/یا SymfonyCloud (زمانی که تونل باز است) شناسایی شده و متغیرهای محیط به صورت خودکار تنظیم می‌گردند.
+به جای هاردکد کردن ``DATABASE_URL`` درون فایل، می‌توانیم برای تمام فرامین یک پیشوند ``symfony`` قرار دهیم. به این طریق، تمام سرویس‌های اجرا‌شده توسط Docker و/یا Upsun (زمانی که تونل باز است) شناسایی شده و متغیرهای محیط به صورت خودکار تنظیم می‌گردند.
 
-به لطف این متغیرهای محیط، Docker Compose و SymfonyCloud به صورت یکپارچه با هم کار می‌کنند.
+به لطف این متغیرهای محیط، Docker Compose و Upsun به صورت یکپارچه با هم کار می‌کنند.
 
 .. index::
     single: Symfony CLI;var:export
 
 با اجرای ``symfony var:export``، تمام متغیرهای محیط ارائه‌شده را بررسی کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony var:export
 
 .. code-block:: text
     :class: ignore
 
-    DATABASE_URL=postgres://main:main@127.0.0.1:32781/main?sslmode=disable&charset=utf8
+    DATABASE_URL=postgres://app:!ChangeMe!@127.0.0.1:32781/app?sslmode=disable&charset=utf8
     # ...
 
-*نامِ سرویس* ``database`` را که در پیکربندی Docker و SymfonyCloud موجود بود، به خاطر می‌آورید؟ این نامِ سرویس به عنوان پیشوند برای تعریف متغیرهای محیط، همچون ``DATABASE_URL`` استفاده می‌شود. اگر سرویس شما مطابق با قراردادهای سیمفونی نامگذاری شده باشد، هیچ پیکربندی دیگری لازم نیست.
+*نامِ سرویس* ``database`` را که در پیکربندی Docker و Upsun موجود بود، به خاطر می‌آورید؟ این نامِ سرویس به عنوان پیشوند برای تعریف متغیرهای محیط، همچون ``DATABASE_URL`` استفاده می‌شود. اگر سرویس شما مطابق با قراردادهای سیمفونی نامگذاری شده باشد، هیچ پیکربندی دیگری لازم نیست.
 
 .. note::
 
     پایگاه‌داده‌ها تنها خدماتی نیستند که از قراردادهای سیمفونی بهره می‌برند. برای نمونه، همین رویه برای Mailer هم برقرار است (از طریق متغیر محیط ``MAILER_DSN``).
 
-تغییر مقدار پیشفرض DATABASE_URL در فایل .env
+تغییر مقدار پیش‌فرض DATABASE_URL در فایل .env
 ------------------------------------------------------------------
 
-ما هنوز فایل ``.env`` را جهت تنظیم مقدار پیشفرض ``DATABASE_DSN`` برای استفاده از PostgreSQL تغییر می‌دهیم:
+ما هنوز فایل ``.env`` را جهت تنظیم مقدار پیش‌فرض ``DATABASE_URL`` برای استفاده از PostgreSQL تغییر می‌دهیم:
 
 .. code-block:: diff
 
-    --- a/.env
-    +++ b/.env
-    @@ -26,5 +26,5 @@ APP_SECRET=7567b803de0f51b0d93e66b064cad2bf
-     # 
-     # DATABASE_URL="sqlite:///%kernel.project_dir%/var/data.db"
-     # DATABASE_URL="mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7"
-    -DATABASE_URL="postgresql://db_user:db_password@127.0.0.1:5432/db_name?serverVersion=13&charset=utf8"
-    +DATABASE_URL="postgresql://127.0.0.1:5432/db?serverVersion=13&charset=utf8"
+    --- i/.env
+    +++ w/.env
+    @@ -26,7 +26,7 @@ APP_SECRET=ce2ae8138936039d22afb20f4596fe97
+     # DATABASE_URL="sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
+     # DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=8.0.32&charset=utf8mb4"
+     # DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=10.11.2-MariaDB&charset=utf8mb4"
+    -DATABASE_URL="postgresql://app:!ChangeMe!@127.0.0.1:5432/app?serverVersion=16&charset=utf8"
+    +DATABASE_URL="postgresql://127.0.0.1:5432/db?serverVersion=16&charset=utf8"
      ###< doctrine/doctrine-bundle ###
+
+     ###> symfony/messenger ###
 
 چرا لازم است اطلاعات در دو جای مختلف تکرار شوند؟ زیرا در برخی پلتفرم‌های ابری، در *زمان ساخت (build time)*، ممکن است هنوز URL پایگاه‌داده مشخص نباشد ولی Doctrine نیاز دارد تا موتور پایگاه‌داده را بشناسد تا پیکربندی خود را ایجاد کند. بنابراین، میزبان (host)، نام کاربری و رمزعبور واقعاً اهمیت ندارند.
 
@@ -88,14 +86,16 @@ Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را �
 
 .. index:: ! Command;make:entity
 
-باندل Maker می‌تواند برای تولید یک کلاس ( یک کلاسِ *Entity*) که یک کنفرانس را نمایندگی می‌کند، به ما کمک نماید:
+باندل Maker می‌تواند برای تولید یک کلاس ( یک کلاسِ *Entity*) که یک کنفرانس را نمایندگی می‌کند، به ما کمک نماید.
 
-.. code-block:: bash
+اکنون زمان تولید موجودیت ``Conference`` فرا رسیده است:
+
+.. code-block:: terminal
     :class: answers(city||string||255||no||year||string||4||no||isInternational||boolean||no)
 
     $ symfony console make:entity Conference
 
-این فرمان تعاملی است: این فرمان ما را در فرآیند افزودن تمام فیلدهایی که نیاز داریم، راهنمایی می‌کند. از این پاسخ‌ها استفاده کنید (اکثر آن‌ها پیشفرض هستند، بنابراین می‌تواند کلید «Enter» را برای استفاده از آن‌ها، بفشارید):
+این فرمان تعاملی است: این فرمان ما را در فرآیند افزودن تمام فیلدهایی که نیاز داریم، راهنمایی می‌کند. از این پاسخ‌ها استفاده کنید (اکثر آن‌ها پیش‌فرض هستند، بنابراین می‌تواند کلید «Enter» را برای استفاده از آن‌ها، بفشارید):
 
 * ``city``، ``string``، ``255``، ``no``؛
 * ``year``، ``string``، ``4``، ``no``؛
@@ -167,15 +167,15 @@ Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را �
 همچنین این فرمان، یک کلاس Doctrine *repository* تولید کرده است: ``App\Repository\ConferenceRepository``.
 
 .. index::
-    single: Annotations;@ORM\\Entity
-    single: Annotations;@ORM\\Id
-    single: Annotations;@ORM\\GeneratedValue
-    single: Annotations;@ORM\\Column
+    single: Attributes;ORM\\Entity
+    single: Attributes;ORM\\Id
+    single: Attributes;ORM\\GeneratedValue
+    single: Attributes;ORM\\Column
 
 کدِ تولید‌شده، چیزی شبیه به این است (تنها بخش کوچکی از فایل در اینجا تکرار شده است):
 
 .. code-block:: php
-    :caption: src/App/Entity/Conference.php
+    :caption: src/Entity/Conference.php
     :class: ignore
 
     namespace App\Entity;
@@ -183,22 +183,16 @@ Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را �
     use App\Repository\ConferenceRepository;
     use Doctrine\ORM\Mapping as ORM;
 
-    /**
-     * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-     */
+    #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
     class Conference
     {
-        /**
-         * @ORM\Id()
-         * @ORM\GeneratedValue()
-         * @ORM\Column(type="integer")
-         */
-        private $id;
+        #[ORM\Id]
+        #[ORM\GeneratedValue]
+        #[ORM\Column]
+        private ?int $id = null;
 
-        /**
-         * @ORM\Column(type="string", length=255)
-         */
-        private $city;
+        #[ORM\Column(length: 255)]
+        private ?string $city = null;
 
         // ...
 
@@ -207,7 +201,7 @@ Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را �
             return $this->city;
         }
 
-        public function setCity(string $city): self
+        public function setCity(string $city): static
         {
             $this->city = $city;
 
@@ -217,17 +211,17 @@ Doctrine چگونه نحوه‌ی اتصال به پایگاه‌داده را �
         // ...
     }
 
-توجه کنید که این کلاس به تنهایی، یک کلاس ساده‌ی PHP است و اثری از Doctrine وجود ندارد. از حاشیه‌نویسی‌ها برای افزودن فراداده‌های لازم برای Doctrine جهت تصویر کردن کلاس به جدول پایگاه‌داده‌ی مربوطه، استفاده شده است.
+توجه کنید که این کلاس به تنهایی، یک کلاس ساده‌ی PHP است و اثری از Doctrine وجود ندارد. از attributeها برای افزودن فراداده‌های لازم برای Doctrine جهت تصویر کردن کلاس به جدول پایگاه‌داده‌ی مربوطه، استفاده شده است.
 
-Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اصلی ردیف در جدول پایگاه‌داده، اضافه کرده است. این کلید (``@ORM\Id()``) به صورت خودکار و از طریق یک استراتژی که بستگی به موتور پایگاه‌داده دارد، تولید می‌شود.
+Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اصلی ردیف در جدول پایگاه‌داده، اضافه کرده است. این کلید (``#[ORM\Id]``) به صورت خودکار (``#[ORM\GeneratedValue]``) و از طریق یک استراتژی که بستگی به موتور پایگاه‌داده دارد، تولید می‌شود.
 
 .. index::
     single: Command;make:entity
 
 حالا، یک کلاسِ موجودیت برای کامنت‌های کنفرانس تولید کنید:
 
-.. code-block:: bash
-    :class: answers(author||string||255||no||text||text||no||email||string||255||no||createdAt||datetime||no)
+.. code-block:: terminal
+    :class: answers(author||string||255||no||text||text||no||email||string||255||no||createdAt||datetime_immutable||no)
 
     $ symfony console make:entity Comment
 
@@ -236,7 +230,7 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
 * ``author``، ``string``، ``255``، ``no``؛
 * ``text``، ``text``، ``no``؛
 * ``email``، ``string``، ``255``، ``no``؛
-* ``createdAt``، ``datetime``، ``no``.
+* ``createdAt``، ``datetime_immutable``، ``no``.
 
 متصل‌کردن موجودیت‌ها
 -----------------------------------------
@@ -248,7 +242,7 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
 
 برای افزودن این رابطه به کلاس ``Conference``، مجدداً از فرمان ``make:entity`` استفاده کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(comments||OneToMany||Comment||conference||no||yes)
 
     $ symfony console make:entity Conference
@@ -329,31 +323,29 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
           * json_array
 
 .. index::
-    single: Annotations;@ORM\\ManyToOne
-    single: Annotations;@ORM\\JoinColumn
-    single: Annotations;@ORM\\OneToMany
+    single: Attributes;ORM\\ManyToOne
+    single: Attributes;ORM\\JoinColumn
+    single: Attributes;ORM\\OneToMany
 
-پس از افزودن رابطه، به diff کامل کلاس‌های موجودیت نگاهی بیاندازید:
+پس از افزودن رابطه، به diff کامل کلاس‌های موجودیت نگاهی بیندازید:
 
 .. code-block:: diff
     :class: ignore
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -36,6 +36,12 @@ class Comment
-          */
-         private $createdAt;
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -23,6 +23,10 @@ class Comment
+         #[ORM\Column]
+         private ?\DateTimeImmutable $createdAt = null;
 
-    +    /**
-    +     * @ORM\ManyToOne(targetEntity=Conference::class, inversedBy="comments")
-    +     * @ORM\JoinColumn(nullable=false)
-    +     */
-    +    private $conference;
+    +    #[ORM\ManyToOne(inversedBy: 'comments')]
+    +    #[ORM\JoinColumn(nullable: false)]
+    +    private ?Conference $conference = null;
     +
          public function getId(): ?int
          {
              return $this->id;
-    @@ -88,4 +94,16 @@ class Comment
+    @@ -88,4 +92,16 @@ class Comment
 
              return $this;
          }
@@ -363,15 +355,15 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
     +        return $this->conference;
     +    }
     +
-    +    public function setConference(?Conference $conference): self
+    +    public function setConference(?Conference $conference): static
     +    {
     +        $this->conference = $conference;
     +
     +        return $this;
     +    }
      }
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
     @@ -2,6 +2,8 @@
 
      namespace App\Entity;
@@ -381,14 +373,15 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
      use Doctrine\ORM\Mapping as ORM;
 
      /**
-    @@ -31,6 +33,16 @@ class Conference
-          */
-         private $isInternational;
+    @@ -20,6 +22,19 @@ class Conference
+         #[ORM\Column]
+         private ?bool $isInternational = null;
 
     +    /**
-    +     * @ORM\OneToMany(targetEntity=Comment::class, mappedBy="conference", orphanRemoval=true)
+    +     * @var Collection<int, Comment>
     +     */
-    +    private $comments;
+    +    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'conference', orphanRemoval: true)]
+    +    private Collection $comments;
     +
     +    public function __construct()
     +    {
@@ -404,27 +397,26 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
          }
     +
     +    /**
-    +     * @return Collection|Comment[]
+    +     * @return Collection<int, Comment>
     +     */
     +    public function getComments(): Collection
     +    {
     +        return $this->comments;
     +    }
     +
-    +    public function addComment(Comment $comment): self
+    +    public function addComment(Comment $comment): static
     +    {
     +        if (!$this->comments->contains($comment)) {
-    +            $this->comments[] = $comment;
+    +            $this->comments->add($comment);
     +            $comment->setConference($this);
     +        }
     +
     +        return $this;
     +    }
     +
-    +    public function removeComment(Comment $comment): self
+    +    public function removeComment(Comment $comment): static
     +    {
-    +        if ($this->comments->contains($comment)) {
-    +            $this->comments->removeElement($comment);
+    +        if ($this->comments->removeElement($comment)) {
     +            // set the owning side to null (unless already changed)
     +            if ($comment->getConference() === $this) {
     +                $comment->setConference(null);
@@ -447,7 +439,7 @@ Doctrine یک ویژگی ``id`` را برای ذخیره کردن کلید اص�
 
 ``make:entity`` را یکبار دیگر اجرا کنید تا ویژگی/ستون ``photoFilename`` را از نوع ``string`` اضافه کنیم، اما اجازه دهید تا مقدار ``null`` را بپذیرد زیرا که بارگذاری عکس اختیاری است.
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(photoFilename||string||255||yes)
 
     $ symfony console make:entity Comment
@@ -463,15 +455,15 @@ Migrateکردن پایگاه‌داده
 
 *Doctrine Migrations* برای انجام این کار، عالی است. این ابزار هم‌اکنون به عنوان بخشی از وابستگی ``orm``، نصب شده است.
 
-یک *migration*، یک کلاس است که تغییرات لازم برای بروزرسانی شمای پایگاه‌داده را از وضعیت فعلی به وضعیت جدید که توسط حاشیه‌نویسی‌ها تعریف شده است، توصیف می‌کند. از آنجایی که پایگاه‌داده در حال  حاضر خالی است، migration باید شامل ۲ ایجاد جدول باشد.
+یک *migration*، یک کلاس است که تغییرات لازم برای بروزرسانی شمای پایگاه‌داده را از وضعیت فعلی به وضعیت جدید که توسط attributeها تعریف شده است، توصیف می‌کند. از آنجایی که پایگاه‌داده در حال  حاضر خالی است، migration باید شامل ۲ ایجاد جدول باشد.
 
 بیایید ببینیم که Doctrine چه چیزی تولید می‌کند:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony console make:migration
 
-Notice the generated file name in the output (a name that looks like ``migrations/Version20191019083640.php``):
+به نام فایل تولیدشده در خروجی توجه کنید (نامی شبیه ``migrations/Version20191019083640.php``):
 
 .. code-block:: php
     :caption: migrations/Version20191019083640.php
@@ -482,9 +474,9 @@ Notice the generated file name in the output (a name that looks like ``migration
     use Doctrine\DBAL\Schema\Schema;
     use Doctrine\Migrations\AbstractMigration;
 
-    final class Version20191019083640 extends AbstractMigration
+    final class Version00000000000000 extends AbstractMigration
     {
-        public function up(Schema $schema) : void
+        public function up(Schema $schema): void
         {
             // this up() migration is auto-generated, please modify it to your needs
             $this->addSql('CREATE SEQUENCE comment_id_seq INCREMENT BY 1 MINVALUE 1 START 1');
@@ -495,7 +487,7 @@ Notice the generated file name in the output (a name that looks like ``migration
             $this->addSql('ALTER TABLE comment ADD CONSTRAINT FK_9474526C604B8382 FOREIGN KEY (conference_id) REFERENCES conference (id) NOT DEFERRABLE INITIALLY IMMEDIATE');
         }
 
-        public function down(Schema $schema) : void
+        public function down(Schema $schema): void
         {
             // ...
         }
@@ -508,7 +500,7 @@ Notice the generated file name in the output (a name that looks like ``migration
 
 حالا می‌توانید migration تولیدشده را اجرا  کنید تا شمای پایگاه‌داده‌ی محلی به‌روزرسانی شود:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(y)
 
     $ symfony console doctrine:migrations:migrate
@@ -520,16 +512,20 @@ Notice the generated file name in the output (a name that looks like ``migration
 
 گام‌های لازم برای migrateکردن پایگاه‌داده‌ی عمل‌آوری، دقیقاً همان‌هایی است که تا الان با آن آشنا شده‌اید: تغییرات را commit کرده و مستقر کنید.
 
-هنگامی که پروژه را مستقر می‌کنید، SymfonyCloud کد را به‌روز می‌کند اما علاوه بر آن، در صورت وجود، migration پایگاه‌داده را نیز اجرا می‌کند (اگر فرمان ``doctrine:migrations:migrate`` وجود داشته باشد، تشخیص می‌دهد).
+هنگامی که پروژه را مستقر می‌کنید، Upsun کد را به‌روز می‌کند اما علاوه بر آن، در صورت وجود، migration پایگاه‌داده را نیز اجرا می‌کند (اگر فرمان ``doctrine:migrations:migrate`` وجود داشته باشد، تشخیص می‌دهد).
 
 .. sidebar:: بیشتر بدانید
 
-    * `پایگاه‌داده‌ها و Doctrine ORM <https://symfony.com/doc/current/doctrine.html>`_ در اپلیکیشن‌های سیمفونی؛
+    * `پایگاه‌داده‌ها و Doctrine ORM`_ در اپلیکیشن‌های سیمفونی؛
 
-    * `آموزش تصویری Doctrine در SymfonyCasts <https://symfonycasts.com/screencast/symfony-doctrine/install>`_؛
+    * `آموزش تصویری Doctrine در SymfonyCasts`_؛
 
-    * `کار با Doctrine Associations/Relations <https://symfony.com/doc/current/doctrine/associations.html>`_؛
+    * `کار با Doctrine Associations/Relations`_؛
 
-    * `DoctrineMigrationsBundle docs <https://symfony.com/doc/current/bundles/DoctrineMigrationsBundle/index.html>`_.
+    * `DoctrineMigrationsBundle docs`_.
 
 .. _`Doctrine`: https://www.doctrine-project.org/
+.. _`پایگاه‌داده‌ها و Doctrine ORM`: https://symfony.com/doc/current/doctrine.html
+.. _`آموزش تصویری Doctrine در SymfonyCasts`: https://symfonycasts.com/screencast/symfony-doctrine/install
+.. _`کار با Doctrine Associations/Relations`: https://symfony.com/doc/current/doctrine/associations.html
+.. _`DoctrineMigrationsBundle docs`: https://symfony.com/doc/current/bundles/DoctrineMigrationsBundle/index.html

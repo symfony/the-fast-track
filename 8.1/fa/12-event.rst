@@ -15,10 +15,10 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -6,6 +6,15 @@
-             {% block stylesheets %}{% endblock %}
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -12,6 +12,15 @@
+             {% endblock %}
          </head>
          <body>
     +        <header>
@@ -31,30 +31,32 @@
     +            <hr />
     +        </header>
              {% block body %}{% endblock %}
-             {% block javascripts %}{% endblock %}
          </body>
+     </html>
 
 افزودن این کد به چیدمان به معنی آن است که تمام قالب‌هایی که آن را بسط می‌دهند، باید یک متغیر ``conferences`` تعریف کنند که در کنترلرشان ایجاد شده و به قالب داده می‌شود.
 
-As we only have two controllers, you might do the following:
+از آنجایی که تنها دو کنترلر داریم، *ممکن است* کار زیر را انجام دهید (این تغییر را در کد خود اعمال نکنید، زیرا به‌زودی روش بهتری را خواهیم آموخت):
 
 .. code-block:: diff
     :class: ignore
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -32,9 +32,10 @@ class ConferenceController extends AbstractController
-         /**
-          * @Route("/conference/{slug}", name="conference")
-          */
-    -    public function show(Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Conference $conference, CommentRepository $commentRepository, ConferenceRepository $conferenceRepository): Response
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -21,11 +21,12 @@ final class ConferenceController extends AbstractController
+         }
+
+         #[Route('/conference/{id}', name: 'conference')]
+    -    public function show(#[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    public function show(#[MapEntity] Conference $conference, CommentRepository $commentRepository, ConferenceRepository $conferenceRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-             return new Response($this->twig->render('conference/show.html.twig', [
+             $paginator = $commentRepository->getCommentPaginator($conference, $offset);
+
+             return $this->render('conference/show.html.twig', [
     +            'conferences' => $conferenceRepository->findAll(),
                  'conference' => $conference,
-                 'comments' => $commentRepository->findBy(['conference' => $conference], ['createdAt' => 'DESC']),
-             ]));
+                 'comments' => $paginator,
+                 'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
 
 تصور کنید تعداد زیادی کنترلر دارید و می‌خواهید همین کار را در تک تک آن‌ها تکرار کنید. این کار زیاد عملی نیست و باید راه بهتری وجود داشته باشد.
 
@@ -77,59 +79,54 @@ Twig از مفهوم متغیر‌های جهانی برخوردار است. ی�
 
 هر بسته یا باندل نیز می‌تواند رویدادهای خود را اعزام کند تا کدش را بسط‌پذیر نماید.
 
-برای جلوگیری از داشتن یک فایل که توصیف‌کننده‌ی این باشد که یک شنونده می‌خواهد به چه رویداد‌هایی گوش کند، یک *مشترک (subscriber)* ایجاد کنید. مشترک، شنونده‌ای است که دارای یک متد استاتیک با نام ``getSubscribedEvents()`` است که پیکربندی این شنونده را باز می‌گرداند. این باعث می‌شود تا مشترک‌ها بتوانند به صورت خودکار در اعزام‌کننده‌ی سیمفونی ثبت شوند.
+برای جلوگیری از داشتن یک فایل که توصیف‌کننده‌ی این باشد که یک شنونده می‌خواهد به چه رویداد‌هایی گوش کند، attribute‌ی ``#[AsEventListener]`` را روی کلاس یا متد شنونده اضافه کنید. این باعث می‌شود تا شنونده‌ها بتوانند به صورت خودکار در اعزام‌کننده‌ی سیمفونی ثبت شوند.
 
-پیاده‌سازی یک مشترک (Subscriber)
---------------------------------------------------
+پیاده‌سازی یک شنونده (Listener)
+------------------------------------------------
 
 .. index::
-    single: Event;Subscriber
-    single: Subscriber
     single: Event;Listener
     single: Listener
-    single: Command;make:subscriber
+    single: Command;make:listener
 
-حالا دیگر روش کار را با تمام وجود درک کرده‌اید، از باندل maker استفاده کنید تا یک مشترک تولید کنید:
+حالا دیگر روش کار را با تمام وجود درک کرده‌اید، از باندل maker استفاده کنید تا یک شنونده تولید کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(Symfony\\Component\\HttpKernel\\Event\\ControllerEvent)
 
-    $ symfony console make:subscriber TwigEventSubscriber
+    $ symfony console make:listener TwigEventListener
 
-فرمان از شما می‌پرسد که می‌خواهید به چه رویدادهایی را گوش کنید. رویداد ``Symfony\Component\HttpKernel\Event\ControllerEvent`` را انتخاب کنید که دقیقاً قبل از اجرای کنترلر فراخوانی می‌شود. این بهترین زمان برای تزریق متغیر جهانی ``conferences`` است تا هنگامی که کنترلر قالب را render می‌کند، Twig به آن دسترسی داشته باشد. مشترک خود را به صورت زیر به‌روزرسانی کنید:
+فرمان از شما می‌پرسد که می‌خواهید به چه رویدادهایی را گوش کنید. رویداد ``Symfony\Component\HttpKernel\Event\ControllerEvent`` را انتخاب کنید که دقیقاً قبل از اجرای کنترلر فراخوانی می‌شود. این بهترین زمان برای تزریق متغیر جهانی ``conferences`` است تا هنگامی که کنترلر قالب را render می‌کند، Twig به آن دسترسی داشته باشد. شنونده خود را به صورت زیر به‌روزرسانی کنید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/EventSubscriber/TwigEventSubscriber.php
-    +++ b/src/EventSubscriber/TwigEventSubscriber.php
-    @@ -2,14 +2,25 @@
+    --- i/src/EventListener/TwigEventListener.php
+    +++ w/src/EventListener/TwigEventListener.php
+    @@ -2,14 +2,22 @@
 
-     namespace App\EventSubscriber;
+     namespace App\EventListener;
 
     +use App\Repository\ConferenceRepository;
-     use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+     use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
      use Symfony\Component\HttpKernel\Event\ControllerEvent;
     +use Twig\Environment;
 
-     class TwigEventSubscriber implements EventSubscriberInterface
+     final class TwigEventListener
      {
-    +    private $twig;
-    +    private $conferenceRepository;
-    +
-    +    public function __construct(Environment $twig, ConferenceRepository $conferenceRepository)
-    +    {
-    +        $this->twig = $twig;
-    +        $this->conferenceRepository = $conferenceRepository;
+    +    public function __construct(
+    +        private Environment $twig,
+    +        private ConferenceRepository $conferenceRepository,
+    +    ) {
     +    }
     +
-         public function onControllerEvent(ControllerEvent $event)
+         #[AsEventListener]
+         public function onControllerEvent(ControllerEvent $event): void
          {
     -        // ...
     +        $this->twig->addGlobal('conferences', $this->conferenceRepository->findAll());
          }
-
-         public static function getSubscribedEvents()
+     }
 
 حالا می‌توانید به هر تعداد که می‌خواهید کنترلر اضافه کنید: متغیر ``conferences`` همواره برای Twig در دسترس خواهد بود.
 
@@ -140,25 +137,25 @@ Twig از مفهوم متغیر‌های جهانی برخوردار است. ی�
 مرتب‌سازی کنفرانس‌ها بر اساس سال و شهر
 ------------------------------------------------------------------------
 
-مرتب‌کردن کنفرانس‌ها بر اساس سال می‌تواند مرورکردن را تسهیل کند. ما می‌توانیم یک متد سفارشی برای دریافت و مرتب‌سازی تمام کنفرانس‌ها ایجاد کنیم، اما به جای آن می‌خواهیم پیاده‌سازی پیشفرض متد ``findAll()`` را تغییر دهیم تا ماطمینان یابیم که مرتب‌سازی به همه‌جا اعمال می‌گردد:
+مرتب‌کردن کنفرانس‌ها بر اساس سال می‌تواند مرورکردن را تسهیل کند. ما می‌توانیم یک متد سفارشی برای دریافت و مرتب‌سازی تمام کنفرانس‌ها ایجاد کنیم، اما به جای آن می‌خواهیم پیاده‌سازی پیش‌فرض متد ``findAll()`` را تغییر دهیم تا مطمئن شویم مرتب‌سازی همه‌جا اعمال می‌شود:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Repository/ConferenceRepository.php
-    +++ b/src/Repository/ConferenceRepository.php
-    @@ -19,6 +19,11 @@ class ConferenceRepository extends ServiceEntityRepository
+    --- i/src/Repository/ConferenceRepository.php
+    +++ w/src/Repository/ConferenceRepository.php
+    @@ -16,6 +16,11 @@ class ConferenceRepository extends ServiceEntityRepository
              parent::__construct($registry, Conference::class);
          }
 
-    +    public function findAll()
+    +    public function findAll(): array
     +    {
     +        return $this->findBy([], ['year' => 'ASC', 'city' => 'ASC']);
     +    }
     +
-         // /**
-         //  * @return Conference[] Returns an array of Conference objects
-         //  */
+         //    /**
+         //     * @return Conference[] Returns an array of Conference objects
+         //     */
 
 در انتهای این گام، وب‌سایت باید مشابه شکل زیر باشد:
 
@@ -169,8 +166,12 @@ Twig از مفهوم متغیر‌های جهانی برخوردار است. ی�
 
 .. sidebar:: بیشتر بدانید
 
-    * `جریان درخواست-پاسخ <https://symfony.com/doc/current/components/http_kernel.html#the-workflow-of-a-request>`_ در اپلیکیشن‌های سیمفونی؛
+    * `جریان درخواست-پاسخ`_ در اپلیکیشن‌های سیمفونی؛
 
-    * `رویداد‌های توکار HTTP در سیمفونی <https://symfony.com/doc/current/reference/events.html>`_؛
+    * `رویداد‌های توکار HTTP در سیمفونی`_؛
 
-    * `رویداد‌های توکار کنسول سیمفونی <https://symfony.com/doc/current/components/console/events.html>`_.
+    * `رویداد‌های توکار کنسول سیمفونی`_.
+
+.. _`جریان درخواست-پاسخ`: https://symfony.com/doc/current/components/http_kernel.html#the-workflow-of-a-request
+.. _`رویداد‌های توکار HTTP در سیمفونی`: https://symfony.com/doc/current/reference/events.html
+.. _`رویداد‌های توکار کنسول سیمفونی`: https://symfony.com/doc/current/components/console/events.html

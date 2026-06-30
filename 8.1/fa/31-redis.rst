@@ -1,14 +1,14 @@
-Using Redis to Store Sessions
-=============================
+استفاده از Redis برای ذخیره‌ی نشست‌ها
+=========================================================
 
 .. index::
     single: Redis
 
-Depending on the website traffic and/or its infrastructure, you might want to use Redis to manage user sessions instead of PostgreSQL.
+بسته به ترافیک وب‌سایت و/یا زیرساخت آن، ممکن است بخواهید به جای PostgreSQL از Redis برای مدیریت نشست‌های کاربران استفاده کنید.
 
-When we talked about branching the project's code to move sessions from the filesystem to the database, we listed all the needed step to add a new service.
+زمانی که درباره‌ی انشعاب کد پروژه برای انتقال نشست‌ها از فایل‌سیستم به پایگاه‌داده صحبت کردیم، تمام گام‌های لازم برای افزودن یک سرویس جدید را فهرست کردیم.
 
-Here is how you can add Redis to your project in one patch:
+در اینجا نحوه‌ی افزودن Redis به پروژه‌تان در یک patch آمده است:
 
 .. index::
     single: Session;Redis
@@ -67,26 +67,26 @@ Here is how you can add Redis to your project in one patch:
     -        handler_id: '%env(resolve:DATABASE_URL)%'
     +        handler_id: '%env(REDIS_URL)%'
 
-Isn't it *beautiful*?
+*زیبا* نیست؟
 
-"Reboot" Docker to start the Redis service:
+برای راه‌اندازی سرویس Redis، Docker را «بازراه‌اندازی» کنید:
 
 .. code-block:: terminal
 
     $ docker compose stop
     $ docker compose up -d --remove-orphans
 
-Test locally by browsing the website; everything should still work as before.
+با مرور وب‌سایت، آن را به صورت محلی بیازمایید؛ همه چیز باید مانند گذشته کار کند.
 
-Commit and deploy as usual:
+طبق معمول commit و مستقر کنید:
 
 .. code-block:: terminal
     :class: ignore
 
     $ symfony cloud:push
 
-.. sidebar:: Going Further
+.. sidebar:: بیشتر بدانید
 
-    * `Redis docs`_.
+    * `مستندات Redis`_.
 
-.. _`Redis docs`: https://redis.io/documentation
+.. _`مستندات Redis`: https://redis.io/documentation

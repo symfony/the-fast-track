@@ -1,7 +1,7 @@
 تغییر اندازه‌ی تصاویر
 =========================================
 
-در طراحی صفحه‌ی کنفرانس، اندازه تصاویر به ۲۰۰ در ۱۵۰ پیکسل محدود شده است. پس بهینه‌سازی و کاهش حجم تصاویر درصورتی که نسخه‌ی اصلی بارگذاری‌شده از حدود تعیین‌شده بیشتر باشد چه می‌شود؟
+در طراحی صفحه‌ی کنفرانس، اندازه تصاویر به ۲۰۰ در ۱۵۰ پیکسل محدود شده است. پس بهینه‌سازی و کاهش حجم تصاویر در صورتی که نسخه‌ی اصلی بارگذاری‌شده از حدود تعیین‌شده بیشتر باشد چه می‌شود؟
 
 این یک کار فوق‌العاده است که می‌تواند به جریان‌کار کامنت اضافه شود. احتمالاً درست پس از اعتبارسنجی کامنت و قبل از انتشار آن.
 
@@ -10,8 +10,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/workflow.yaml
-    +++ b/config/packages/workflow.yaml
+    --- i/config/packages/workflow.yaml
+    +++ w/config/packages/workflow.yaml
     @@ -16,6 +16,7 @@ framework:
                      - potential_spam
                      - spam
@@ -45,7 +45,7 @@
 
 ارائه‌ی بصری پیکربندی جریان‌کار جدید را تولید کنید تا تصدیق نمایید که همان چیزی است که می‌خواهید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ symfony console workflow:dump comment | dot -Tpng -o workflow.png
@@ -61,9 +61,9 @@
 
 بهینه‌سازی تصاویر به لطف `GD`_ (بررسی کنید که افزونه‌ی GD در نصب محلی PHP فعال باشد) و `Imagine`_ انجام می‌گردد:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ symfony composer req "imagine/imagine:^1.2"
+    $ symfony composer req "imagine/imagine:^1.5"
 
 تغییر اندازه‌ی تصاویر می‌تواند به کمک کلاس سرویس زیر انجام شود:
 
@@ -80,7 +80,7 @@
         private const MAX_WIDTH = 200;
         private const MAX_HEIGHT = 150;
 
-        private $imagine;
+        private readonly Imagine $imagine;
 
         public function __construct()
         {
@@ -89,7 +89,7 @@
 
         public function resize(string $filename): void
         {
-            list($iwidth, $iheight) = getimagesize($filename);
+            [$iwidth, $iheight] = getimagesize($filename);
             $ratio = $iwidth / $iheight;
             $width = self::MAX_WIDTH;
             $height = self::MAX_HEIGHT;
@@ -114,8 +114,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/MessageHandler/CommentMessageHandler.php
-    +++ b/src/MessageHandler/CommentMessageHandler.php
+    --- i/src/MessageHandler/CommentMessageHandler.php
+    +++ w/src/MessageHandler/CommentMessageHandler.php
     @@ -2,6 +2,7 @@
 
      namespace App\MessageHandler;
@@ -124,93 +124,76 @@
      use App\Message\CommentMessage;
      use App\Repository\CommentRepository;
      use App\SpamChecker;
-    @@ -21,10 +22,12 @@ class CommentMessageHandler implements MessageHandlerInterface
-         private $bus;
-         private $workflow;
-         private $mailer;
-    +    private $imageOptimizer;
-         private $adminEmail;
-    +    private $photoDir;
-         private $logger;
-
-    -    public function __construct(EntityManagerInterface $entityManager, SpamChecker $spamChecker, CommentRepository $commentRepository, MessageBusInterface $bus, WorkflowInterface $commentStateMachine, MailerInterface $mailer, string $adminEmail, LoggerInterface $logger = null)
-    +    public function __construct(EntityManagerInterface $entityManager, SpamChecker $spamChecker, CommentRepository $commentRepository, MessageBusInterface $bus, WorkflowInterface $commentStateMachine, MailerInterface $mailer, ImageOptimizer $imageOptimizer, string $adminEmail, string $photoDir, LoggerInterface $logger = null)
-         {
-             $this->entityManager = $entityManager;
-             $this->spamChecker = $spamChecker;
-    @@ -32,7 +35,9 @@ class CommentMessageHandler implements MessageHandlerInterface
-             $this->bus = $bus;
-             $this->workflow = $commentStateMachine;
-             $this->mailer = $mailer;
-    +        $this->imageOptimizer = $imageOptimizer;
-             $this->adminEmail = $adminEmail;
-    +        $this->photoDir = $photoDir;
-             $this->logger = $logger;
+    @@ -25,6 +26,8 @@ class CommentMessageHandler
+             private WorkflowInterface $commentStateMachine,
+             private MailerInterface $mailer,
+             #[Autowire('%admin_email%')] private string $adminEmail,
+    +        private ImageOptimizer $imageOptimizer,
+    +        #[Autowire('%photo_dir%')] private string $photoDir,
+             private ?LoggerInterface $logger = null,
+         ) {
          }
-
-    @@ -64,6 +69,12 @@ class CommentMessageHandler implements MessageHandlerInterface
+    @@ -54,6 +57,12 @@ class CommentMessageHandler
                      ->to($this->adminEmail)
                      ->context(['comment' => $comment])
                  );
-    +        } elseif ($this->workflow->can($comment, 'optimize')) {
+    +        } elseif ($this->commentStateMachine->can($comment, 'optimize')) {
     +            if ($comment->getPhotoFilename()) {
     +                $this->imageOptimizer->resize($this->photoDir.'/'.$comment->getPhotoFilename());
     +            }
-    +            $this->workflow->apply($comment, 'optimize');
+    +            $this->commentStateMachine->apply($comment, 'optimize');
     +            $this->entityManager->flush();
              } elseif ($this->logger) {
                  $this->logger->debug('Dropping comment message', ['comment' => $comment->getId(), 'state' => $comment->getState()]);
              }
 
-توجه کنید که ``$photoDir`` به صورت خودکار تزریق شده است، چرا که ما یک *اتصال (bind)* کانتینر بر روی نام این متغیر تعریف کردیم:
+توجه کنید که ``$photoDir`` به صورت خودکار تزریق شده است، چرا که ما در گامی پیشین یک *پارامتر (parameter)* کانتینر بر روی نام این متغیر تعریف کردیم:
 
 .. code-block:: yaml
-    :caption: config/packages/services.yaml
+    :caption: config/services.yaml
     :class: ignore
 
-    services:
-        _defaults:
-            bind:
-                $photoDir: "%kernel.project_dir%/public/uploads/photos"
+    parameters:
+        photo_dir: "%kernel.project_dir%/public/uploads/photos"
 
 ذخیره‌ی داده‌های بارگذاری‌شده در محیط عمل‌آوری
 -------------------------------------------------------------------------------------------
 
 .. index::
-    single: SymfonyCloud;File Service
+    single: Upsun;File Service
 
-ما در حال حاضر یک پوشه‌ی مخصوص قابل خواندن و نوشتن برای فایل‌های باگذاری‌شده در ``.symfony.cloud.yaml`` تعریف کرده‌ایم. اما mount آن محلی است. اگر می‌خواهیم که کانتینر وب و کارگر مصرف‌کننده‌ی پیغام، قادر به دسترسی به همین mount مشترک باشند، لازم است که یک *سرویس فایل* ایجاد کنیم:
+ما در حال حاضر یک پوشه‌ی مخصوص قابل خواندن و نوشتن برای فایل‌های باگذاری‌شده در ``.upsun/config.yaml`` تعریف کرده‌ایم. اما mount آن نسبت به کانتینر اپلیکیشن محلی است. اگر می‌خواهیم که کانتینر وب و کارگر مصرف‌کننده‌ی پیغام، قادر به دسترسی به همین mount مشترک باشند، لازم است که یک *سرویس فایل* ایجاد کنیم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/services.yaml
-    +++ b/.symfony/services.yaml
-    @@ -19,3 +19,7 @@ varnish:
-             vcl: !include
-                 type: string
-                 path: config.vcl
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -15,6 +15,9 @@ services:
+                     type: string
+                     path: config.vcl
+
+    +    files:
+    +        type: network-storage:2.0
     +
-    +files:
-    +    type: network-storage:1.0
-    +    disk: 256
+     applications:
 
 از آن به عنوان پوشه‌ی بارگذاری تصاویر استفاده کنید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -41,7 +41,7 @@ web:
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -54,7 +54,7 @@ applications:
+             mounts:
+                 "/var/cache": { source: instance, source_path: var/cache }
+                 "/var/share": { source: storage, source_path: var/share }
+    -            "/public/uploads": { source: storage, source_path: uploads }
+    +            "/public/uploads": { source: service, service: files, source_path: uploads }
 
-     mounts:
-         "/var": { source: local, source_path: var }
-    -    "/public/uploads": { source: local, source_path: uploads }
-    +    "/public/uploads": { source: service, service: files, source_path: uploads }
 
-     hooks:
-         build: |
+             relationships:
 
 انجام کارهای اخیر باید برای کارکردن قابلیت‌ها در محیط عمل‌آوری کافی باشد.
 

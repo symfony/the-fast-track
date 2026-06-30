@@ -10,42 +10,51 @@ Doctrine راه‌های متفاوتی برای دستکاری اشیاء و و
 
 .. index::
     single: Doctrine;Lifecycle
-    single: Annotations;@ORM\\Entity
-    single: Annotations;@ORM\\HasLifecycleCallbacks
-    single: Annotations;@ORM\\PrePersist
+    single: Attributes;ORM\\Entity
+    single: Attributes;ORM\\HasLifecycleCallbacks
+    single: Attributes;ORM\\PrePersist
 
 زمانی که رفتار مورد نظر، به هیچ سرویسی احتیاج ندارد و باید تنها به یک نوع موجودیت (entity) اعمال شود، یک فراخوانی در کلاس موجودیت تعریف کنید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
+    --- i/src/Controller/Admin/CommentCrudController.php
+    +++ w/src/Controller/Admin/CommentCrudController.php
+    @@ -57,8 +57,6 @@ class CommentCrudController extends AbstractCrudController
+             ]);
+             if (Crud::PAGE_EDIT === $pageName) {
+                 yield $createdAt->setFormTypeOption('disabled', true);
+    -        } else {
+    -            yield $createdAt;
+             }
+         }
+     }
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -7,6 +7,7 @@ use Doctrine\DBAL\Types\Types;
+     use Doctrine\ORM\Mapping as ORM;
 
-     /**
-      * @ORM\Entity(repositoryClass=CommentRepository::class)
-    + * @ORM\HasLifecycleCallbacks()
-      */
+     #[ORM\Entity(repositoryClass: CommentRepository::class)]
+    +#[ORM\HasLifecycleCallbacks]
      class Comment
      {
-    @@ -106,6 +107,14 @@ class Comment
+         #[ORM\Id]
+    @@ -86,6 +87,12 @@ class Comment
              return $this;
          }
 
-    +    /**
-    +     * @ORM\PrePersist
-    +     */
-    +    public function setCreatedAtValue()
+    +    #[ORM\PrePersist]
+    +    public function setCreatedAtValue(): void
     +    {
-    +        $this->createdAt = new \DateTime();
+    +        $this->createdAt = new \DateTimeImmutable();
     +    }
     +
          public function getConference(): ?Conference
          {
              return $this->conference;
 
-*رویدادِ* ``@ORM\PrePersist``، زمانی که شیء در پایگاه‌داده برای اولین بار ذخیره می‌شود، به وقوع می‌پیوندد. وقتی این اتفاق بیافتد، متد ``setCreatedAtValue()`` فراخوانی شده و تاریخ و زمان فعلی، برای مقداردهی به ویژگی ``createdAt`` استفاده می‌شود.
+*رویدادِ* ``ORM\PrePersist``، زمانی که شیء در پایگاه‌داده برای اولین بار ذخیره می‌شود، به وقوع می‌پیوندد. وقتی این اتفاق بیافتد، متد ``setCreatedAtValue()`` فراخوانی شده و تاریخ و زمان فعلی، برای مقداردهی به ویژگی ``createdAt`` استفاده می‌شود.
 
 افزودن Slug به کنفرانس‌ها
 --------------------------------------------
@@ -59,7 +68,7 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 یک ویژگی جدید با نام *slug* به کنفرانس‌ها اضافه کنید (یک رشته‌ی ناتهی از ۲۵۵ حرف):
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(slug||string||255||no)
 
     $ symfony console make:entity Conference
@@ -69,7 +78,7 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 یک فایل جدید migration برای افزودن ستون جدید ایجاد کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony console make:migration
 
@@ -78,7 +87,7 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 و این migration جدید را اجرا کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ symfony console doctrine:migrations:migrate
@@ -88,10 +97,10 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/migrations/Version00000000000000.php
-    +++ b/migrations/Version00000000000000.php
-    @@ -20,7 +20,9 @@ final class Version20200714152808 extends AbstractMigration
-         public function up(Schema $schema) : void
+    --- i/migrations/Version00000000000000.php
+    +++ w/migrations/Version00000000000000.php
+    @@ -20,7 +20,9 @@ final class Version00000000000000 extends AbstractMigration
+         public function up(Schema $schema): void
          {
              // this up() migration is auto-generated, please modify it to your needs
     -        $this->addSql('ALTER TABLE conference ADD slug VARCHAR(255) NOT NULL');
@@ -100,7 +109,7 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
     +        $this->addSql('ALTER TABLE conference ALTER COLUMN slug SET NOT NULL');
          }
 
-         public function down(Schema $schema) : void
+         public function down(Schema $schema): void
 
 فوت‌وفن کار اینگونه است که ستون را اضافه کرده و اجازه می‌دهیم که ``null`` باشد، سپس slug را بر روی یک مقدار غیر ``null`` تنظیم می‌کنیم، و در نهایت ستون slug را تغییر می‌دهیم تا نتواند مقدار ``null`` بگیرد.
 
@@ -113,56 +122,57 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 حالا migration باید به درستی اجرا شود:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(y)
 
     $ symfony console doctrine:migrations:migrate
 
 .. index::
-    single: Annotations;@ORM\\UniqueEntity
-    single: Annotations;@ORM\\Column
+    single: Attributes;ORM\\UniqueEntity
+    single: Attributes;ORM\\Column
+    single: Components;Validator
 
 چون اپلیکیشن به زودی از slugها برای پیداکردن هر کنفرانس استفاده می‌کند، بیایید موجودیت Conference را اصلاح کنیم تا اطمینان یابیم که مقادیر slug در پایگاه‌داده منحصربه‌فرد است:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
-    @@ -6,9 +6,11 @@ use App\Repository\ConferenceRepository;
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
+    @@ -6,8 +6,10 @@ use App\Repository\ConferenceRepository;
      use Doctrine\Common\Collections\ArrayCollection;
      use Doctrine\Common\Collections\Collection;
      use Doctrine\ORM\Mapping as ORM;
     +use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
-     /**
-      * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-    + * @UniqueEntity("slug")
-      */
+     #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
+    +#[UniqueEntity('slug')]
      class Conference
      {
-    @@ -40,7 +42,7 @@ class Conference
-         private $comments;
+         #[ORM\Id]
+    @@ -30,7 +32,7 @@ class Conference
+         #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'conference', orphanRemoval: true)]
+         private Collection $comments;
 
-         /**
-    -     * @ORM\Column(type="string", length=255)
-    +     * @ORM\Column(type="string", length=255, unique=true)
-          */
-         private $slug;
+    -    #[ORM\Column(length: 255)]
+    +    #[ORM\Column(length: 255, unique: true)]
+         private ?string $slug = null;
+
+         public function __construct()
 
 .. index::
     single: Command;make:migration
 
 احتمالاً حدس زده‌اید که نیاز داریم تا رقص migration را به اجرا بگذاریم:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony console make:migration
 
 .. index::
     single: Command;doctrine:migrations:migrate
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: answers(y)
 
     $ symfony console doctrine:migrations:migrate
@@ -176,32 +186,28 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 تولید یک slug که به خوبی در URL خوانده شود (هر چیزی به جز حروف ASCII باید انکود شود)، به خصوص برای زبان‌های غیر انگلیسی، وظیفه‌ی چالش‌برانگیزی است. برای نمونه چگونه ``é`` را به ``e`` تبدیل کنیم؟
 
-به جای اختراع مجدد چرخ، بیایید از کامپوننت ``String`` سیمفونی استفاده کنیم که دستکاری رشته‌ها را آسان کرده و یک *slugger* فراهم می‌کند:
-
-.. code-block:: bash
-
-    $ symfony composer req string
+به جای اختراع مجدد چرخ، بیایید از کامپوننت ``String`` سیمفونی استفاده کنیم که دستکاری رشته‌ها را آسان کرده و یک *slugger* فراهم می‌کند.
 
 یک متد ``computeSlug()`` به کلاس ``Conference`` اضافه کنید که بر اساس داده‌های کنفرانس، slug را محاسبه می‌کند:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
     @@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
      use Doctrine\Common\Collections\Collection;
      use Doctrine\ORM\Mapping as ORM;
      use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
     +use Symfony\Component\String\Slugger\SluggerInterface;
 
-     /**
-      * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-    @@ -61,6 +62,13 @@ class Conference
+     #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
+     #[UniqueEntity('slug')]
+    @@ -50,6 +51,13 @@ class Conference
              return $this->id;
          }
 
-    +    public function computeSlug(SluggerInterface $slugger)
+    +    public function computeSlug(SluggerInterface $slugger): void
     +    {
     +        if (!$this->slug || '-' === $this->slug) {
     +            $this->slug = (string) $slugger->slug((string) $this)->lower();
@@ -232,24 +238,23 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
     namespace App\EntityListener;
 
     use App\Entity\Conference;
-    use Doctrine\ORM\Event\LifecycleEventArgs;
+    use Doctrine\ORM\Event\PrePersistEventArgs;
+    use Doctrine\ORM\Event\PreUpdateEventArgs;
     use Symfony\Component\String\Slugger\SluggerInterface;
 
     class ConferenceEntityListener
     {
-        private $slugger;
-
-        public function __construct(SluggerInterface $slugger)
-        {
-            $this->slugger = $slugger;
+        public function __construct(
+            private SluggerInterface $slugger,
+        ) {
         }
 
-        public function prePersist(Conference $conference, LifecycleEventArgs $event)
+        public function prePersist(Conference $conference, PrePersistEventArgs $event): void
         {
             $conference->computeSlug($this->slugger);
         }
 
-        public function preUpdate(Conference $conference, LifecycleEventArgs $event)
+        public function preUpdate(Conference $conference, PreUpdateEventArgs $event): void
         {
             $conference->computeSlug($this->slugger);
         }
@@ -268,27 +273,32 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 *سرویس (service)* یک شیء «جهانی» است (مثل یک mailer، یک logger، یک slugger و ...) که بر خلاف *اشیاء داده‌ای (data objects)* (مثلاً نمونه‌های موجودیت Doctrine)، یک قابلیت را فراهم می‌آورد.
 
-شما به ندرت به صورت مستقیم با یک کانتینر تعامل می‌کنید، زیرا کانتینر، اشیاء سرویس را هر زمان که به آن‌ها احتیج داشته باشید، به صورت خودکار ازریق می‌کند: مثلاً زمانی که آرگمان کنترلر را type-hint می‌کنید، کانتینر آن شیءِ مورد تعیین‌شده را تزریق می‌کند.
+شما به ندرت به صورت مستقیم با یک کانتینر تعامل می‌کنید، زیرا کانتینر، اشیاء سرویس را هر زمان که به آن‌ها احتیاج داشته باشید، به صورت خودکار تزریق می‌کند: مثلاً زمانی که آرگمان کنترلر را type-hint می‌کنید، کانتینر آن شیءِ مورد نظر را تزریق می‌کند.
 
 اگر از اینکه چگونه در گام قبلی شنونده ثبت شد متعجب هستید، حالا پاسخ آن را دارید: کانتینر. زمانی که یک کلاس، رابط‌های (interfaces) خاصی را پیاده (implement) می‌کند، کانتینر می‌فهمد که این کلاس نیاز دارد تا به نحوه معینی ثبت گردد.
 
-متأسفانه، خودکارسازی برای تمام چیزها فراهم نشده است، به خصوص برای بسته‌های شخص ثالث (third-party). موجودیت شنونده که ما در آن مثال نوشتیم، نمی‌تواند به صورت خودکار توسط سرویس کانتینر سیمفونی مدیریت شود. زیرا که نه هیچ رابطی را پیاده می‌کند و نه هیچ «کلاس شناخته‌شده‌ای (well-know class)» را بسط می‌دهد.
-
-نیاز داریم تا شنونده را در کانتینر به صورت جزئی اعلام کنیم. سیم‌کشی وابستگی‌ها الزامی نیست زیرا که هنوز کانتینر می‌تواند آن‌را حدس بزند، اما باید تعدادی *تگ (tag)* بیافزاییم تا شنونده در اعزام‌کننده‌ی رویدادِ Doctrine ثبت شود:
+در اینجا، از آنجایی که کلاس ما هیچ interfaceای را پیاده‌سازی نمی‌کند و هیچ کلاس پایه‌ای را بسط نمی‌دهد، سیمفونی نمی‌داند که چگونه آن را به‌صورت خودکار پیکربندی کند. به جای آن، می‌توانیم از یک attribute استفاده کنیم تا به کانتینر سیمفونی بگوییم که چگونه آن را سیم‌کشی کند:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -29,3 +29,7 @@ services:
+    --- i/src/EntityListener/ConferenceEntityListener.php
+    +++ w/src/EntityListener/ConferenceEntityListener.php
+    @@ -3,10 +3,14 @@
+     namespace App\EntityListener;
 
-         # add more service definitions when explicit configuration is needed
-         # please note that last definitions always *replace* previous ones
-    +    App\EntityListener\ConferenceEntityListener:
-    +        tags:
-    +            - { name: 'doctrine.orm.entity_listener', event: 'prePersist', entity: 'App\Entity\Conference'}
-    +            - { name: 'doctrine.orm.entity_listener', event: 'preUpdate', entity: 'App\Entity\Conference'}
+     use App\Entity\Conference;
+    +use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
+     use Doctrine\ORM\Event\PrePersistEventArgs;
+     use Doctrine\ORM\Event\PreUpdateEventArgs;
+    +use Doctrine\ORM\Events;
+     use Symfony\Component\String\Slugger\SluggerInterface;
+
+    +#[AsEntityListener(event: Events::prePersist, entity: Conference::class)]
+    +#[AsEntityListener(event: Events::preUpdate, entity: Conference::class)]
+     class ConferenceEntityListener
+     {
+         public function __construct(
 
 .. note::
 
@@ -303,27 +313,35 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
     single: Twig;for
     single: Twig;if
     single: Twig;path
-    single: Annotations;@Route
+    single: Attributes;Route
 
-آخرین تغییر، به‌روزرسانی کنترلرها و قالب‌ها است تا برای راه‌ها (routes)، به جای ``id`` کنفرانس، از ``slug`` کنفرانس استفاده کنند:
+آخرین تغییر، به‌روزرسانی کنترلرها و قالب‌ها است تا برای راه‌ها (routes)، به جای ``id`` کنفرانس، از ``slug`` کنفرانس استفاده کنند. از آنجایی که پارامتر راه دیگر کلید اصلی موجودیت نیست، از نحو ``{slug:conference}`` استفاده کنید تا به سیمفونی بگویید ``$conference`` را با تطبیق ویژگی ``slug`` آن واکشی کند؛ دیگر به attribute‌ی ``#[MapEntity]`` نیازی نیست:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -31,7 +31,7 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -5,7 +5,6 @@
+     use App\Entity\Conference;
+     use App\Repository\CommentRepository;
+     use App\Repository\ConferenceRepository;
+    -use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+     use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+    @@ -20,6 +20,6 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
-         /**
-    -     * @Route("/conference/{id}", name="conference")
-    +     * @Route("/conference/{slug}", name="conference")
-          */
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+    -    #[Route('/conference/{id}', name: 'conference')]
+    -    public function show(#[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    #[Route('/conference/{slug:conference}', name: 'conference')]
+    +    public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -10,7 +10,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -16,7 +16,7 @@
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
                  <ul>
                  {% for conference in conferences %}
@@ -332,8 +350,8 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
                  {% endfor %}
                  </ul>
                  <hr />
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -8,7 +8,7 @@
          {% for conference in conferences %}
              <h4>{{ conference }}</h4>
@@ -343,8 +361,8 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
              </p>
          {% endfor %}
      {% endblock %}
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -22,10 +22,10 @@
              {% endfor %}
 
@@ -368,10 +386,15 @@ URLهایِ کنفرانس‌ها معنادار نیستند: ``/conference/1``
 
 .. sidebar:: بیشتر بدانید
 
-    * `سیستم رویداد در Doctrine <https://symfony.com/doc/current/doctrine/events.html>`_ (lifecycle callbacks and listeners, entity listeners and lifecycle subscribers)؛
+    * `سیستم رویداد در Doctrine`_ (lifecycle callbacks and listeners, entity listeners and lifecycle subscribers)؛
 
-    * The `String component docs <https://symfony.com/doc/current/components/string.html>`_;
+    * `مستندات کامپوننت String`_؛
 
-    * `کانتینر سرویس <https://symfony.com/doc/current/service_container.html>`_؛
+    * `کانتینر سرویس`_؛
 
-    * `برگه تقلبِ سرویس‌های سیمفونی <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/services_en_42.pdf>`_.
+    * `برگه تقلبِ سرویس‌های سیمفونی`_.
+
+.. _`سیستم رویداد در Doctrine`: https://symfony.com/doc/current/doctrine/events.html
+.. _`مستندات کامپوننت String`: https://symfony.com/doc/current/components/string.html
+.. _`کانتینر سرویس`: https://symfony.com/doc/current/service_container.html
+.. _`برگه تقلبِ سرویس‌های سیمفونی`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/services_en_42.pdf

@@ -9,33 +9,6 @@
 
 آیا به خاطر می‌آورید که برای جلوگیری از مشکلات امنیتی، در کنترلر مربوط به تخم‌مرغ عید پاک، مجبور بودیم که داده‌ها را escape کنیم؟ به این علت است که برای قالب‌هایمان (templates) از PHP استفاده نمی‌کنیم. به جای آن از Twig استفاده می‌کنیم. علاوه بر رسیدگی به escape کردن خروجی‌ها، `Twig`_ ویژگی‌های بسیار زیادی دیگری همچون وراثت قالب‌ها را نیز برایمان به ارمغان می‌آورد.
 
-نصب Twig
------------
-
-ما نیاز نداریم که Twig را به عنوان یک وابستگی اضافه کنیم، چون همین حالا به عنوان *وابستگی انتقالی (transitive dependency)* باندل EasyAdmin، نصب شده است. اما اگر بعداً تصمیم بگیرید که آن را با باندل مدیریتی دیگری تعویض کنید، آنوقت چه می‌شود؟ برای مثال، کسی که از یک API و  یک front-end مبتنی بر React استفاده می‌کند. قاعدتاً دیگر به Twig وابسته نخواهد بود و بنابراین Twig به طور خودکار زمانی که EasyAdmin را حذف نمایید از پروژه حذف خواهد شد.
-
-پس بیایید برای محکم‌کاری، به Composer بگوییم که این پروژه واقعاً به Twig وابسته است. برای نیل به این هدف، اضافه کردن آن مانند هر وابستگی دیگری کفایت می‌کند:
-
-.. code-block:: bash
-
-    $ symfony composer req twig
-
-اکنون Twig، شامل بخشی از وابستگی‌های پروژه اصلی در ``composer.json`` می‌باشد:
-
-.. code-block:: diff
-    :class: ignore
-
-    --- a/composer.json
-    +++ b/composer.json
-    @@ -14,6 +14,7 @@
-             "symfony/framework-bundle": "4.4.*",
-             "symfony/maker-bundle": "^1.0@dev",
-             "symfony/orm-pack": "dev-master",
-    +        "symfony/twig-pack": "^1.0",
-             "symfony/yaml": "4.4.*"
-         },
-         "require-dev": {
-
 استفاده از Twig برای قالب‌ها
 -------------------------------------------------
 
@@ -45,7 +18,7 @@
 
 تمام صفحات وبسایت، از *چیدمان (layout)* یکسانی استفاده خواهند کرد. در هنگام نصب Twig، پوشه ``templates/`` به طور خودکار ساخته شده و به یک چیدمان نمونه با نام ``base.html.twig`` نیز ایجاد شده است.
 
-.. code-block:: twig
+.. code-block:: html+twig
     :caption: templates/base.html.twig
     :class: ignore
 
@@ -54,11 +27,16 @@
         <head>
             <meta charset="UTF-8">
             <title>{% block title %}Welcome!{% endblock %}</title>
-            {% block stylesheets %}{% endblock %}
+            <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
+            {% block stylesheets %}
+            {% endblock %}
+
+            {% block javascripts %}
+                {% block importmap %}{{ importmap('app') }}{% endblock %}
+            {% endblock %}
         </head>
         <body>
             {% block body %}{% endblock %}
-            {% block javascripts %}{% endblock %}
         </body>
     </html>
 
@@ -70,7 +48,7 @@
 
 بیاید یک قالب برای صفحه اصلی پروژه در فایل ``templates/conference/index.html.twig`` ایجاد نماییم:
 
-.. code-block:: twig
+.. code-block:: html+twig
     :caption: templates/conference/index.html.twig
 
     {% extends 'base.html.twig' %}
@@ -102,33 +80,31 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -2,24 +2,21 @@
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -2,22 +2,19 @@
 
      namespace App\Controller;
 
     +use App\Repository\ConferenceRepository;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
+     use Symfony\Component\Routing\Attribute\Route;
     +use Twig\Environment;
 
-     class ConferenceController extends AbstractController
+     final class ConferenceController extends AbstractController
      {
-         /**
-          * @Route("/", name="homepage")
-          */
+         #[Route('/', name: 'homepage')]
     -    public function index(): Response
     +    public function index(Environment $twig, ConferenceRepository $conferenceRepository): Response
          {
     -        return new Response(<<<EOF
-    -<html>
-    -    <body>
-    -        <img src="/images/under-construction.gif" />
-    -    </body>
-    -</html>
-    -EOF
+    -            <html>
+    -                <body>
+    -                    <img src="/images/under-construction.gif" />
+    -                </body>
+    -            </html>
+    -            EOF
     -        );
     +        return new Response($twig->render('conference/index.html.twig', [
     +            'conferences' => $conferenceRepository->findAll(),
@@ -156,26 +132,25 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -2,6 +2,8 @@
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -2,6 +2,9 @@
 
      namespace App\Controller;
 
     +use App\Entity\Conference;
     +use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
+    +use Symfony\Bridge\Doctrine\Attribute\MapEntity;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
      use Symfony\Component\HttpFoundation\Response;
-    @@ -19,4 +21,15 @@ class ConferenceController extends AbstractController
+    @@ -17,4 +20,13 @@ final class ConferenceController extends AbstractController
                  'conferences' => $conferenceRepository->findAll(),
              ]));
          }
     +
-    +    /**
-    +     * @Route("/conference/{id}", name="conference")
-    +     */
-    +    public function show(Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
+    +    #[Route('/conference/{id}', name: 'conference')]
+    +    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository): Response
     +    {
     +        return new Response($twig->render('conference/show.html.twig', [
     +            'conference' => $conference,
@@ -184,7 +159,7 @@
     +    }
      }
 
-این متد یک رفتار مخصوص دارد که هنوز آن را ندیده‌ایم. درخواست می‌کنیم تا یک نمونه ``Conference`` به این متد تزریق شود. اما ممکن است تعداد زیادی از این شیء در پایگاه‌داده موجود باشد. سیفونی قادر است به کمک ``{id}`` که در مسیر درخواست داده شده است، تعیین کند که شما کدام یک را می‌خواهید.
+این متد یک رفتار مخصوص دارد که هنوز آن را ندیده‌ایم. درخواست می‌کنیم تا یک نمونه ``Conference`` به این متد تزریق شود. اما ممکن است تعداد زیادی از این شیء در پایگاه‌داده موجود باشد. attribute‌ی ``#[MapEntity]`` به سیمفونی می‌گوید که به کمک ``{id}`` که در مسیر درخواست داده شده است (``id`` همان کلید اصلی جدول ``conference`` در پایگاه‌داده است)، نمونه‌ی درست را واکشی کند.
 
 دریافت کامنت‌های مربوط به یک کنفرانس می‌تواند از طریق متد ``findBy()`` صورت پذیرد که یک شاخص را به عنوان اولین آرگمان می‌پذیرد.
 
@@ -200,7 +175,7 @@
 
 آخرین گام ایجاد فایل ``templates/conference/show.html.twig`` است:
 
-.. code-block:: twig
+.. code-block:: html+twig
     :caption: templates/conference/show.html.twig
 
     {% extends 'base.html.twig' %}
@@ -213,7 +188,7 @@
         {% if comments|length > 0 %}
             {% for comment in comments %}
                 {% if comment.photofilename %}
-                    <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" />
+                    <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" style="max-width: 200px" />
                 {% endif %}
 
                 <h4>{{ comment.author }}</h4>
@@ -239,7 +214,7 @@
 
 خطا از فیلتر ``format_datetime`` نشأت می‌گیرد، چرا که این فیلتر بخشی از هسته‌ی Twig نیست. پیغام خطا درباره‌ی اینکه برای رفع این مشکل چه بسته‌ای باید نصب شود، به شما یک راهنمایی ارائه می‌کند:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ symfony composer req "twig/intl-extra:^3"
 
@@ -257,8 +232,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -7,5 +7,8 @@
 
          {% for conference in conferences %}
@@ -279,8 +254,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -8,7 +8,7 @@
          {% for conference in conferences %}
              <h4>{{ conference }}</h4>
@@ -307,9 +282,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Repository/CommentRepository.php
-    +++ b/src/Repository/CommentRepository.php
-    @@ -3,8 +3,10 @@
+    --- i/src/Repository/CommentRepository.php
+    +++ w/src/Repository/CommentRepository.php
+    @@ -3,19 +3,37 @@
      namespace App\Repository;
 
      use App\Entity\Comment;
@@ -319,12 +294,11 @@
     +use Doctrine\ORM\Tools\Pagination\Paginator;
 
      /**
-      * @method Comment|null find($id, $lockMode = null, $lockVersion = null)
-    @@ -14,11 +16,27 @@ use Doctrine\Persistence\ManagerRegistry;
+      * @extends ServiceEntityRepository<Comment>
       */
      class CommentRepository extends ServiceEntityRepository
      {
-    +    public const PAGINATOR_PER_PAGE = 2;
+    +    public const COMMENTS_PER_PAGE = 2;
     +
          public function __construct(ManagerRegistry $registry)
          {
@@ -337,7 +311,7 @@
     +            ->andWhere('c.conference = :conference')
     +            ->setParameter('conference', $conference)
     +            ->orderBy('c.createdAt', 'DESC')
-    +            ->setMaxResults(self::PAGINATOR_PER_PAGE)
+    +            ->setMaxResults(self::COMMENTS_PER_PAGE)
     +            ->setFirstResult($offset)
     +            ->getQuery()
     +        ;
@@ -345,9 +319,9 @@
     +        return new Paginator($query);
     +    }
     +
-         // /**
-         //  * @return Comment[] Returns an array of Comment objects
-         //  */
+         //    /**
+         //     * @return Comment[] Returns an array of Comment objects
+         //     */
 
 برای سهولت در آزمایش، حداکثر تعداد کامنت‌ها در هر صفحه را برابر با ۲ قرار داده‌ایم.
 
@@ -356,37 +330,36 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -6,6 +6,7 @@ use App\Entity\Conference;
-     use App\Repository\CommentRepository;
-     use App\Repository\ConferenceRepository;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -8,6 +8,7 @@ use App\Repository\ConferenceRepository;
+     use Symfony\Bridge\Doctrine\Attribute\MapEntity;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
+    +use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
      use Twig\Environment;
-    @@ -25,11 +26,16 @@ class ConferenceController extends AbstractController
-         /**
-          * @Route("/conference/{id}", name="conference")
-          */
-    -    public function show(Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
+
+    @@ -22,11 +23,15 @@ final class ConferenceController extends AbstractController
+         }
+
+         #[Route('/conference/{id}', name: 'conference')]
+    -    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository): Response
+    +    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-    +        $offset = max(0, $request->query->getInt('offset', 0));
     +        $paginator = $commentRepository->getCommentPaginator($conference, $offset);
     +
              return new Response($twig->render('conference/show.html.twig', [
                  'conference' => $conference,
     -            'comments' => $commentRepository->findBy(['conference' => $conference], ['createdAt' => 'DESC']),
     +            'comments' => $paginator,
-    +            'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
-    +            'next' => min(count($paginator), $offset + CommentRepository::PAGINATOR_PER_PAGE),
+    +            'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+    +            'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
              ]));
          }
      }
 
-کنترلر، مقدار ``offset`` را از رشته‌ی پرس‌وجوی (query string) شیءِ درخواست (``$request->query``) در قالب یک عدد صحیح (``getInt()``) دریافت می‌کند و در صورت عدم وجود آن، مقدار پیشفرض را برابر با ۰ قرار می‌دهد.
+attribute‌ی ``#[MapQueryParameter]`` پارامتر رشته‌ی پرس‌وجوی ``offset`` را به آرگمان ``$offset`` کنترلر می‌نگارد و در صورت تنظیم‌نشدن، مقدار پیش‌فرض را برابر با ``0`` قرار می‌دهد. از آنجایی که offset از سمت کلاینت می‌آید، گزینه‌ی ``min_range`` اعتبارسنجی می‌کند که منفی نباشد؛ سیمفونی در صورت نامعتبر بودن مقدار، یک پاسخ ۴۰۴ بازمی‌گرداند.
 
 آفست صفحات قبلی (``previous``) و بعدی (``next``)، برمبنای تمام اطلاعاتی که از صفحه‌بند (paginator) در اختیار داریم، محاسبه می‌شود.
 
@@ -398,8 +371,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -6,6 +6,8 @@
          <h2>{{ conference }} Conference</h2>
 
@@ -408,7 +381,7 @@
     +
              {% for comment in comments %}
                  {% if comment.photofilename %}
-                     <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" />
+                     <img src="{{ asset('uploads/photos/' ~ comment.photofilename) }}" style="max-width: 200px" />
     @@ -18,6 +20,13 @@
 
                  <p>{{ comment.text }}</p>
@@ -439,61 +412,64 @@
 Refactorکردن کنترلر
 -----------------------------
 
-شاید توجه کرده باشید که هر دو متدِ درون ``ConferenceController`` یک متغیر محیط Twig را به عنوان آرگومان می‌گیرند.بیایید به جای تزریق آن به هر متد، از تعدادی تزریق constructor استفاده کنیم (این باعث می‌شود که لیست آرگمان‌های متدها، کوتاه‌تر و حشو آن کمتر شود):
+شاید توجه کرده باشید که هر دو متدِ درون ``ConferenceController`` یک متغیر محیط Twig را به عنوان آرگومان می‌گیرند. بیایید به جای تزریق آن به هر متد، از متد کمکی ``render()`` که توسط کلاس والد فراهم می‌شود، بهره ببریم:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -13,12 +13,19 @@ use Twig\Environment;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -9,28 +9,27 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
+    -use Twig\Environment;
 
-     class ConferenceController extends AbstractController
+     final class ConferenceController extends AbstractController
      {
-    +    private $twig;
-    +
-    +    public function __construct(Environment $twig)
-    +    {
-    +        $this->twig = $twig;
-    +    }
-    +
-         /**
-          * @Route("/", name="homepage")
-          */
+         #[Route('/', name: 'homepage')]
     -    public function index(Environment $twig, ConferenceRepository $conferenceRepository): Response
     +    public function index(ConferenceRepository $conferenceRepository): Response
          {
     -        return new Response($twig->render('conference/index.html.twig', [
-    +        return new Response($this->twig->render('conference/index.html.twig', [
+    +        return $this->render('conference/index.html.twig', [
                  'conferences' => $conferenceRepository->findAll(),
-             ]));
+    -        ]));
+    +        ]);
          }
-    @@ -26,12 +33,12 @@ class ConferenceController extends AbstractController
-         /**
-          * @Route("/conference/{id}", name="conference")
-          */
-    -    public function show(Request $request, Environment $twig, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+
+         #[Route('/conference/{id}', name: 'conference')]
+    -    public function show(Environment $twig, #[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    public function show(#[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
     -        return new Response($twig->render('conference/show.html.twig', [
-    +        return new Response($this->twig->render('conference/show.html.twig', [
+    +        return $this->render('conference/show.html.twig', [
                  'conference' => $conference,
                  'comments' => $paginator,
-                 'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
+                 'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+                 'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
+    -        ]));
+    +        ]);
+         }
+     }
 
 .. sidebar:: بیشتر بدانید
 
-    * `مستندات Twig <https://twig.symfony.com/doc/2.x/>`_؛
+    * `مستندات Twig`_؛
 
-    * `نحوه‌ی ایجاد و استفاده از قالب‌ها <https://symfony.com/doc/current/templates.html>`_ در اپلیکیشن‌های سیمفونی؛
+    * `نحوه‌ی ایجاد و استفاده از قالب‌ها`_ در اپلیکیشن‌های سیمفونی؛
 
-    * `آموزش تصویری Twig در SymfonyCasts <https://symfonycasts.com/screencast/symfony/twig-recipe>`_؛
+    * `آموزش تصویری Twig در SymfonyCasts`_؛
 
-    * `توابع و فیلترهای Twig که تنها در سیمفونی در دسترس هستند <https://symfony.com/doc/current/reference/twig_reference.html>`_؛
+    * `توابع و فیلترهای Twig که تنها در سیمفونی در دسترس هستند`_؛
 
-    * `کنترلر پایه‌ی AbstractController <https://symfony.com/doc/current/controller.html#the-base-controller-classes-services>`_.
+    * `کنترلر پایه‌ی AbstractController`_.
 
 .. _`Twig`: https://twig.symfony.com/
+.. _`مستندات Twig`: https://twig.symfony.com/doc/3.x/
+.. _`نحوه‌ی ایجاد و استفاده از قالب‌ها`: https://symfony.com/doc/current/templates.html
+.. _`آموزش تصویری Twig در SymfonyCasts`: https://symfonycasts.com/screencast/symfony/twig-recipe
+.. _`توابع و فیلترهای Twig که تنها در سیمفونی در دسترس هستند`: https://symfony.com/doc/current/reference/twig_reference.html
+.. _`کنترلر پایه‌ی AbstractController`: https://symfony.com/doc/current/controller.html#the-base-controller-classes-services

@@ -21,24 +21,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -35,9 +35,12 @@ class ConferenceController extends AbstractController
-          */
-         public function index(ConferenceRepository $conferenceRepository): Response
-         {
-    -        return new Response($this->twig->render('conference/index.html.twig', [
-    +        $response = new Response($this->twig->render('conference/index.html.twig', [
-                 'conferences' => $conferenceRepository->findAll(),
-             ]));
-    +        $response->setSharedMaxAge(3600);
-    +
-    +        return $response;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\DependencyInjection\Attribute\Autowire;
+     use Symfony\Component\HttpFoundation\Request;
+     use Symfony\Component\HttpFoundation\Response;
+    +use Symfony\Component\HttpKernel\Attribute\Cache;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\HttpKernel\Attribute\RateLimit;
+     use Symfony\Component\Messenger\MessageBusInterface;
+    @@ -27,6 +28,7 @@ final class ConferenceController extends AbstractController
+         ) {
          }
 
-         /**
+    +    #[Cache(smaxage: 3600)]
+         #[Route('/', name: 'homepage')]
+         public function index(ConferenceRepository $conferenceRepository): Response
+         {
 
-متد ``setSharedMaxAge()``، انقضای نهان‌سازی را برای پروکسی‌های معکوس پیکربندی می‌کند. برای کنترل نهان‌سازی مرورگر از ``setMaxAge()`` استفاده کنید. زمان بر حسب ثانیه بیان شده است (ا ساعت = ۶۰ دقیقه = ۳۶۰۰ ثانیه).
+attribute‌ی ``#[Cache]``، انقضای نهان‌سازی را برای پروکسی‌های معکوس از طریق آرگمان ``smaxage`` آن پیکربندی می‌کند؛ برای کنترل نهان‌سازی مرورگر از ``maxage`` استفاده کنید. زمان بر حسب ثانیه بیان شده است (۱ ساعت = ۶۰ دقیقه = ۳۶۰۰ ثانیه). و همانند راه‌یابی یا محدودسازی نرخ، سیاست نهان‌سازی دقیقاً در جایی که اعمال می‌شود اعلام می‌گردد: روی کنترلر.
 
 از آنجایی که صفحه‌ی کنفرانس پویاتر است، نهان‌سازی آن چالش‌برانگیزتر است. هر کسی می‌تواند در هر لحظه‌ای یک کامنت اضافه کند و هیچ‌کس هم نمی‌خواهد که یک ساعت صبر کند تا کامنتش را برخط ببینید. در چنین مواردی از راهبرد *اعتبارسنجی HTTP* استفاده کنید.
 
@@ -48,38 +50,27 @@
 .. index::
     single: HTTP Cache;Symfony Reverse Proxy
 
-برای آزمودن راهبرد نهان‌سازی HTTP، از پروکسی معکوس HTTP در سیمفونی استفاده کنید:
+برای آزمودن راهبرد نهان‌سازی HTTP، پروکسی معکوس HTTP سیمفونی را فعال کنید، اما تنها در محیط «توسعه» (برای محیط «عمل‌آوری»، از یک راه‌حل «مستحکم‌تر» استفاده خواهیم کرد):
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/public/index.php
-    +++ b/public/index.php
-    @@ -1,6 +1,7 @@
-     <?php
-
-     use App\Kernel;
-    +use Symfony\Bundle\FrameworkBundle\HttpCache\HttpCache;
-     use Symfony\Component\ErrorHandler\Debug;
-     use Symfony\Component\HttpFoundation\Request;
-
-    @@ -21,6 +22,11 @@ if ($trustedHosts = $_SERVER['TRUSTED_HOSTS'] ?? false) {
-     }
-
-     $kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -22,3 +22,7 @@ when@test:
+             test: true
+             session:
+                 storage_factory_id: session.storage.factory.mock_file
     +
-    +if ('dev' === $kernel->getEnvironment()) {
-    +    $kernel = new HttpCache($kernel);
-    +}
-    +
-     $request = Request::createFromGlobals();
-     $response = $kernel->handle($request);
+    +when@dev:
+    +    framework:
+    +        http_cache: true
 
 پروکسی معکوس HTTP در سیمفونی، در کنار اینکه یک پروکسی معکوس HTTP تمام‌عیار است، مقدار اطلاعات مفید اشکال‌زدایی همچون سربرگ‌های HTTP را نیز اضافه می‌کند (از طریق ``HttpCache``). این موضوع در اعتبارسنجی سربرگ‌هایی که تنظیم کرده‌ایم، بسیار کمک می‌کند.
 
 این را در صفحه‌ی اصلی بررسی کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ curl -s -I -X GET https://127.0.0.1:8000/
@@ -127,7 +118,7 @@
     single: HTTP Cache;ESI
     single: ESI
 
-شنونده‌ی ``TwigEventSubscriber``، یک متغیر جهانی را به همراه تمام شیءهای کنفرانس به Twig تزریق می‌کند. این شنونده، اینکار را برای هر یک از صفحات وب‌سایت انجام می‌دهد. این احتمالاً یک هدف عالی برای بهینه‌سازی است.
+شنونده‌ی ``TwigEventListener``، یک متغیر جهانی را به همراه تمام شیءهای کنفرانس به Twig تزریق می‌کند. این شنونده، اینکار را برای هر یک از صفحات وب‌سایت انجام می‌دهد. این احتمالاً یک هدف عالی برای بهینه‌سازی است.
 
 شما هر روز یک کنفرانس جدید اضافه نمی‌کنید، بنابراین کد بارها و بارها در حال پروس‌وجوی داده‌های یکسان از پایگاه‌داده است.
 
@@ -140,29 +131,27 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -45,6 +45,16 @@ class ConferenceController extends AbstractController
-             return $response;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -36,6 +36,14 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
-    +    /**
-    +     * @Route("/conference_header", name="conference_header")
-    +     */
+    +    #[Route('/conference_header', name: 'conference_header')]
     +    public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
     +    {
-    +        return new Response($this->twig->render('conference/header.html.twig', [
+    +        return $this->render('conference/header.html.twig', [
     +            'conferences' => $conferenceRepository->findAll(),
-    +        ]));
+    +        ]);
     +    }
     +
-         /**
-          * @Route("/conference/{slug}", name="conference")
-          */
+         #[RateLimit('comment_submission', methods: ['POST'])]
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(
 
 قالب متناظر را ایجاد کنید:
 
-.. code-block:: twig
+.. code-block:: html+twig
     :caption: templates/conference/header.html.twig
 
     <ul>
@@ -182,9 +171,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -8,11 +8,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -14,11 +14,7 @@
          <body>
              <header>
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
@@ -198,7 +187,7 @@
              </header>
              {% block body %}{% endblock %}
 
-بفرمایید، آماده است. صفحه را تازه‌سازی کنید و وب‌سایت هنوز همان چیز‌های قبلی را نشان می‌دهد.
+و *بفرمایید*. صفحه را تازه‌سازی کنید و وب‌سایت هنوز همان چیز‌های قبلی را نشان می‌دهد.
 
 .. tip::
 
@@ -215,9 +204,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -11,7 +11,7 @@ framework:
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -12,7 +12,7 @@ framework:
              cookie_secure: auto
              cookie_samesite: lax
 
@@ -236,9 +225,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -8,7 +8,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -14,7 +14,7 @@
          <body>
              <header>
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
@@ -252,7 +241,7 @@
 
 از آنجایی که پروکسی معکوس سیمفونی از ESIها پشتیبانی می‌کند، بیایید لاگ‌های آن را بررسی کنیم (ابتدا نهانگاه را پاک کنید - در زیر، «Purging» را ببینید):
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ curl -s -I -X GET https://127.0.0.1:8000/
@@ -281,26 +270,20 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -48,9 +48,12 @@ class ConferenceController extends AbstractController
-          */
-         public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
-         {
-    -        return new Response($this->twig->render('conference/header.html.twig', [
-    +        $response = new Response($this->twig->render('conference/header.html.twig', [
-                 'conferences' => $conferenceRepository->findAll(),
-             ]));
-    +        $response->setSharedMaxAge(3600);
-    +
-    +        return $response;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -36,6 +36,7 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
-         /**
+    +    #[Cache(smaxage: 3600)]
+         #[Route('/conference_header', name: 'conference_header')]
+         public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
+         {
 
 حالا نهان‌سازی برای هر دو درخواست فعال شده است:
 
-.. code-block:: bash
+.. code-block:: terminal
     :class: ignore
 
     $ curl -s -I -X GET https://127.0.0.1:8000/
@@ -321,64 +304,69 @@
     x-symfony-cache: GET /: fresh; GET /conference_header: fresh
     content-length: 50978
 
-سربرگ ``x-symfony-cache`` شامل دو جزء است: درخواست اصلی ``/`` و یک زیردرخواست (ESI مربوط به ``conference_header``). هر در نهانگاه هستند (``fresh``).
+سربرگ ``x-symfony-cache`` شامل دو جزء است: درخواست اصلی ``/`` و یک زیردرخواست (ESI مربوط به ``conference_header``). هر دو در نهانگاه هستند (``fresh``).
 
-راهبرد نهان‌سازی می‌تواند با صفحه‌ی اصلی و ESIهایش متفاوت باشد. اگر یک صفحه‌ی «درباره‌ی ما» داشته باشیم، ممکن است بخواهیم که آن را تا یک هفته در نهانگاه ذخیره کنیم و همچنین بخواهیم که سربرگ صفحه هر ساعت بهٰ‌روز شود.
+راهبرد نهان‌سازی می‌تواند با صفحه‌ی اصلی و ESIهایش متفاوت باشد. اگر یک صفحه‌ی «درباره‌ی ما» داشته باشیم، ممکن است بخواهیم که آن را تا یک هفته در نهانگاه ذخیره کنیم و همچنین بخواهیم که سربرگ صفحه هر ساعت به‌روز شود.
 
 شنونده را حذف کنید چرا که دیگر به آن نیازی نداریم:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ rm src/EventSubscriber/TwigEventSubscriber.php
+    $ rm src/EventListener/TwigEventListener.php
 
 پاکسازی نهنگاه HTTP به منظور آزمودن وب‌سایت
 -----------------------------------------------------------------------------
 
 با وجود لایه‌ی نهان‌سازی، آزمودن وب‌سایت در یک مرورگر یا از طریق آزمون‌های خودکار، کمی سخت‌تر است.
 
-You can manually remove all the HTTP cache by removing the
-``var/cache/dev/http_cache/`` directory:
+می‌توانید تمام نهان‌سازی HTTP را با حذف پوشه‌ی ``var/cache/dev/http_cache/`` به صورت دستی پاک کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
     $ rm -rf var/cache/dev/http_cache/
 
 .. index::
-    single: Annotations;@Route
+    single: Attributes;Route
 
 اگر بخواهید تنها بخشی از URLها را باطل کنید یا بخواهید باطل‌کردن نهانگاه را با آزمون‌های کارکردی خود ادغام کنید، این راهبرد خوب کار نمی‌کند.بیایید یک پایانه کوچک HTTP برای باطل‌کردن بخشی از URLها اضافه کنیم که تنها در دسترس مدیر قرار دارد.
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -6,8 +6,10 @@ use App\Entity\Comment;
-     use App\Message\CommentMessage;
-     use Doctrine\ORM\EntityManagerInterface;
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -20,6 +20,8 @@ security:
+                     login_path: app_login
+                     check_path: app_login
+                     enable_csrf: true
+    +            http_basic: { realm: Admin Area }
+    +            entry_point: form_login
+                 logout:
+                     path: app_logout
+                     # where to redirect after logout
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Bundle\FrameworkBundle\HttpCache\HttpCache;
      use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
+    +use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
     +use Symfony\Component\HttpKernel\KernelInterface;
      use Symfony\Component\Messenger\MessageBusInterface;
-     use Symfony\Component\Routing\Annotation\Route;
-     use Symfony\Component\Workflow\Registry;
-    @@ -54,4 +56,19 @@ class AdminController extends AbstractController
+     use Symfony\Component\Routing\Attribute\Route;
+     use Symfony\Component\Workflow\WorkflowInterface;
+    @@ -47,4 +49,16 @@ class AdminController extends AbstractController
                  'comment' => $comment,
-             ]);
+             ]));
          }
     +
-    +    /**
-    +     * @Route("/admin/http-cache/{uri<.*>}", methods={"PURGE"})
-    +     */
-    +    public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri): Response
+    +    #[Route('/admin/http-cache/{uri<.*>}', methods: ['PURGE'])]
+    +    public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri, StoreInterface $store): Response
     +    {
     +        if ('prod' === $kernel->getEnvironment()) {
     +            return new Response('KO', 400);
     +        }
     +
-    +        $store = (new class($kernel) extends HttpCache {})->getStore();
     +        $store->purge($request->getSchemeAndHttpHost().'/'.$uri);
     +
     +        return new Response('Done');
@@ -387,64 +375,83 @@ You can manually remove all the HTTP cache by removing the
 
 این کنترلر جدید، به متدِ HTTP از نوع ``PURGE`` محدود شده است. این نوع متد در استاندارد HTTP وجود ندارد اما به صورت گسترده برای باطل‌کردن نهان‌سازی مورد استفاده قرار می‌گیرد.
 
-به صورت پیشفرض، پارامترهای راه نمی‌توانند شامل ``/`` باشند چرا که این کاراکتر بخش‌های URL را از هم جداسازی می‌کند. می‌توانید این محدودیت را برای آخرین پارامتر راه، مثل ``uri``، با تنظیم‌کردن الگوی مورد نیاز خود باطل کنید (``.*``).
+به صورت پیش‌فرض، پارامترهای راه نمی‌توانند شامل ``/`` باشند چرا که این کاراکتر بخش‌های URL را از هم جداسازی می‌کند. می‌توانید این محدودیت را برای آخرین پارامتر راه، مثل ``uri``، با تنظیم‌کردن الگوی مورد نیاز خود باطل کنید (``.*``).
 
 راهی که ما از طریق آن نمونه‌ی ``HttpCache`` را می‌گیریم، کمی عجیب به نظر می‌رسد؛ما از یک کلاس ناشناس استفاده می‌کنیم زیرا دسترسی به کلاس واقعی امکان‌پذیر نیست. نمونه‌ی ``HttpCache`` حاوی هسته‌ی واقعی است که به درستی از لایه‌ی نهان‌سازی ناآگاه است.
 
 صفحه‌ی اصلی و سربرگ کنفرانس را به کمک فراخوانی‌های cURL زیر باطل کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ curl -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`/admin/http-cache/
-    $ curl -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`/admin/http-cache/conference_header
+    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`admin/http-cache/
+    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`admin/http-cache/conference_header
 
-The ``symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`` sub-command returns the current URL of the local web server.
+زیرفرمان ``symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL``، URL فعلی وب سرور محلی را بازمی‌گرداند.
 
 .. note::
 
     کنترلر نامِ راه (route name) ندارد، چرا که هرگز در کد به آن ارجاع نخواهد شد.
 
+غیرفعال‌سازی نهان‌سازی HTTP در محیط توسعه
+------------------------------------------------------------------
+
+نهان‌سازی HTTP برای اعتبارسنجی سربرگ‌های نهان‌سازی‌مان و یادگیری نحوه‌ی پاک‌سازی مدخل‌های منسوخ عالی بود. اما فعال‌بودن یک پروکسی معکوس در محیط توسعه غیرعادی است و به‌سرعت دردسرساز می‌شود: پاسخ‌ها هنگام کار روی کد از نهانگاه سرو می‌شوند، و حتی برخی asset‌های vendor به دلیل یک محدودیت دیرینه‌ی HttpCache با پاسخ‌های فایلی، با بدنه‌ی خالی سرو می‌شوند.
+
+اکنون که همه‌چیز اعتبارسنجی شد، آن را غیرفعال کنید؛ Varnish در محیط عمل‌آوری کار را به‌دست می‌گیرد:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -14,7 +14,3 @@ when@test:
+             test: true
+             session:
+                 storage_factory_id: session.storage.factory.mock_file
+    -
+    -when@dev:
+    -    framework:
+    -        http_cache: true
+
 گروه‌بندی راه‌های مشابه با یک پیشوند
 ---------------------------------------------------------------------
 
 .. index::
-    single: Annotations;@Route
+    single: Attributes;Route
 
 دو راهی که در کنترلر مدیر قرار دارند، دارای پیشوند یکسان ``/admin`` هستند.  به جای تکرار این پیشوند در تمام راه‌ها، راه‌ها را refactor کنید تا پیشوند را بر روی خود کلاس پیکربندی کند:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -15,6 +15,9 @@ use Symfony\Component\Routing\Annotation\Route;
-     use Symfony\Component\Workflow\Registry;
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -15,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
+     use Symfony\Component\Workflow\WorkflowInterface;
      use Twig\Environment;
 
-    +/**
-    + * @Route("/admin")
-    + */
+    +#[Route('/admin')]
      class AdminController extends AbstractController
      {
-         private $twig;
-    @@ -29,7 +32,7 @@ class AdminController extends AbstractController
+         public function __construct(
+    @@ -24,7 +25,7 @@ class AdminController extends AbstractController
+         ) {
          }
 
-         /**
-    -     * @Route("/admin/comment/review/{id}", name="review_comment")
-    +     * @Route("/comment/review/{id}", name="review_comment")
-          */
-         public function reviewComment(Request $request, Comment $comment, Registry $registry): Response
+    -    #[Route('/admin/comment/review/{id}', name: 'review_comment')]
+    +    #[Route('/comment/review/{id}', name: 'review_comment')]
+         public function reviewComment(Request $request, Comment $comment, WorkflowInterface $commentStateMachine): Response
          {
-    @@ -58,7 +61,7 @@ class AdminController extends AbstractController
+             $accepted = !$request->query->get('reject');
+    @@ -50,7 +51,7 @@ class AdminController extends AbstractController
+             ]));
          }
 
-         /**
-    -     * @Route("/admin/http-cache/{uri<.*>}", methods={"PURGE"})
-    +     * @Route("/http-cache/{uri<.*>}", methods={"PURGE"})
-          */
-         public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri): Response
+    -    #[Route('/admin/http-cache/{uri<.*>}', methods: ['PURGE'])]
+    +    #[Route('/http-cache/{uri<.*>}', methods: ['PURGE'])]
+         public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri, StoreInterface $store): Response
          {
+             if ('prod' === $kernel->getEnvironment()) {
 
 نهان‌سازی عملیات‌های پرمصرف CPU/Memory
 -----------------------------------------------------------------
@@ -455,11 +462,7 @@ The ``symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`` sub-command returns
 
 ما بر روی این وب‌سایت الگوریتم‌هایی نداریم که CPU یا حافظه‌ی زیادی مصرف کنند. بیایید برای صحبت درباره‌ی *نهان‌سازی محلی*، یک فرمان ایجاد کنیم که گام فعلی‌ای که در حال کار بر روی آن هستیم (اگر بخواهیم دقیق‌تر بگوییم، نام تگ Git که به commit فعلی Git ضمیمه شده است) را نمایش دهد.
 
-کامپوننت سیمفونی Process به ما اجازه می‌دهد تا  یک فرمان را اجرا کنیم و نتیجه را بگیریم (خروجی‌ استاندارد و خطا)؛ این کامپوننت را نصب کنید:
-
-.. code-block:: bash
-
-    $ symfony composer req process
+کامپوننت سیمفونی Process به ما اجازه می‌دهد تا  یک فرمان را اجرا کنیم و نتیجه را بگیریم (خروجی‌ استاندارد و خطا).
 
 فرمان را پیاده‌سازی کنید:
 
@@ -468,79 +471,53 @@ The ``symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`` sub-command returns
 
     namespace App\Command;
 
+    use Symfony\Component\Console\Attribute\AsCommand;
     use Symfony\Component\Console\Command\Command;
-    use Symfony\Component\Console\Input\InputInterface;
     use Symfony\Component\Console\Output\OutputInterface;
     use Symfony\Component\Process\Process;
 
-    class StepInfoCommand extends Command
+    #[AsCommand('app:step:info')]
+    class StepInfoCommand
     {
-        protected static $defaultName = 'app:step:info';
-
-        protected function execute(InputInterface $input, OutputInterface $output): int
+        public function __invoke(OutputInterface $output): int
         {
             $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
             $process->mustRun();
             $output->write($process->getOutput());
 
-            return 0;
+            return Command::SUCCESS;
         }
     }
-
-.. index::
-    single: Command;make:command
-
-.. note::
-
-    می‌توانستید از فرمان ``make:command`` برای ایجاد فرمان استفاده کنید:
-
-    .. code-block:: bash
-        :class: ignore
-
-        $ symfony console make:command app:step:info
 
 .. index::
     single: Cache
     single: Components;Cache
 
-چه می‌شود اگر بخواهیم خروجی را برای چند دقیقه نهان‌سازی کنیم؟ از نهان‌ساز سیمفونی استفاده کنید:
+چه می‌شود اگر بخواهیم خروجی را برای چند دقیقه نهان‌سازی کنیم؟ از نهان‌ساز سیمفونی استفاده کنید.
 
-.. code-block:: bash
-
-    $ symfony composer req cache
-
-و کد را با منطق نهان‌سازی در بر بگیرید:
+سیمفونی سرویس‌هایی را که در متد ``__invoke()`` یک فرمان type-hint شده‌اند، درست مانند آرگمان‌های کنترلر تزریق می‌کند. کد را با منطق نهان‌سازی در بر بگیرید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Command/StepInfoCommand.php
-    +++ b/src/Command/StepInfoCommand.php
-    @@ -6,16 +6,31 @@ use Symfony\Component\Console\Command\Command;
-     use Symfony\Component\Console\Input\InputInterface;
+    --- i/src/Command/StepInfoCommand.php
+    +++ w/src/Command/StepInfoCommand.php
+    @@ -6,15 +6,21 @@ use Symfony\Component\Console\Attribute\AsCommand;
+     use Symfony\Component\Console\Command\Command;
      use Symfony\Component\Console\Output\OutputInterface;
      use Symfony\Component\Process\Process;
     +use Symfony\Contracts\Cache\CacheInterface;
 
-     class StepInfoCommand extends Command
+     #[AsCommand('app:step:info')]
+     class StepInfoCommand
      {
-         protected static $defaultName = 'app:step:info';
-
-    +    private $cache;
-    +
-    +    public function __construct(CacheInterface $cache)
-    +    {
-    +        $this->cache = $cache;
-    +
-    +        parent::__construct();
-    +    }
-    +
-         protected function execute(InputInterface $input, OutputInterface $output): int
+    -    public function __invoke(OutputInterface $output): int
+    +    public function __invoke(OutputInterface $output, CacheInterface $cache): int
          {
     -        $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
     -        $process->mustRun();
     -        $output->write($process->getOutput());
-    +        $step = $this->cache->get('app.current_step', function ($item) {
+    +        $step = $cache->get('app.current_step', function ($item) {
     +            $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
     +            $process->mustRun();
     +            $item->expiresAfter(30);
@@ -549,7 +526,7 @@ The ``symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`` sub-command returns
     +        });
     +        $output->writeln($step);
 
-             return 0;
+             return Command::SUCCESS;
          }
 
 حالا فرآیند تنها در صورتی فراخوانی می‌شود که ``app.current_step`` در نهانگاه نباشد.
@@ -559,7 +536,7 @@ Profiling و مقایسه‌ی کارایی
 
 هرگز به صورت کورکورانه نهان‌سازی نکنید. به یاد داشته باشید که افزودن نهان‌سازی، یک لایه از پیچیدگی را ایجاد می‌کند. و از آنجایی که همه‌ی ما در حدس‌زدن اینکه چه چیزی سریع و چه چیزی کند خواهد بود، بسیار عملکرد بدی داریم، ممکن است در نهایت به وضعیتی برسیم که نهان‌سازی اپلیکیشن ما را کندتر کند.
 
-همواره اثر افزودن یک نهان‌سازی را با یک ابزار نمایه‌ساز همچون `Blackfire <https://blackfire.io/>`_. اندازه‌گیری کنید.
+همواره اثر افزودن یک نهان‌سازی را با یک ابزار نمایه‌ساز همچون `Blackfire`_. اندازه‌گیری کنید.
 
 برای یادگیری اینکه چگونه می‌توانید از Blackfire برای آزمودن کدتان قبل از استقرار استفاده کنید، به گام مربوط به «کارایی (Performance)» مراجعه کنید.
 
@@ -568,51 +545,53 @@ Profiling و مقایسه‌ی کارایی
 
 .. index::
     single: HTTP Cache;Varnish
-    single: SymfonyCloud;Varnish
+    single: Upsun;Varnish
     single: Varnish
 
-در محیط عمل‌آوری از پروکسی معکوس خود سیمفونی استفاده نکنید. همواره یک پروکسی معکوس همچون Varnish را بر روی زیرساخت خود ترجیح دهید یا از یک CDN تجاری استفاده کنید.
+به جای استفاده از پروکسی معکوس سیمفونی در محیط عمل‌آوری، قصد داریم از پروکسی معکوس «مستحکم‌ترِ» Varnish استفاده کنیم.
 
-Varnish را به سرویس‌های SymfonyCloud بیافزایید:
+Varnish را به سرویس‌های Upsun بیافزایید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/services.yaml
-    +++ b/.symfony/services.yaml
-    @@ -10,3 +10,12 @@ queue:
-         type: rabbitmq:3.7
-         disk: 1024
-         size: S
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -6,6 +6,15 @@ services:
+         database:
+             type: postgresql:16
+
+    +    varnish:
+    +        type: varnish:9.0
+    +        relationships:
+    +            application: 'app:http'
+    +        configuration:
+    +            vcl: !include
+    +                type: string
+    +                path: config.vcl
     +
-    +varnish:
-    +    type: varnish:6.0
-    +    relationships:
-    +        application: 'app:http'
-    +    configuration:
-    +        vcl: !include
-    +            type: string
-    +            path: config.vcl
+     applications:
 
 .. index::
-    single: SymfonyCloud;Routes
+    single: Upsun;Routes
 
 از Varnish به عنوان مدخل اصلی راه‌ها استفاده کنید:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/routes.yaml
-    +++ b/.symfony/routes.yaml
-    @@ -1,2 +1,2 @@
-    -"https://{all}/": { type: upstream, upstream: "app:http" }
-    +"https://{all}/": { type: upstream, upstream: "varnish:http", cache: { enabled: false } }
-     "http://{all}/": { type: redirect, to: "https://{all}/" }
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -1,5 +1,5 @@
+     routes:
+    -    "https://{all}/": { type: upstream, upstream: "app:http" }
+    +    "https://{all}/": { type: upstream, upstream: "varnish:http", cache: { enabled: false } }
+         "http://{all}/": { type: redirect, to: "https://{all}/" }
 
 در پایان برای پیکربندی Varnish، یک فایل ``config.vcl`` ایجاد کنید:
 
 .. code-block:: vcl
-    :caption: .symfony/config.vcl
+    :caption: .upsun/config.vcl
 
     sub vcl_recv {
         set req.backend_hint = application.backend();
@@ -624,7 +603,7 @@ Varnish را به سرویس‌های SymfonyCloud بیافزایید:
 پشتیبانی از ESI در Varnish باید به صورت صریح برای هر درخواست فعال گردد. برای همگانی‌کردن آن، سیمفونی از سربرگ‌های استاندارد ``Surrogate-Capability`` و ``Surrogate-Control`` برای برقراری پشتیبانی از ESI استفاده می‌کند:
 
 .. code-block:: vcl
-    :caption: .symfony/config.vcl
+    :caption: .upsun/config.vcl
 
     sub vcl_recv {
         set req.backend_hint = application.backend();
@@ -648,8 +627,8 @@ Varnish را به سرویس‌های SymfonyCloud بیافزایید:
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/config.vcl
-    +++ b/.symfony/config.vcl
+    --- i/.upsun/config.vcl
+    +++ w/.upsun/config.vcl
     @@ -1,6 +1,13 @@
      sub vcl_recv {
          set req.backend_hint = application.backend();
@@ -665,27 +644,35 @@ Varnish را به سرویس‌های SymfonyCloud بیافزایید:
 
      sub vcl_backend_response {
 
-در شرایط واقعی، احتمالاً شما IPها را همانگونه که در `مستندات Varnish <https://varnish-cache.org/docs/trunk/users-guide/purging.html>`_ تشریح شده است، محدود می‌کنید.
+در شرایط واقعی، احتمالاً شما IPها را همانگونه که در `مستندات Varnish`_ تشریح شده است، محدود می‌کنید.
 
 حالا تعدادی URL را پاکسازی کنید:
 
-.. code-block:: bash
+.. code-block:: terminal
 
-    $ curl -X PURGE -H 'x-purge-token PURGE_NOW' `symfony env:urls --first`
-    $ curl -X PURGE -H 'x-purge-token PURGE_NOW' `symfony env:urls --first`conference_header
+    $ curl -X PURGE -H 'x-purge-token: PURGE_NOW' `symfony cloud:env:url --pipe --primary`
+    $ curl -X PURGE -H 'x-purge-token: PURGE_NOW' `symfony cloud:env:url --pipe --primary`conference_header
 
-URLها کمی عجیب به نظر می‌رسد زیرا URLهایی که توسط ``env:urls`` بازگردانده می شوند با ``/`` پایان می‌یابند.
+URLها کمی عجیب به نظر می‌رسد زیرا URLهایی که توسط ``env:url`` بازگردانده می شوند با ``/`` پایان می‌یابند.
 
 .. sidebar:: بیشتر بدانید
 
-    * `Cloudflare <https://www.cloudflare.com>`_، پلتفرم ابری جهانی؛
+    * `Cloudflare`_، پلتفرم ابری جهانی؛
 
-    * `مستندات نهان‌سازی HTTP در Varnish <https://varnish-cache.org/docs/index.html>`_؛
+    * `مستندات نهان‌سازی HTTP در Varnish`_؛
 
-    * `مشخصات فنی ESI <https://www.w3.org/TR/esi-lang>`_ و `منابع مخصوص توسعه‌دهندگان ESI <https://www.akamai.com/us/en/support/esi.jsp>`_؛
+    * `مشخصات فنی ESI`_ و `منابع مخصوص توسعه‌دهندگان ESI`_؛
 
-    * `مدل اعتبارسنجی نهان‌سازی HTTP <https://symfony.com/doc/current/http_cache/validation.html>`_؛
+    * `مدل اعتبارسنجی نهان‌سازی HTTP`_؛
 
-    * `HTTP Cache in SymfonyCloud <https://symfony.com/doc/current/cloud/cookbooks/cache.html>`_.
+    * `HTTP Cache in Upsun`_.
 
 .. _`CDN`: https://en.wikipedia.org/wiki/Content_delivery_network
+.. _`Blackfire`: https://blackfire.io/
+.. _`مستندات Varnish`: https://varnish-cache.org/docs/trunk/users-guide/purging.html
+.. _`Cloudflare`: https://www.cloudflare.com
+.. _`مستندات نهان‌سازی HTTP در Varnish`: https://varnish-cache.org/docs/index.html
+.. _`مشخصات فنی ESI`: https://www.w3.org/TR/esi-lang
+.. _`منابع مخصوص توسعه‌دهندگان ESI`: https://www.akamai.com/us/en/support/esi.jsp
+.. _`مدل اعتبارسنجی نهان‌سازی HTTP`: https://symfony.com/doc/current/http_cache/validation.html
+.. _`HTTP Cache in Upsun`: https://symfony.com/doc/current/cloud/cookbooks/cache.html
