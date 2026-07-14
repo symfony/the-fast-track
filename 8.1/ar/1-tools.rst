@@ -1,7 +1,7 @@
 فحص بيئة العمل الخاصة بك
 ============================================
 
-قبل بدء العمل على المشروع، نحتاج التأكد أن كل شخص لديه بيئة عمل مناسبة. هذا شيء هام جدا. أدوات المطورين التي نملكها الأن تختلف بشكل جذري عن الأدوات التي كنا نمتلكها منذ عقد من الزمان. لقد تطورت الأدوات بشكل كبير، للأحسن. سيكون من العار ألا نحسن منها، الأدوات الجيدة تستطيع إيصالك لمبتغى أفضل.
+قبل بدء العمل على المشروع، نحتاج التأكد أن لديك بيئة عمل مناسبة. هذا شيء هام جدا. أدوات المطورين التي نملكها الأن تختلف بشكل جذري عن الأدوات التي كنا نمتلكها منذ عقد من الزمان. لقد تطورت الأدوات بشكل كبير، للأحسن. سيكون من العار ألا نحسن منها، الأدوات الجيدة تستطيع إيصالك لمبتغى أفضل.
 
 فضلا، لا تتجاوز هذه الخطوة. أو على الأقل، اقرأ القسم الأخير عن واجهة سطر الأوامر الخاصة بسيمفوني Symfony CLI.
 
@@ -44,7 +44,7 @@ Git
 
 .. index:: Git
 
-كتابي الأخير كان ينصح باستخدام subversion للتحكم في الاصدارات. يبدو أن الجميع يستخدمون `Git`_ الأن.
+للتحكم في الإصدارات، سنستخدم `Git`_ لأن الجميع يستخدمه الآن.
 
 على ويندوز، قم بتثبيت `Git bash`_.
 
@@ -53,11 +53,13 @@ Git
 PHP
 ---
 
-.. index:: PHP
+.. index::
+    single: PHP
+    single: PHP extensions
 
 سنقوم باستخدام Docker للخدمات. لكن احب أن يكون PHP مثبت على حاسوبي الخاص لأداء أفضل، استقرار أكثر و لأسباب تبسيطية. يمكنك نعتي بعتيق الطراز اذا أردت. لكن تجميعة PHP بشكل محلي مع خدمات من Docker هو المزيج الأفضل بالنسبة لي.
 
-استخدم PHP8.0 وتحقق من أن :index:`following PHP extensions <PHP extensions>`  مثبتة أو ثبتها الآن : ``intl``, ``pdo_pgsql``, ``xsl``, ``amqp``, ``gd``, ``openssl``, ``sodium``. اختياريا، قم بتثبيت ``redis``, ``curl``, و ``zip``  أيضًا.
+استخدم PHP 8.5 وتحقق من أن امتدادات PHP التالية مثبتة أو ثبتها الآن : ``intl``, ``pdo_pgsql``, ``xsl``, ``amqp``, ``gd``, ``openssl``, ``sodium``, و ``iconv``. اختياريا، قم بتثبيت ``redis``, ``curl``, و ``zip``  أيضًا.
 
 يمكنك فحص إذا الإمتدادات مفعلة الأن عن طريق ``php -m``.
 
@@ -76,11 +78,6 @@ Composer
 
     لا تحتاج لكتابة الأوامر كاملة: ``composer req`` تفعل نفس وظيفة ``composer require``، استخدم ``composer rem``بدلا عن ``composer remove``، ...
 
-NodeJS
-------
-
-لن نكتب الكثير من كود JavaScript ، لكننا سنستخدم أدوات JavaScript/NodeJS لإدارة اللواحق. تأكد من تثبيت `NodeJS`_ ومدير الحزمة `Yarn`_.
-
 Docker و Docker Compose
 ------------------------
 
@@ -93,9 +90,9 @@ Symfony CLI
 
 .. index:: Symfony CLI
 
-أخيرا وليس أخرا، سنستخدم سطر أوامر ``Symfony`` للمزيد من الإنتاجية. بدءا من خادم الويب المحلي الذي يقدمه، وصولا إلى تكامل مع Docker و دعم ل Upsun، سيكون موفرا عظيما للوقت.
+أخيرا وليس أخرا، سنستخدم سطر أوامر ``Symfony`` للمزيد من الإنتاجية. بدءا من خادم الويب المحلي الذي يقدمه، وصولا إلى تكامل كامل مع Docker و دعم السحابة عبر Upsun، سيكون موفرا عظيما للوقت.
 
-ثبت `Symfony CLI`_ وقم بإضافته إلى إعدادات المسار ``$PATH``. أنشيء حساب `SymfonyConnect`_ إذا لم تملك واحدا قم بتسجيل الدخول عن طريق  ``symfony login``.
+ثبت `Symfony CLI`_ الآن.
 
 لاستخدام بروتوكول HTTPS محليا، ستحتاج أيضا إلى `install a certificate authority (CA)`_ لتمكين دعم TLS. قم بتشغيل الأمر التالي:
 
@@ -128,11 +125,8 @@ Symfony CLI
 .. _`Visual Studio Code`: https://code.visualstudio.com/
 .. _`PhpStorm`: https://www.jetbrains.com/phpstorm/
 .. _`Composer`: https://getcomposer.org/
-.. _`NodeJS`: https://nodejs.org/
-.. _`Yarn`: https://classic.yarnpkg.com/en/docs/install/
 .. _`Install them`: https://docs.docker.com/install/
 .. _`Symfony CLI`: https://symfony.com/download
-.. _`SymfonyConnect`: https://symfony.com/connect/login
 .. _`install a certificate authority (CA)`: https://symfony.com/doc/current/setup/symfony_server.html#enabling-tls
 .. _`Symfony Support Plugin`: https://plugins.jetbrains.com/plugin/7219-symfony-support
 .. _`iTerm2`: https://iterm2.com/

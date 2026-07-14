@@ -23,10 +23,10 @@
 ---------------------------------
 
 .. index::
-    single: Annotations;@ApiResource
-    single: Annotations;Groups
+    single: Attributes;ApiResource
+    single: Attributes;Groups
 
-بعض التعليقات التوضيحية على فئة المؤتمر هي كل ما نحتاج إليه لتكوين API
+بعض السمات على فئة المؤتمر هي كل ما نحتاج إليه لتكوين API
 
 .. code-block:: diff
     :caption: patch_file
@@ -88,7 +88,7 @@
 
          public function __construct()
 
-يقوم الشرح الرئيسي `` @ ApiResource`` بتكوين واجهة برمجة التطبيقات للمؤتمرات. يقيد العمليات المحتملة `` get``وتكوين أشياء مختلفة: مثل الحقول التي سيتم عرضها وكيفية ترتيب المؤتمرات.
+تقوم السمة الرئيسية ``ApiResource`` بتكوين واجهة برمجة التطبيقات للمؤتمرات. يقيد العمليات المحتملة `` get``وتكوين أشياء مختلفة: مثل الحقول التي سيتم عرضها وكيفية ترتيب المؤتمرات.
 
 بشكل افتراضي ، نقطة الدخول الرئيسية لواجهة برمجة التطبيقات هي ``/api`` بفضل التكوين من``config/routes/api_platform.yaml`` التي تمت إضافتها بواسطة وصفة الحزمة.
 
@@ -112,9 +112,9 @@
 ---------------------------------
 
 .. index::
-    single: Annotations;@ApiResource
-    single: Annotations;@ApiFilter
-    single: Annotations;Groups
+    single: Attributes;ApiResource
+    single: Attributes;ApiFilter
+    single: Attributes;Groups
 
 افعل نفس الشيء للتعليقات:
 
@@ -188,7 +188,7 @@
 
          #[ORM\Column(length: 255, options: ['default' => 'submitted'])]
 
-يتم استخدام نفس النوع من التعليقات التوضيحية لتكوين الفصل.
+يتم استخدام نفس النوع من السمات لتكوين الفصل.
 
 تقييد التعليقات المكشوفة بواسطة API
 ---------------------------------------------------------------
@@ -238,10 +238,12 @@
 
 تبعًا للإعدادات الافتراضية ، فإن سياسة الأمان ذات الأصل الأصلي لعملاء HTTP الحديث تجعل استدعاء API من مجال آخر محظور. حزمة CORS ، المثبتة كجزء من ``composer req api``، يرسل رؤوس مشاركة المصادر المشتركة استنادًا إلى متغير البيئة `` CORS_ALLOW_ORIGIN``
 
-تبعًا للإعدادات الافتراضية ، تسمح قيمته ، المعرّفة في `` .env`` ، بطلبات HTTP من ``localhost`` و``127.0.0.1`` على أي منفذ. هذا هو بالضبط ما نحتاجه للخطوة التالية حيث سنقوم بإنشاء SPA التي سيكون لها خادم الويب الخاص بها والذي سيتصل بـ API.
+تبعًا للإعدادات الافتراضية ، تسمح قيمته ، المعرّفة في `` .env`` ، بطلبات HTTP من ``localhost`` و``127.0.0.1`` على أي منفذ. عدّلها عندما يحتاج تطبيق مستضاف على نطاق آخر، مثل تطبيق جوال أو واجهة أمامية خارجية، إلى الاتصال بـ API.
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `SymfonyCasts API Platform tutorial <https://symfonycasts.com/screencast/api-platform>`_؛
+    * `SymfonyCasts API Platform tutorial`_؛
 
     * لتمكين دعم GraphQL ، قم بتشغيل ``composer require webonyx/graphql-php`` ، ثم استعرض للوصول إلى ``api/graphql/``.
+
+.. _`SymfonyCasts API Platform tutorial`: https://symfonycasts.com/screencast/api-platform

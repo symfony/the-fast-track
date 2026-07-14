@@ -10,35 +10,44 @@
 
 .. index::
     single: Doctrine;Lifecycle
-    single: Annotations;@ORM\\Entity
-    single: Annotations;@ORM\\HasLifecycleCallbacks
-    single: Annotations;@ORM\\PrePersist
+    single: Attributes;ORM\\Entity
+    single: Attributes;ORM\\HasLifecycleCallbacks
+    single: Attributes;ORM\\PrePersist
 
 عندما لا يحتاج السلوك إلى أي خدمة ويجب تطبيقه على نوع واحد فقط من الكيان ، حدد رد الاتصال (callback) في فئة الكيان:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
+    --- i/src/Controller/Admin/CommentCrudController.php
+    +++ w/src/Controller/Admin/CommentCrudController.php
+    @@ -57,8 +57,6 @@ class CommentCrudController extends AbstractCrudController
+             ]);
+             if (Crud::PAGE_EDIT === $pageName) {
+                 yield $createdAt->setFormTypeOption('disabled', true);
+    -        } else {
+    -            yield $createdAt;
+             }
+         }
+     }
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -7,6 +7,7 @@ use Doctrine\DBAL\Types\Types;
+     use Doctrine\ORM\Mapping as ORM;
 
-     /**
-      * @ORM\Entity(repositoryClass=CommentRepository::class)
-    + * @ORM\HasLifecycleCallbacks()
-      */
+     #[ORM\Entity(repositoryClass: CommentRepository::class)]
+    +#[ORM\HasLifecycleCallbacks]
      class Comment
      {
-    @@ -106,6 +107,14 @@ class Comment
+         #[ORM\Id]
+    @@ -86,6 +87,12 @@ class Comment
              return $this;
          }
 
-    +    /**
-    +     * @ORM\PrePersist
-    +     */
-    +    public function setCreatedAtValue()
+    +    #[ORM\PrePersist]
+    +    public function setCreatedAtValue(): void
     +    {
-    +        $this->createdAt = new \DateTime();
+    +        $this->createdAt = new \DateTimeImmutable();
     +    }
     +
          public function getConference(): ?Conference
@@ -88,8 +97,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/migrations/Version00000000000000.php
-    +++ b/migrations/Version00000000000000.php
+    --- i/migrations/Version00000000000000.php
+    +++ w/migrations/Version00000000000000.php
     @@ -20,7 +20,9 @@ final class Version00000000000000 extends AbstractMigration
          public function up(Schema $schema): void
          {
@@ -119,45 +128,37 @@
     $ symfony console doctrine:migrations:migrate
 
 .. index::
-    single: Annotations;@ORM\\UniqueEntity
-    single: Annotations;@ORM\\Column
+    single: Attributes;ORM\\UniqueEntity
+    single: Attributes;ORM\\Column
+    single: Components;Validator
 
 نظرًا لأن التطبيق سيستخدم slugs قريبًا للعثور على كل مؤتمر ، فلنقم بتعديل كيان المؤتمر للتأكد من أن قيم slug فريدة في قاعدة البيانات:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
-    @@ -6,9 +6,11 @@ use App\Repository\ConferenceRepository;
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
+    @@ -6,8 +6,10 @@ use App\Repository\ConferenceRepository;
      use Doctrine\Common\Collections\ArrayCollection;
      use Doctrine\Common\Collections\Collection;
      use Doctrine\ORM\Mapping as ORM;
     +use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
-     /**
-      * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-    + * @UniqueEntity("slug")
-      */
+     #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
+    +#[UniqueEntity('slug')]
      class Conference
      {
-    @@ -40,7 +42,7 @@ class Conference
-         private $comments;
+         #[ORM\Id]
+    @@ -30,7 +32,7 @@ class Conference
+         #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'conference', orphanRemoval: true)]
+         private Collection $comments;
 
-         /**
-    -     * @ORM\Column(type="string", length=255)
-    +     * @ORM\Column(type="string", length=255, unique=true)
-          */
-         private $slug;
+    -    #[ORM\Column(length: 255)]
+    +    #[ORM\Column(length: 255, unique: true)]
+         private ?string $slug = null;
 
-.. index::
-    single: Components;Validator
-
-نظرًا لأننا نستخدم مدققًا لضمان التفرد في الاسم القصير، نحتاج إلى إضافة مكون Symfony Validator:
-
-.. code-block:: terminal
-
-    $ symfony composer req validator
+         public function __construct()
 
 .. index::
     single: Command;make:migration
@@ -185,32 +186,28 @@
 
 يعد إنشاء سبيكة تقرأ جيدًا في عنوان URL (حيث يجب ترميز أي شيء بخلاف أحرف ASCII) مهمة صعبة ، خاصة للغات الأخرى غير الإنجليزية. كيف يمكنك تحويل "é" إلى "e" على سبيل المثال؟
 
-بدلاً من إعادة اختراع العجلة ، دعنا نستخدم مكون  ``String`` ل Symfony، الذي يخفف من معالجة السلاسل strings  ويوفر *slugger*:
-
-.. code-block:: terminal
-
-    $ symfony composer req string
+بدلاً من إعادة اختراع العجلة ، دعنا نستخدم مكون  ``String`` ل Symfony، الذي يخفف من معالجة السلاسل strings  ويوفر *slugger*.
 
 أضف طريقة `` ()computeSlug `` إلى فئة `` المؤتمر `` التي تحسب البزاق بناءً على بيانات المؤتمر:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
     @@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
      use Doctrine\Common\Collections\Collection;
      use Doctrine\ORM\Mapping as ORM;
      use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
     +use Symfony\Component\String\Slugger\SluggerInterface;
 
-     /**
-      * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-    @@ -61,6 +62,13 @@ class Conference
+     #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
+     #[UniqueEntity('slug')]
+    @@ -50,6 +51,13 @@ class Conference
              return $this->id;
          }
 
-    +    public function computeSlug(SluggerInterface $slugger)
+    +    public function computeSlug(SluggerInterface $slugger): void
     +    {
     +        if (!$this->slug || '-' === $this->slug) {
     +            $this->slug = (string) $slugger->slug((string) $this)->lower();
@@ -231,7 +228,7 @@
 
 بالنسبة لخاصية ``createdAt``، يجب ضبط ``slug`` تلقائيًا عندما يتم تحديث المؤتمر عن طريق استدعاء طريقة ``()computeSlug``.
 
-ولكن نظرًا لأن هذه الطريقة تعتمد على تطبيق ``SluggerInterface``، لا يمكننا إضافة حدث ``prePersist`` كما كان من قبل (ليس لدينا طريقة لإدخال slugger).
+ولكن نظرًا لأن هذه الطريقة تعتمد على تطبيق ``SluggerInterface``، لا يمكننا إضافة حدث ``prePersist`` كما فعلنا (ليس لدينا طريقة لإدخال slugger).
 
 بدلاً من ذلك ، قم بإنشاء مستمع كيان ل Doctrine:
 
@@ -241,24 +238,23 @@
     namespace App\EntityListener;
 
     use App\Entity\Conference;
-    use Doctrine\ORM\Event\LifecycleEventArgs;
+    use Doctrine\ORM\Event\PrePersistEventArgs;
+    use Doctrine\ORM\Event\PreUpdateEventArgs;
     use Symfony\Component\String\Slugger\SluggerInterface;
 
     class ConferenceEntityListener
     {
-        private $slugger;
-
-        public function __construct(SluggerInterface $slugger)
-        {
-            $this->slugger = $slugger;
+        public function __construct(
+            private SluggerInterface $slugger,
+        ) {
         }
 
-        public function prePersist(Conference $conference, LifecycleEventArgs $event)
+        public function prePersist(Conference $conference, PrePersistEventArgs $event): void
         {
             $conference->computeSlug($this->slugger);
         }
 
-        public function preUpdate(Conference $conference, LifecycleEventArgs $event)
+        public function preUpdate(Conference $conference, PreUpdateEventArgs $event): void
         {
             $conference->computeSlug($this->slugger);
         }
@@ -281,23 +277,28 @@
 
 إذا تساءلت عن كيفية تسجيل مستمع الأحداث في الخطوة السابقة ، فلديك الجواب الآن: الحاوية. عندما يقوم الفصل بتنفيذ بعض الواجهات المحددة ، تعرف الحاوية أنه يجب تسجيل الفصل بطريقة معينة.
 
-لسوء الحظ ، لا يتم توفير التشغيل الآلي لكل شيء ، خاصة third-party packages . مستمع الكيان الذي كتبناه للتو هو أحد الأمثلة على ذلك ؛ لا يمكن إدارتها بواسطة حاوية خدمة ل Symfony تلقائيًا لأنها لا تطبق أي واجهة ولا توسع "فئة معروفة جيدًا".
-
-نحتاج إلى الإعلان عن المستمع جزئيًا في الحاوية. يمكن حذف أسلاك التبعية حيث لا يزال من الممكن تخمينها بواسطة الحاوية ، ولكننا نحتاج إلى إضافة بعض العلامات * يدويًا لتسجيل المستمع مع مرسل حدث Doctrine:
+هنا ، نظرًا لأن فئتنا لا تطبق أي واجهة ولا توسع أي فئة أساسية ، لا تعرف Symfony كيفية إعدادها تلقائيًا. بدلاً من ذلك ، يمكننا استخدام سمة لإخبار حاوية Symfony بكيفية ربطها:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -29,3 +29,7 @@ services:
+    --- i/src/EntityListener/ConferenceEntityListener.php
+    +++ w/src/EntityListener/ConferenceEntityListener.php
+    @@ -3,10 +3,14 @@
+     namespace App\EntityListener;
 
-         # add more service definitions when explicit configuration is needed
-         # please note that last definitions always *replace* previous ones
-    +    App\EntityListener\ConferenceEntityListener:
-    +        tags:
-    +            - { name: 'doctrine.orm.entity_listener', event: 'prePersist', entity: 'App\Entity\Conference'}
-    +            - { name: 'doctrine.orm.entity_listener', event: 'preUpdate', entity: 'App\Entity\Conference'}
+     use App\Entity\Conference;
+    +use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
+     use Doctrine\ORM\Event\PrePersistEventArgs;
+     use Doctrine\ORM\Event\PreUpdateEventArgs;
+    +use Doctrine\ORM\Events;
+     use Symfony\Component\String\Slugger\SluggerInterface;
+
+    +#[AsEntityListener(event: Events::prePersist, entity: Conference::class)]
+    +#[AsEntityListener(event: Events::preUpdate, entity: Conference::class)]
+     class ConferenceEntityListener
+     {
+         public function __construct(
 
 .. note::
 
@@ -312,27 +313,35 @@
     single: Twig;for
     single: Twig;if
     single: Twig;path
-    single: Annotations;Route
+    single: Attributes;Route
 
-التغيير الأخير هو تحديث وحدات التحكم والقوالب لاستخدام المؤتمر `` slug `` بدلاً من `` id `` الخاص بالمؤتمر للمسارات:
+التغيير الأخير هو تحديث وحدات التحكم والقوالب لاستخدام المؤتمر `` slug `` بدلاً من `` id `` الخاص بالمؤتمر للمسارات. بما أن معامل المسار لم يعد المفتاح الأساسي للكيان ، استخدم الصيغة ``{slug:conference}`` لإخبار Symfony بجلب ``$conference`` عن طريق مطابقة خاصية ``slug`` الخاصة به؛ لم تعد السمة ``#[MapEntity]`` ضرورية:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -28,7 +28,7 @@ class ConferenceController extends AbstractController
-             ]));
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -5,7 +5,6 @@
+     use App\Entity\Conference;
+     use App\Repository\CommentRepository;
+     use App\Repository\ConferenceRepository;
+    -use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+     use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+    @@ -20,6 +20,6 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
     -    #[Route('/conference/{id}', name: 'conference')]
-    +    #[Route('/conference/{slug}', name: 'conference')]
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+    -    public function show(#[MapEntity] Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    #[Route('/conference/{slug:conference}', name: 'conference')]
+    +    public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
-             $offset = max(0, $request->query->getInt('offset', 0));
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -18,7 +18,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -16,7 +16,7 @@
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
                  <ul>
                  {% for conference in conferences %}
@@ -341,8 +350,8 @@
                  {% endfor %}
                  </ul>
                  <hr />
-    --- a/templates/conference/index.html.twig
-    +++ b/templates/conference/index.html.twig
+    --- i/templates/conference/index.html.twig
+    +++ w/templates/conference/index.html.twig
     @@ -8,7 +8,7 @@
          {% for conference in conferences %}
              <h4>{{ conference }}</h4>
@@ -352,8 +361,8 @@
              </p>
          {% endfor %}
      {% endblock %}
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -22,10 +22,10 @@
              {% endfor %}
 
@@ -377,10 +386,15 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `نظام أحداث Doctrine <https://symfony.com/doc/current/doctrine/events.html>`_ (استدعاءات دورة الحياة والمستمعين ، ومستمعي الكيانات ومشتركي دورة الحياة)؛
+    * `نظام أحداث Doctrine`_ (استدعاءات دورة الحياة والمستمعين ، ومستمعي الكيانات ومشتركي دورة الحياة)؛
 
-    * `مستندات مكون String  <https://symfony.com/doc/current/components/string.html>`_؛
+    * `مستندات مكون String`_؛
 
-    * `حاوية الخدمة Service container  <https://symfony.com/doc/current/service_container.html>`_؛
+    * `حاوية الخدمة Service container`_؛
 
-    * ال `Symfony Services Cheat Sheet <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/services_en_42.pdf>`_.
+    * ال `Symfony Services Cheat Sheet`_.
+
+.. _`نظام أحداث Doctrine`: https://symfony.com/doc/current/doctrine/events.html
+.. _`مستندات مكون String`: https://symfony.com/doc/current/components/string.html
+.. _`حاوية الخدمة Service container`: https://symfony.com/doc/current/service_container.html
+.. _`Symfony Services Cheat Sheet`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/services_en_42.pdf

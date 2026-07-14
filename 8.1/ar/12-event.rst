@@ -79,26 +79,24 @@
 
 يمكن لأي حزمة أو حزمة أيضًا إرسال أحداثها الخاصة لجعل رمزها قابلاً للتوسيع.
 
-لتجنب وجود ملف تكوين يصف الأحداث التي يرغب المستمع في الاستماع إليها ، قم بإنشاء *مشترك*. المشترك هو مستمع بأسلوب ثابت `` getSubscribeEvents () `` يعيد تكوينه. هذا يسمح للمشتركين بالتسجيل في مرسل سيمفوني تلقائيًا.
+لتجنب وجود ملف تكوين يصف الأحداث التي يرغب المستمع في الاستماع إليها ، أضف السمة ``#[AsEventListener]`` على فئة المستمع أو الدالة. هذا يسمح للمستمعين بالتسجيل في مرسل سيمفوني تلقائيًا.
 
-إنجاز مشترك Subscriber
+إنجاز مستمع Listener
 --------------------------------
 
 .. index::
-    single: Event;Subscriber
-    single: Subscriber
     single: Event;Listener
     single: Listener
-    single: Command;make:subscriber
+    single: Command;make:listener
 
-أنت تعرف الأغنية عن ظهر قلب الآن ، استخدم حزمة صانع لإنشاء مشترك Subscriber:
+أنت تعرف الأغنية عن ظهر قلب الآن ، استخدم حزمة صانع لإنشاء مستمع Listener:
 
 .. code-block:: terminal
     :class: answers(Symfony\\Component\\HttpKernel\\Event\\ControllerEvent)
 
     $ symfony console make:listener TwigEventListener
 
-يسألك الأمر عن الحدث الذي تريد الاستماع إليه. اختر حدث `` Symfony \ Component \ HttpKernel \ Event \ ControllerEvent `` ، الذي يتم إرساله قبل استدعاء وحدة التحكم. هذا هو أفضل وقت لحقن المتغير العالمي `` للمؤتمرات '' حتى يتمكن Twig من الوصول إليه عندما تقوم وحدة التحكم بتقديم القالب. قم بتحديث المشترك كما يلي:
+يسألك الأمر عن الحدث الذي تريد الاستماع إليه. اختر حدث `` Symfony \ Component \ HttpKernel \ Event \ ControllerEvent `` ، الذي يتم إرساله قبل استدعاء وحدة التحكم. هذا هو أفضل وقت لحقن المتغير العالمي `` للمؤتمرات '' حتى يتمكن Twig من الوصول إليه عندما تقوم وحدة التحكم بتقديم القالب. قم بتحديث المستمع كما يلي:
 
 .. code-block:: diff
     :caption: patch_file
@@ -168,8 +166,12 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `تدفق الطلب-الاستجابة <https://symfony.com/doc/current/components/http_kernel.html#the-workflow-of-a-request>`_ في تطبيقات Symfony؛
+    * `تدفق الطلب-الاستجابة`_ في تطبيقات Symfony؛
 
-    * `أحداث Symfony HTTP المضمنة <https://symfony.com/doc/current/reference/events.html>`_؛
+    * `أحداث Symfony HTTP المضمنة`_؛
 
-    * أحداث `Symfony Console المدمجة <https://symfony.com/doc/current/components/console/events.html>`_.
+    * أحداث `Symfony Console المدمجة`_.
+
+.. _`تدفق الطلب-الاستجابة`: https://symfony.com/doc/current/components/http_kernel.html#the-workflow-of-a-request
+.. _`أحداث Symfony HTTP المضمنة`: https://symfony.com/doc/current/reference/events.html
+.. _`Symfony Console المدمجة`: https://symfony.com/doc/current/components/console/events.html

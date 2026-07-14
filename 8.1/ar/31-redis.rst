@@ -87,4 +87,6 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `Redis docs <https://redis.io/documentation>`_.
+    * `Redis docs`_.
+
+.. _`Redis docs`: https://redis.io/documentation

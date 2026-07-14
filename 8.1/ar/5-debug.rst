@@ -1,18 +1,10 @@
 إستكشاف الأخطاء وإصلاحها
 ==============================================
 
-إعداد المشروع بوجود الأدوات المناسبة لإصلاح المشكلات.
+إعداد المشروع يتطلب أيضاً وجود الأدوات المناسبة لإصلاح المشكلات. ولحسن الحظ، فإن العديد من المساعدات اللطيفة مضمنة بالفعل كجزء من حزمة ``webapp``.
 
-تثبيت المزيد من الاعتمادات
--------------------------------------------------
-
-تذكر بأنه قد تم إنشاء المشروع بعدد قليل من المعتمدات (التبعيات). لا محرك نموذج. لا أدوات إصلاح الأخطاء. لا نظام تسجيل. الفكرة أنه يمكنك إضافة تبعيات عندما تريد. لماذا سوف تعتمد علي محرك نموذج اذا كنت تقوم بإنشاء HTTP API او اداة CLI؟
-
-كيف نضيف المزيد من التبعيات؟ عن طريق مؤلف Composer. بالاضافة الي حزمة كومبوزر Composer "الاساسية" ("regular")، سوف نقوم بالعمل مع نوعين "خاصين" من الحزم:
-
-* *مكونات سيمفوني*: الحزم التي تنفذ الصفات الاساسية وعمليات منخفضة المستوي الي تحتاجها معظم البرامج (routing, console, HTTP client, mailer, cache, ...)
-
-* *رزم سيمفوني*: حزم تقوم بإضافة مميزات عالية المستوي أو توفير التكامل مع المكتبات الخارجية (رزم يتم مشاركتها في الغالب بواسطة المجتمع).
+استكشاف ادوات تصحيح الاخطاء الخاصة بسيمفوني
+---------------------------------------------------------------------------------
 
 .. index::
     single: Components;Profiler
@@ -20,21 +12,47 @@
     single: Web Profiler
     single: Web Debug Toolbar
 
-في البداية، لنقوم بإضافة محلل سيمفوني، منقذ للوقت عندما تريد معرفة السبب الرئيسي لمشكلة معينة:
+في البداية، يُعد محلل سيمفوني منقذاً للوقت عندما تريد معرفة السبب الرئيسي لمشكلة معينة.
+
+لو ألقيت نظرة علي الصفحة الرئيسية، يجب أن تري شريط ادوات في أسفل الشاشة:
+
+.. figure:: screenshots/wdt.png
+    :alt: /
+    :align: center
+    :figclass: with-browser
+
+أول شئ من الممكن أن تلاحظه هو الـ **404** بالاحمر. تذكر بأن هذه الصفحة هي عنصر نائب لاننا لم نعرف الصفحة الرئيسية بعد. حتي لو أن الصفحة المبدئية التي تُرحبك تبدو جميلة، تظل صفحة خطأ. لذا فإن رمز حالة الـ HTTP الصحيح هو 404 وليس 200. بفضل شريط ادوات التصحيح، لديك المعلومات علي الفور.
+
+لو قمت بالضغط علي علامة التعجب الصغيرة، سوف تحصل علي رسالة الخطأ "الحقيقية" كجزء من التجسيلات الموجودة في أداة تعريف (محلل) سيمفوني (Symfony profiler). إن كنت تريد ان تري حزمة التعقب، إضغط علي رابط "الاعتراض" (Exception) علي القائمة اليسري.
+
+كلما كان هناك مشكلة في الرمز البرمجي الخاص بك، سوف تري صفحة اعتراض (استثناء) مثل التالية التي تعطيك كل شئ تحتاجة حتي تفهم المشكلة ومن اين تأتي:
+
+.. figure:: screenshots/exception.png
+    :alt: //
+    :align: center
+    :figclass: with-browser
+
+خذ بعض من الوقت لاستكشاف المعلومات الموجودة داخل محلل سيمفوني (Symfony profiler) عن طريق الضغط بالجوار.
+
+.. index::
+    single: Symfony CLI;server:log
+
+التجسيلات مفيدة أيضاً في جلسات استقصاء وتصحيح الاخطاء. يمتلك سيمفوني علي أمر مناسب لتعقب (طباعة tail) كل التسجيلات (من الخادم، PHP، وتطبيقك):
 
 .. code-block:: terminal
+    :class: ignore
 
-    $ symfony composer req profiler --dev
+    $ symfony server:log
 
-``محلل`` هو إسم مستعار يشير الي حزمة `symfony/profiler-pack``.
+لنقوم بتجربة صغيرة. قم بفتح ``public/index.php`` وعطل او اكسر كود PHP الموجود هناك (علي سبيل المثال قم بإضافة كلمة foobar في الوسط). قم بتحديث الصفحة في المتصفح وراقب مجري التسجيلات:
 
-*الاسماء المستعارة (Aliases)* لا تعتبر خاصية كمبوزر، ولكن الفكرة مقدمة بواسطة سيمفوني لجعل حياتك أسهل. الاسماء المستعارة هي اختصارات للحزم الشائعة في كموزر. تريد ORM للتطبيق الخاص بك؟ إستدعي ``orm``. تريد ان تقوم ببناء API؟ أستدعي ``api``. يتم حل هذه الاسماء المستعارة بشكل تلقائي لواحدة او اكثر من حزم كمبوزر. إنها اختيارات مُقررة بواسطة فريق سيمفوني الاساسي.
+.. code-block:: text
+    :class: ignore
 
-ومن المميزات الانيقة الاخري انه يمكنك حزف مورد ``سيمفوني`` (``symfony`` vendor). إستدعي ``cache`` بدلاً من ``symfony/cache``.
+    Dec 21 10:04:59 |DEBUG| PHP    PHP Parse error:  syntax error, unexpected 'use' (T_USE) in public/index.php on line 5 path="/usr/bin/php7.42" php="7.42.0"
+    Dec 21 10:04:59 |ERROR| SERVER GET  (500) / ip="127.0.0.1"
 
-.. tip::
-
-    هل تتذكر بأننا قمنا بذكر مكون إضافي في composer يسمي ``symfony/flex``؟ الاسماء المستعارة واحدة من مميزاتها.
+النتائج (المُخرجات) ملونة بشكل جميل لجذب انتباهك للاخطاء.
 
 فهم بيئات عمل سيمفوني
 ---------------------------------------
@@ -42,7 +60,7 @@
 .. index::
     single: Symfony Environments
 
-هل لاحظت علم ``--dev`` في أمر ``composer req``؟ بما أن محلل سيمفوني مفيد فقط أثناء عملية التطوير، نريد أن نتجنب تنصيبه (تسطيبه) في الانتجاية.
+بما أن محلل سيمفوني مفيد فقط أثناء عملية التطوير، نريد أن نتجنب تنصيبه (تسطيبه) في الانتاجية. بشكل افتراضي، ثبّتت سيمفوني المحلل تلقائياً فقط لبيئتي ``dev`` و ``test``.
 
 يدعم سيمفوني مفهوم *بيئات العمل* (*environments*). بشكل افتراضي، تقوم بدعم ثلاثة، ولكنك يمكنك إضافة العدد الذي تريده: ``dev``، ``prod``، و ``test``. كل البيئات تشارك نفس الرمز البرمجي، ولكنهم يقدمون *إعدادات* (*configurations*) مختلفة.
 
@@ -90,111 +108,6 @@
 
 لا تخزّن ابداً قيم سرية او حساسة في هذه الملفات. سنري كيفية ادارة الاسرار في خطوة أخري.
 
-تسجيل جميع الأشياء
-----------------------------------
-
-.. index::
-    single: Logger
-
-خارج الصندوق، تكون إمكانيات التسجيل وتصحيح الاخطاء محدودة علي المشاريع الجديدة. لنقوم بإضافة المزيد من الادوات لتساعدنا علي التحقق من المشاكل اثناء التطوير، ولكن أيضاً في الانتاجية:
-
-.. code-block:: terminal
-
-    $ symfony composer req logger
-
-.. index::
-    single: Components;Debug
-    single: Debug
-
-ادوات استقصاء وتصحيح المشاكل، لنقوم بتنصيبهم فقط في التطوير:
-
-.. code-block:: terminal
-
-    $ symfony composer req debug --dev
-
-استكشاف ادوات تصحيح الاخطاء الخاصة بسيمفوني
----------------------------------------------------------------------------------
-
-لو قمت بتحديث الصفحة الرئيسية الان، يجب أن تري شريط ادوات في أسفل الشاشة:
-
-.. figure:: screenshots/wdt.png
-    :alt: /
-    :align: center
-    :figclass: with-browser
-
-أول شئ من الممكن أن تلاحظه هو الـ **404** بالاحمر. تذكر بأن هذه الصفحة هي عنصر نائب لاننا لم نعرف الصفحة الرئيسية بعد. حتي لو أن الصفحة المبدئية التي تُرحبك تبدو جميلة، تظل صفحة خطأ. لذا فإن رمز حالة الـ HTTP الصحيح هو 404 وليس 200. بفضل شريط ادوات التصحيح، لديك المعلومات علي الفور.
-
-لو قمت بالضغط علي علامة التعجب الصغيرة، سوف تحصل علي رسالة الخطأ "الحقيقية" كجزء من التجسيلات الموجودة في أداة تعريف (محلل) سيمفوني (Symfony profiler). إن كنت تريد ان تري حزمة التعقب، إضغط علي رابط "الاعتراض" (Exception) علي القائمة اليسري.
-
-كلما كان هناك مشكلة في الرمز البرمجي الخاص بك، سوف تري صفحة اعتراض (استثناء) مثل التالية التي تعطيك كل شئ تحتاجة حتي تفهم المشكلة ومن اين تأتي:
-
-.. figure:: screenshots/exception.png
-    :alt: //
-    :align: center
-    :figclass: with-browser
-
-خذ بعض من الوقت لاستكشاف المعلومات الموجودة داخل محلل سيمفوني (Symfony profiler) عن طريق الضغط بالجوار.
-
-.. index::
-    single: Symfony CLI;server:log
-
-التجسيلات مفيدة أيضاً في جلسات استقصاء وتصحيح الاخطاء. يمتلك سيمفوني علي أمر مناسب لتعقب (طباعة tail) كل التسجيلات (من الخادم، PHP، وتطبيقك):
-
-.. code-block:: terminal
-    :class: ignore
-
-    $ symfony server:log
-
-لنقوم بتجربة صغيرة. قم بفتح ``public/index.php`` وعطل او اكسر كود PHP الموجود هناك (علي سبيل المثال قم بإضافة كلمة foobar في الوسط). قم بتحديث الصفحة في المتصفح وراقب مجري التسجيلات:
-
-.. code-block:: text
-    :class: ignore
-
-    Dec 21 10:04:59 |DEBUG| PHP    PHP Parse error:  syntax error, unexpected 'use' (T_USE) in public/index.php on line 5 path="/usr/bin/php7.42" php="7.42.0"
-    Dec 21 10:04:59 |ERROR| SERVER GET  (500) / ip="127.0.0.1"
-
-النتائج (المُخرجات) ملونة بشكل جميل لجذب انتباهك للاخطاء.
-
-.. index::
-    single: Components;VarDumper
-    single: VarDumper
-    single: dump
-
-هناك مساعد تصحيح آخر وهو دالة سيمفوني ``dump()``. إنها متاحة دائماً وتمكنك من طباعة متغيرات معقدة بشكل جميل وتفاعلي.
-
-بشكل مؤقت غير ``public/index.php`` لطباعة كائن الطلب:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/public/index.php
-    +++ b/public/index.php
-    @@ -18,5 +18,8 @@ if ($_SERVER['APP_DEBUG']) {
-     $kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
-     $request = Request::createFromGlobals();
-     $response = $kernel->handle($request);
-    +
-    +dump($request);
-    +
-     $response->send();
-     $kernel->terminate($request, $response);
-
-عند تحديث الصفحة، تلاحظ ايقونة الـ"target" الجديدة في شريط الادوات؛ تتيح لك فحص التفريغ. إضغط عليها للحصول علي صفحة كاملة حيث يصبح التنقل (التصفح) اسهل:
-
-.. figure:: screenshots/dumper.png
-    :alt: /
-    :align: center
-    :figclass: with-browser
-
-.. index::
-    single: Git;checkout
-
-استرجع التغييرات قبل تنفيذ التغييرات الاخري التم تم إجراؤها في هذه الخطوة:
-
-.. code-block:: terminal
-
-    $ git checkout public/index.php
-
 إعدادات إطار عملك
 --------------------------------
 
@@ -203,9 +116,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/php.ini
-    +++ b/php.ini
-    @@ -6,3 +6,4 @@ max_execution_time=30
+    --- i/php.ini
+    +++ w/php.ini
+    @@ -6,3 +6,4 @@ session.gc_probability=0
      session.use_strict_mode=On
      realpath_cache_ttl=3600
      zend.detect_unicode=Off
@@ -219,31 +132,36 @@
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;logs
-    single: Symfony CLI;ssh
+    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:ssh
 
 إستقصاء وتصحيح اخطاء خوادم الانتاجية أكثر صعوبة دائماً. ليس لديك حق الوصول لمحلل سيموفني علي سبيل المثال. السجلات اقل طولاً (verbose). ولكن طباعة او تذيل (tailing) السجلات ممكن:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony logs
+    $ symfony cloud:logs --tail
 
 يمكنك حتي الاتصال بواسطة SSH علي حاوية الويب:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony ssh
+    $ symfony cloud:ssh
 
 لا تقلق، فلا يمكنك كسر أي شئ بسهولة. اغلب نظام الملفات للقراءة فقط. لن يمكنك اجراء تصحيح سريع ومهم في الانتاجية. ولكن سوف تتعلم طريقة افضل لاحقا في الكتاب.
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `SymfonyCasts Environments and config files Config Files tutorial <https://symfonycasts.com/screencast/symfony-fundamentals/environment-config-files>`_؛
+    * `SymfonyCasts Environments and Config Files tutorial`_؛
 
-    * `SymfonyCasts Environment Variables tutorial <https://symfonycasts.com/screencast/symfony-fundamentals/environment-variables>`_؛
+    * `SymfonyCasts Environment Variables tutorial`_؛
 
-    * `SymfonyCasts Web Debug Toolbar and Profiler tutorial <https://symfonycasts.com/screencast/symfony/debug-toolbar-profiler>`_؛
+    * `SymfonyCasts Web Debug Toolbar and Profiler tutorial`_؛
 
-    * `Managing multiple .env files <https://symfony.com/doc/current/configuration.html#managing-multiple-env-files>`_ in Symfony applications.
+    * `Managing multiple .env files`_ in Symfony applications.
+
+.. _`SymfonyCasts Environments and Config Files tutorial`: https://symfonycasts.com/screencast/symfony-fundamentals/environment-config-files
+.. _`SymfonyCasts Environment Variables tutorial`: https://symfonycasts.com/screencast/symfony-fundamentals/environment-variables
+.. _`SymfonyCasts Web Debug Toolbar and Profiler tutorial`: https://symfonycasts.com/screencast/symfony/debug-toolbar-profiler
+.. _`Managing multiple .env files`: https://symfony.com/doc/current/configuration.html#managing-multiple-env-files

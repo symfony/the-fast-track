@@ -1,17 +1,11 @@
 تأمين الواجهة الخلفية للمدير
 =====================================================
 
-يجب أن تكون الواجهة الخلفية للمدير قابلة للوصول فقط من قبل الأشخاص الموثوق بهم. يمكن تأمين هذا الجزء من الموقع باستخدام Symfony SecurityComponent.
-
-مثل Twig ، تم تثبيت  ال Security Component  بالفعل عبر تبعيات متعدية (transitive dependencies). دعنا نضيفها إلى ملف `` composer.json '' للمشروع:
-
 .. index::
     single: Components;Security
     single: Security
 
-.. code-block:: terminal
-
-    $ symfony composer req security
+يجب أن تكون الواجهة الخلفية للمدير قابلة للوصول فقط من قبل الأشخاص الموثوق بهم. يمكن تأمين هذا الجزء من الموقع باستخدام Symfony SecurityComponent.
 
 تحديد كيان (Entity) المستخدم
 ---------------------------------------------
@@ -38,42 +32,19 @@
 
 إذا كنت ترغب في إضافة المزيد من الخصائص إلى المستخدم " Admin '' ، فاستخدم " make:entity ''.
 
-دعنا نضيف طريقة `` __toString() '' كما يطلبها EasyAdmin:
-
-.. code-block:: diff
-
-    --- a/src/Entity/Admin.php
-    +++ b/src/Entity/Admin.php
-    @@ -75,6 +75,11 @@ class Admin implements UserInterface
-             return $this;
-         }
-
-    +    public function __toString(): string
-    +    {
-    +        return $this->username;
-    +    }
-    +
-         /**
-          * @see UserInterface
-          */
-
 بالإضافة إلى إنشاء كيان " المدير '' ، قام الأمر أيضًا بتحديث إعداد الأمان (The security configuration) لتوصيل الكيان بنظام المصادقة:
 
 .. code-block:: diff
     :class: ignore
-    :emphasize-lines: 6,7,15,16
+    :emphasize-lines: 11,12,20
 
-    --- a/config/packages/security.yaml
-    +++ b/config/packages/security.yaml
-    @@ -1,7 +1,15 @@
-     security:
-    +    encoders:
-    +        App\Entity\Admin:
-    +            algorithm: auto
-    +
-         # https://symfony.com/doc/current/security.html#where-do-users-come-from-user-providers
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -5,14 +5,18 @@ security:
+             Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+         # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
          providers:
-    -        in_memory: { memory: null }
+    -        users_in_memory: { memory: null }
     +        # used to reload user from session & other features (e.g. switch_user)
     +        app_user_provider:
     +            entity:
@@ -82,8 +53,16 @@
          firewalls:
              dev:
                  pattern: ^/(_(profiler|wdt)|css|images|js)/
+                 security: false
+             main:
+                 lazy: true
+    -            provider: users_in_memory
+    +            provider: app_user_provider
 
-نسمح لـ Symfony باختيار أفضل خوارزمية ممكنة لتشفير كلمات المرور passwords (التي ستتطور بمرور الوقت).
+                 # activate different ways to authenticate
+                 # https://symfony.com/doc/current/security.html#the-firewall
+
+نسمح لـ Symfony باختيار أفضل خوارزمية ممكنة لتجزئة كلمات المرور passwords (التي ستتطور بمرور الوقت).
 
 حان الوقت لإنشاء ترحيل (migration) وترحيل قاعدة البيانات:
 
@@ -96,53 +75,53 @@
 -------------------------------------------------------------------------
 
 .. index::
-    single: Security;Encoding Passwords
+    single: Security;Password Hashes
 
-لن نطور نظامًا مخصصًا لإنشاء حسابات المدير. مرة أخرى ، سيكون لدينا مدير واحد فقط. سيكون تسجيل الدخول هو " admin '' ونحن بحاجة إلى ترميز encode كلمة المرور password .
+لن نطور نظامًا مخصصًا لإنشاء حسابات المدير. مرة أخرى ، سيكون لدينا مدير واحد فقط. سيكون تسجيل الدخول هو " admin '' ونحن بحاجة إلى توليد تجزئة كلمة المرور password .
 
 .. index::
-    single: Command;security:encode-password
+    single: Command;security:hash-password
 
-اختر ما تريده ككلمة مرور وقم بتشغيل الأمر التالي لإنشاء كلمة المرور المشفرة encoded password:
+اختر ما تريده ككلمة مرور وقم بتشغيل الأمر التالي لتوليد تجزئة كلمة المرور:
 
 .. code-block:: terminal
     :class: answers(admin)
 
-    $ symfony console security:encode-password
+    $ symfony console security:hash-password
 
 .. code-block:: text
     :class: ignore
     :emphasize-lines: 11
 
-    Symfony Password Encoder Utility
-    ================================
+    Symfony Password Hash Utility
+    =============================
 
-     Type in your password to be encoded:
+     Type in your password to be hashed:
      >
 
      ------------------ ---------------------------------------------------------------------------------------------------
       Key                Value
      ------------------ ---------------------------------------------------------------------------------------------------
-      Encoder used       Symfony\Component\Security\Core\Encoder\MigratingPasswordEncoder
-      Encoded password   $argon2id$v=19$m=65536,t=4,p=1$BQG+jovPcunctc30xG5PxQ$TiGbx451NKdo+g9vLtfkMy4KjASKSOcnNxjij4gTX1s
+      Hasher used        Symfony\Component\PasswordHasher\Hasher\MigratingPasswordHasher
+      Password hash      $argon2id$v=19$m=65536,t=4,p=1$BQG+jovPcunctc30xG5PxQ$TiGbx451NKdo+g9vLtfkMy4KjASKSOcnNxjij4gTX1s
      ------------------ ---------------------------------------------------------------------------------------------------
 
-     ! [NOTE] Self-salting encoder used: the encoder generated its own built-in salt.
+     ! [NOTE] Self-salting hasher used: the hasher generated its own built-in salt.
 
 
-     [OK] Password encoding succeeded
+     [OK] Password hashing succeeded
 
 إنشاء مدير
 -------------------
 
 .. index::
-    single: Symfony CLI;run psql
+    single: Command;dbal:run-sql
 
 أدخل المستخدم المدير عبر عبارة SQL:
 
 .. code-block:: terminal
 
-    $ symfony run psql -c "INSERT INTO admin (id, username, roles, password) \
+    $ symfony console dbal:run-sql "INSERT INTO admin (id, username, roles, password) \
       VALUES (nextval('admin_id_seq'), 'admin', '[\"ROLE_ADMIN\"]', \
       '\$argon2id\$v=19\$m=65536,t=4,p=1\$BQG+jovPcunctc30xG5PxQ\$TiGbx451NKdo+g9vLtfkMy4KjASKSOcnNxjij4gTX1s')"
 
@@ -152,7 +131,7 @@
 ------------------------------------------------------------
 
 .. index::
-    single: Command;make:auth
+    single: Command;make:security:form-login
     single: Security;Authenticator
     single: Security;Form Login
     single: Login
@@ -160,14 +139,14 @@
 
 الآن بعد أن أصبح لدينا مستخدم مدير ، يمكننا تأمين الواجهة الخلفية للمدير. يدعم Symfony العديد من استراتيجيات المصادقة. دعونا نستخدم نظام مصادقة نموذجي وشائع.
 
-قم بتشغيل الأمر " make: auth '' لتحديث إعداد الأمان (The security configuration ) ، وإنشاء قالب تسجيل دخول ، وإنشاء *authenticator*:
+قم بتشغيل الأمر " make:security:form-login '' لتحديث إعداد الأمان (The security configuration ) ، وإنشاء قالب تسجيل دخول ، وإنشاء *authenticator*:
 
 .. code-block:: terminal
-    :class: answers(1||AppAuthenticator||SecurityController||yes)
+    :class: answers(SecurityController||yes)
 
-    $ symfony console make:auth
+    $ symfony console make:security:form-login
 
-إختر " 1 '' لإنشاء مصدق نموذج تسجيل الدخول ، واسم ال Authenticator class  " AppAuthenticator '' ، ووحدة التحكم Controller  " SecurityController '' ، وقم بإنشاء عنوان URL " / logout '' (" نعم '').
+سمِّ وحدة التحكم Controller  " SecurityController '' ، وقم بإنشاء عنوان URL " / logout '' (" نعم '').
 
 قام الأمر بتحديث إعداد الأمان The security configuration  لتوصيل الفئات classes  التي تم إنشاؤها:
 
@@ -175,39 +154,25 @@
     :class: ignore
     :emphasize-lines: 9
 
-    --- a/config/packages/security.yaml
-    +++ b/config/packages/security.yaml
-    @@ -16,6 +16,13 @@ security:
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -15,7 +15,15 @@ security:
                  security: false
              main:
-                 anonymous: lazy
-    +            guard:
-    +                authenticators:
-    +                    - App\Security\AppAuthenticator
+                 lazy: true
+    -            provider: users_in_memory
+    +            provider: app_user_provider
+    +            form_login:
+    +                login_path: app_login
+    +                check_path: app_login
+    +                enable_csrf: true
     +            logout:
     +                path: app_logout
     +                # where to redirect after logout
     +                # target: app_any_route
 
                  # activate different ways to authenticate
-                 # https://symfony.com/doc/current/security.html#firewalls-authentication
-
-كما ظهر بها إخراج الأمر ، نحتاج إلى تخصيص المسار في طريقة `` onAuthenticationSuccess() `` لإعادة توجيه المستخدم عند تسجيل الدخول بنجاح:
-
-.. code-block:: diff
-
-    --- a/src/Security/AppAuthenticator.php
-    +++ b/src/Security/AppAuthenticator.php
-    @@ -95,8 +95,7 @@ class AppAuthenticator extends AbstractFormLoginAuthenticator implements Passwor
-                 return new RedirectResponse($targetPath);
-             }
-
-    -        // For example : return new RedirectResponse($this->urlGenerator->generate('some_route'));
-    -        throw new \Exception('TODO: provide a valid redirect inside '.__FILE__);
-    +        return new RedirectResponse($this->urlGenerator->generate('admin'));
-         }
-
-         protected function getLoginUrl()
+                 # https://symfony.com/doc/current/security.html#the-firewall
 
 .. index::
     single: Command;debug:router
@@ -234,15 +199,17 @@
 .. code-block:: diff
     :emphasize-lines: 8
 
-    --- a/config/packages/security.yaml
-    +++ b/config/packages/security.yaml
-    @@ -35,5 +35,5 @@ security:
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -34,7 +34,7 @@ security:
          # Easy way to control access for large sections of your site
          # Note: Only the *first* access control that matches will be used
          access_control:
     -        # - { path: ^/admin, roles: ROLE_ADMIN }
     +        - { path: ^/admin, roles: ROLE_ADMIN }
              # - { path: ^/profile, roles: ROLE_USER }
+
+     when@test:
 
 تُقيد قواعد ``access_control`` إمكانية الوصول عن طريق التعابير النمطية (regular expressions). عند محاولة الاتصال عن طريق رابط يبدأ بـ ``/admin``، سوف يقوم النظام الأمني بالتحقق من دور الـ ``ROLE_ADMIN`` علي المستخدم الذي قام بتسجيل الدخول.
 
@@ -256,7 +223,7 @@
     :align: center
     :figclass: with-browser
 
-قم بتسجيل الدخول بإستخدام ``admin`` واي كلمة مرور قمت بتشفيرها مُسبقاً. لو قمت بنسخ امر الـ SQL الخاص بي كما هو فكلمة المرور هي ``admin``.
+قم بتسجيل الدخول بإستخدام ``admin`` واي كلمة مرور اخترتها مُسبقاً. لو قمت بنسخ امر الـ SQL الخاص بي كما هو فكلمة المرور هي ``admin``.
 
 لاحظ أن EasyAdmin تُدرك نظام تصادق سيمفوني بشكل تلقائي:
 
@@ -276,10 +243,15 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `مراجع أمان سيمفوني <https://symfony.com/doc/current/security.html>`_؛
+    * `مراجع أمان سيمفوني`_؛
 
-    * `SymfonyCasts Security tutorial <https://symfonycasts.com/screencast/symfony-security>`_؛
+    * `SymfonyCasts Security tutorial`_؛
 
-    * `كيف تنشئ نموذج تسجيل دخول <https://symfony.com/doc/current/security/form_login_setup.html>`_ في تطبيقات سيمفوني؛
+    * `كيف تنشئ نموذج تسجيل دخول`_ في تطبيقات سيمفوني؛
 
-    * `ورقة الغش لأمان سيمفوني <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/security_en_44.pdf>`_.
+    * `ورقة الغش لأمان سيمفوني`_.
+
+.. _`مراجع أمان سيمفوني`: https://symfony.com/doc/current/security.html
+.. _`SymfonyCasts Security tutorial`: https://symfonycasts.com/screencast/symfony-security
+.. _`كيف تنشئ نموذج تسجيل دخول`: https://symfony.com/doc/current/security/form_login_setup.html
+.. _`ورقة الغش لأمان سيمفوني`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/security_en_44.pdf

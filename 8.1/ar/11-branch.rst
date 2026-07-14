@@ -67,45 +67,24 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -7,7 +7,7 @@ framework:
-         # Enables session support. Note that the session will ONLY be started if you read or write from it.
-         # Remove or comment this section to explicitly disable session support.
-         session:
-    -        handler_id: null
-    +        handler_id: '%env(DATABASE_URL)%'
-             cookie_secure: auto
-             cookie_samesite: lax
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -3,7 +3,8 @@ framework:
+         secret: '%env(APP_SECRET)%'
+
+         # Note that the session will be started ONLY if you read or write from it.
+    -    session: true
+    +    session:
+    +        handler_id: '%env(resolve:DATABASE_URL)%'
+
+         #esi: true
+         #fragments: true
 
 لتخزين الجلسات في قاعدة البيانات ، نحتاج إلى إنشاء جدول ``sessions``. افعل ذلك من خلال ترحيل Doctrine:
 
 .. code-block:: terminal
 
     $ symfony console make:migration
-
-قم بتحرير الملف لإضافة إنشاء الجدول في طريقة ``up ()``:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/migrations/Version00000000000000.php
-    +++ b/migrations/Version00000000000000.php
-    @@ -21,6 +21,14 @@ final class Version00000000000000 extends AbstractMigration
-         {
-             // this up() migration is auto-generated, please modify it to your needs
-
-    +        $this->addSql('
-    +            CREATE TABLE sessions (
-    +                sess_id VARCHAR(128) NOT NULL PRIMARY KEY,
-    +                sess_data BYTEA NOT NULL,
-    +                sess_lifetime INTEGER NOT NULL,
-    +                sess_time INTEGER NOT NULL
-    +            )
-    +        ');
-         }
-
-         public function down(Schema $schema): void
 
 ترحيل قاعدة البيانات:
 
@@ -119,23 +98,6 @@
 .. note::
 
     لا نحتاج إلى الخطوات من 3 إلى 5 هنا لأننا نعيد استخدام قاعدة البيانات كمخزن للجلسة ، لكن الفصل الخاص باستخدام Redis يوضح مدى سهولة إضافة واختبار ونشر خدمة جديدة في كل من Docker و Upsun.
-
-نظرًا لأن الجدول الجديد لا تتم "إدارته" بواسطة Doctrine ، فيجب علينا تكوين Doctrine لعدم إزالته في ترحيل قاعدة البيانات التالية:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/packages/doctrine.yaml
-    +++ b/config/packages/doctrine.yaml
-    @@ -5,6 +5,8 @@ doctrine:
-             # IMPORTANT: You MUST configure your server version,
-             # either here or in the DATABASE_URL env var (see .env file)
-             #server_version: '13'
-    +
-    +        schema_filter: ~^(?!session)~
-         orm:
-             auto_generate_proxy_classes: true
-             naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
 
 التزم بتغييراتك في الفرع الجديد:
 
@@ -154,19 +116,19 @@
 قبل النشر في الإنتاج ، يجب أن نختبر الفرع على نفس البنية التحتية المطابقة للإنتاج. يجب أن نتحقق أيضًا أن كل شيء يعمل بشكل جيد لبيئة prod ل Symfony  (الموقع المحلي يستخدم بيئة dev ل Symfony.
 
 .. index::
-    single: Symfony CLI;env:delete
-    single: Symfony CLI;env:create
+    single: Symfony CLI;cloud:env:delete
+    single: Symfony CLI;cloud:env:create
 
 الآن ، دعنا ننشئ * بيئة ل Upsun * على أساس * فرع Git * :
 
 .. code-block:: terminal
     :class: hide
 
-    $ symfony env:delete sessions-in-db --no-interaction
+    $ symfony cloud:env:delete sessions-in-db
 
 .. code-block:: terminal
 
-    $ symfony env:create
+    $ symfony cloud:push
 
 هذا الأمر ينشئ بيئة جديدة على النحو التالي:
 
@@ -181,16 +143,16 @@
 الفروع الغير `` الرئيسية '' تشبه إلى حد كبير `` الرئيسية '' باستثناء بعض الاختلافات الصغيرة: على سبيل المثال ، لا يتم إرسال رسائل البريد الإلكتروني افتراضيًا.
 
 .. index::
-    single: Symfony CLI;open:remote
+    single: Symfony CLI;cloud:url
 
 بمجرد الإنتهاء من النشر ، افتح الفرع الجديد في متصفح:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony open:remote
+    $ symfony cloud:url -1
 
-لاحظ أن جميع أوامر Upsun تعمل على فرع Git الحالي. يفتح هذا الأمر عنوان URL المنشور لفرع  "sessions-in-db"؛ سيبدو عنوان URL كما يلي: "https://sessions-in-db-xxx.eu.s5y.io/"
+لاحظ أن جميع أوامر Upsun تعمل على فرع Git الحالي. يفتح هذا الأمر عنوان URL المنشور لفرع  "sessions-in-db"؛ سيبدو عنوان URL كما يلي: "https://sessions-in-db-xxx.eu-5.platformsh.site/"
 
 اختبر الموقع على هذه البيئة الجديدة ، يجب أن تشاهد جميع البيانات التي أنشأتها في البيئة الرئيسية.
 
@@ -199,14 +161,14 @@
 إذا تطور الكود في  الفرع الرئيسي (Master) ، يمكنك دائمًا إعادة بناء (Rebase) فرع Git ونشر الإصدار المحدث ، وحل كل التعارضات (conflicts) لكل من الكود والبنية التحتية.
 
 .. index::
-    single: Symfony CLI;env:sync
+    single: Symfony CLI;cloud:env:sync
 
 يمكنك حتى مزامنة البيانات من الفرع الرئيسي(Master) مرة أخرى إلى بيئة  "sessions-in-db":
 
 .. code-block:: terminal
     :class: answers(y)
 
-    $ symfony env:sync
+    $ symfony cloud:env:sync
 
 تصحيح أخطاء عمليات النشر للإنتاج قبل النشر
 ------------------------------------------------------------------------------
@@ -217,19 +179,19 @@
 بشكل افتراضي ، تستخدم جميع بيئات Upsun نفس الإعدادات مثل بيئة "Master" / "prod   (تعرف أيضًا ببيئة Symfony" prod ''). هذا يسمح لك باختبار التطبيق في ظروف الحياة الحقيقية. يمنحك الشعور بالتطوير والاختبار مباشرة في الإنتاج (production servers) ، ولكن دون المخاطر المرتبطة بها. هذا يذكرني بالأيام الخوالي عندما كنا ننشر عبر FTP.
 
 .. index::
-    single: Symfony CLI;env:debug
+    single: Symfony CLI;cloud:env:debug
 
 في حالة وجود مشكلة ، قد ترغب في التغيير  إلى بيئة "dev" ل Symfony :
 
 .. code-block:: terminal
 
-    $ symfony env:debug
+    $ symfony cloud:env:debug
 
 عند الانتهاء ، ارجع إلى إعدادات الإنتاج:
 
 .. code-block:: terminal
 
-    $ symfony env:debug --off
+    $ symfony cloud:env:debug --off
 
 .. warning::
 
@@ -238,15 +200,15 @@
 اختبار عمليات نشر الإنتاج (production deployments) قبل النشر
 ------------------------------------------------------------------------------------------
 
-الوصول إلى الإصدار القادم من الموقع مع بيانات الإنتاج (production)  يتيح الكثير من الفرص: من اختبار الانحدار البصري  (visual regression) إلى اختبار الأداء (performance). `Blackfire <https://blackfire.io>`_ هي الأداة المثالية لهذه المهمة.
+الوصول إلى الإصدار القادم من الموقع مع بيانات الإنتاج (production)  يتيح الكثير من الفرص: من اختبار الانحدار البصري  (visual regression) إلى اختبار الأداء (performance). `Blackfire`_ هي الأداة المثالية لهذه المهمة.
 
-ارجع إلى خطوة "الأداء (performance)" لمعرفة المزيد حول كيفية استخدام Blackfire لاختبار الكود قبل النشر.
+ارجع إلى خطوة :doc:`الأداء <29-performance>` لمعرفة المزيد حول كيفية استخدام Blackfire لاختبار الكود قبل النشر.
 
 الإدماج في الإنتاج (production)
 -----------------------------------------------
 
 .. index::
-    single: Symfony CLI;deploy
+    single: Symfony CLI;cloud:push
     single: Git;checkout
     single: Git;merge
 
@@ -261,7 +223,7 @@
 
 .. code-block:: terminal
 
-    $ symfony deploy
+    $ symfony cloud:push
 
 عند النشر ، يتم فقط دفع التغييرات فيالكود والبنية الأساسية إلى Upsun ؛ لا تتأثر البيانات بأي شكل من الأشكال.
 
@@ -269,7 +231,7 @@
 --------------
 
 .. index::
-    single: Symfony CLI;env:delete
+    single: Symfony CLI;cloud:env:delete
     single: Git;branch
 
 وأخيرًا ، قم بالتنظيف بإزالة فرع Git وبيئة Upsun:
@@ -277,10 +239,12 @@
 .. code-block:: terminal
 
     $ git branch -d sessions-in-db
-    $ symfony env:delete --env=sessions-in-db --no-interaction
+    $ symfony cloud:env:delete -e sessions-in-db
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `التفرع في GIT <https://www.git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell>`_؛
+    * `التفرع في GIT`_؛
 
 .. _`stakeholders`: https://en.wikipedia.org/wiki/Project_stakeholder
+.. _`التفرع في GIT`: https://www.git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell
+.. _`Blackfire`: https://blackfire.io

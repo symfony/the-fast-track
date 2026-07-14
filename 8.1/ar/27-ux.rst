@@ -1,0 +1,158 @@
+جعل الموقع يبدو كتطبيق صفحة واحدة (SPA)
+=========================================================
+
+.. index::
+    single: Symfony UX
+    single: Turbo
+    single: Stimulus
+
+الموقع سريع، لكن كل نقرة لا تزال تعيد تحميل صفحة HTML كاملة. الإجابة التقليدية هي بناء *تطبيق صفحة واحدة* (SPA): تطبيق JavaScript، مكتوب بحزمة تقنية أخرى، يتحدث إلى واجهة API. وهذا يعني تطبيقًا ثانيًا يجب تطويره وتأمينه ونشره وإبقاؤه متزامنًا مع التطبيق الرئيسي.
+
+لدى Symfony إجابة مختلفة. *Symfony UX* مبادرة تجلب تجربة SPA إلى التطبيقات المُعالَجة على الخادم: استمر في كتابة قوالب Twig ووحدات تحكم Symfony، ورُشّ JavaScript فقط حيث يضيف قيمة.
+
+اكتشاف Symfony UX
+----------------------------
+
+الخبر السار؟ لقد كنا نستخدم Symfony UX منذ أول خطوة في هذا الكتاب. يأتي هيكل webapp مع حزمتين منه: ``symfony/stimulus-bundle`` و ``symfony/ux-turbo``. ألقِ نظرة على ``importmap.php``:
+
+.. code-block:: php
+    :class: ignore
+
+    return [
+        'app' => ['path' => './assets/app.js', 'entrypoint' => true],
+        '@hotwired/stimulus' => ['version' => '3.2.2'],
+        '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
+        '@hotwired/turbo' => ['version' => '8.0.23'],
+    ];
+
+`Stimulus`_ إطار عمل JavaScript صغير يربط *وحدات تحكم* JavaScript بعناصر HTML عبر سمات ``data-``. يبدأ ملف ``assets/stimulus_bootstrap.js`` تطبيق Stimulus ويسجّل تلقائيًا أي وحدة تحكم مُخزَّنة في دليل ``assets/controllers/``.
+
+يبني `Turbo`_ على هذا الأساس لجعل التنقل فوريًا.
+
+التنقل الفوري باستخدام Turbo
+-----------------------------------------
+
+.. index::
+    single: Turbo;Drive
+
+كان Turbo *Drive* يعمل بصمت طوال الوقت: فهو يعترض كل نقرة على رابط وكل إرسال نموذج، ويجلب الصفحة في الخلفية، ويستبدل ``<body>`` دون إعادة تحميل كاملة للصفحة. يُبقي المتصفح نفس JavaScript و CSS حيّين، فيبدو التنقل فوريًا.
+
+افتح أدوات مطوري المتصفح، وانتقل إلى تبويب "Network"، وتنقّل عبر الموقع: تغييرات الصفحة هي طلبات ``fetch``، وليست عمليات تحميل كاملة للمستند.
+
+يطلب Turbo شيئًا واحدًا فقط في المقابل: دلالات HTTP صحيحة للنماذج. يجب أن يؤدي الإرسال الناجح إلى إعادة توجيه (وهذا ما يفعله نموذجنا، بفضل ``redirectToRoute()``)، ويجب أن يستخدم الإرسال الفاشل رمز حالة ``4xx``. يتعامل Symfony مع الأخير تلقائيًا: عندما يكون النموذج المُرسَل غير صالح، يستجيب ``render()`` برمز الحالة ``422 Unprocessable Entity``.
+
+تحديث جزء من الصفحة باستخدام Turbo Frames
+---------------------------------------------------------------
+
+.. index::
+    single: Turbo;Frame
+
+يتجنب Turbo Drive إعادة التحميل الكاملة للصفحة. ويذهب Turbo *Frames* خطوة أبعد: فهو يتيح لجزء من الصفحة التنقل بشكل مستقل عن بقيتها.
+
+قائمة التعليقات مرشح مثالي. عند تصفح صفحات التعليقات عبر رابطي "السابق" و"التالي"، يجب أن تتغير القائمة فقط؛ إعادة عرض الترويسة والنموذج والتذييل عمل ضائع. لُف التعليقات في إطار (frame):
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
+    @@ -17,3 +17,4 @@
+         <div class="row">
+             <div class="col-12 col-lg-8">
+    +            <turbo-frame id="comments" data-turbo-action="advance">
+                 {% if comments|length > 0 %}
+    @@ -56,5 +57,6 @@
+                     No comments have been posted yet for this conference.
+                 </div>
+             {% endif %}
+    +            </turbo-frame>
+             </div>
+             <div class="col-12 col-lg-4">
+
+الروابط داخل عنصر ``<turbo-frame>`` تُحدّث ذلك الإطار فقط: عند النقر على "التالي"، يجلب Turbo الصفحة في الخلفية ويستبدل الإطار المطابق، تاركًا بقية الصفحة دون مساس.
+
+تُرقّي السمة ``data-turbo-action="advance"`` تنقل الإطار إلى زيارة كاملة: يُحدَّث الرابط في شريط العنوان (بما في ذلك مُعامل الاستعلام ``offset``)، فتظل التعليقات المُرقَّمة قابلة للمشاركة ويعمل زر الرجوع في المتصفح كما هو متوقع.
+
+معاينة صورة التعليق باستخدام Stimulus
+-----------------------------------------------------
+
+.. index::
+    single: Stimulus;Controller
+
+حان الوقت لكتابة أول أسطر JavaScript لنا في الكتاب بأكمله. الحاضرون الذين يرسلون صورة لا يمكنهم رؤيتها قبل نشر التعليق. لنعرض معاينة عندما يختارون ملفًا.
+
+أنشئ وحدة تحكم Stimulus (يحدد اسم الملف اسم وحدة التحكم، ``photo-preview``):
+
+.. code-block:: javascript
+    :caption: assets/controllers/photo_preview_controller.js
+
+    import { Controller } from '@hotwired/stimulus';
+
+    export default class extends Controller {
+        show() {
+            const [photo] = this.element.files;
+            if (!photo) {
+                this.preview?.remove();
+                this.preview = null;
+
+                return;
+            }
+
+            if (!this.preview) {
+                this.preview = document.createElement('img');
+                this.preview.className = 'img-thumbnail mt-2';
+                this.preview.style.maxHeight = '150px';
+                this.element.insertAdjacentElement('afterend', this.preview);
+            }
+
+            this.preview.src = URL.createObjectURL(photo);
+        }
+    }
+
+هذا كل ما نحتاجه من JavaScript. يكتشف Stimulus وحدة التحكم ويسجّلها تلقائيًا. اربطها بحقل الصورة في نموذج التعليق عبر سمات ``data-``:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Form/CommentType.php
+    +++ w/src/Form/CommentType.php
+    @@ -26,6 +26,10 @@ class CommentType extends AbstractType
+                 ->add('photo', FileType::class, [
+                     'required' => false,
+                     'mapped' => false,
+    +                'attr' => [
+    +                    'data-controller' => 'photo-preview',
+    +                    'data-action' => 'change->photo-preview#show',
+    +                ],
+                     'constraints' => [
+                         new Image(maxSize: '1024k')
+                     ],
+
+تربط السمة ``data-controller`` وحدة التحكم بحقل الملف، وتستدعي ``data-action`` طريقتها ``show()`` كلما تغيّرت قيمة الحقل. اختر صورة في صفحة مؤتمر واستمتع بالمعاينة.
+
+تعمل وحدات تحكم Stimulus جنبًا إلى جنب مع Turbo: لأن Drive و Frames يحدّثان الصفحة دون إعادة تحميلها، تُوصَل وحدات التحكم وتُفصَل تلقائيًا عندما تدخل العناصر إلى DOM وتخرج منه.
+
+ماذا عن تطبيقات الجوال؟
+-------------------------------
+
+حصلنا على تجربة SPA دون بناء تطبيق ثانٍ: لا حزمة JavaScript منفصلة، ولا خادم ويب ثانٍ، ولا إعداد CORS، ولا شيء جديد لنشره.
+
+وإذا احتجت يومًا إلى تطبيق جوال *أصلي* (native)، فإن واجهة API التي أنشأناها في الخطوة السابقة هي نقطة الدخول الصحيحة: فهي عامة وموثَّقة ومستقلة عن إطار العمل. يمكن للموقع وتطبيق الجوال أن يتطورا بشكل مستقل بينما يتشاركان نفس الواجهة الخلفية.
+
+.. sidebar:: الذهاب أبعد من ذلك
+
+    * `مبادرة Symfony UX`_؛
+
+    * `دليل Turbo`_ و `دليل Stimulus`_؛
+
+    * `مستندات Symfony UX Turbo`_، بما في ذلك Turbo *Streams*، التي تبث تحديثات الصفحة إلى جميع المستخدمين المتصلين عبر Mercure؛
+
+    * `Live Components`_، لبناء واجهات ديناميكية دون أي JavaScript مخصص على الإطلاق.
+
+.. _`Stimulus`: https://stimulus.hotwired.dev/
+.. _`Turbo`: https://turbo.hotwired.dev/
+.. _`مبادرة Symfony UX`: https://ux.symfony.com/
+.. _`دليل Turbo`: https://turbo.hotwired.dev/handbook/introduction
+.. _`دليل Stimulus`: https://stimulus.hotwired.dev/handbook/introduction
+.. _`مستندات Symfony UX Turbo`: https://symfony.com/bundles/ux-turbo/current/index.html
+.. _`Live Components`: https://symfony.com/bundles/ux-live-component/current/index.html

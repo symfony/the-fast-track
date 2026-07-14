@@ -5,21 +5,17 @@
     single: Blackfire
     single: Profiler
 
-.. epigraph::
-
-    التحسين المبكر هو أصل كل الشرور.
+التحسين المبكر هو أصل كل الشرور.
 
 ربما كنت قد قرأت بالفعل هذا الاقتباس من قبل. لكنني أحب أن أقتبسه بالكامل:
 
-.. epigraph::
+يجب أن ننسى الكفاءات الصغيرة ، قل حوالي 97 ٪ من الوقت: التحسين المبكر هو أصل كل الشرور. ومع ذلك ، يجب ألا نفوت فرصنا في هذه النسبة البالغة 3٪.
 
-    يجب أن ننسى الكفاءات الصغيرة ، قل حوالي 97 ٪ من الوقت: التحسين المبكر هو أصل كل الشرور. ومع ذلك ، يجب ألا نفوت فرصنا في هذه النسبة البالغة 3٪.
-
-    --   Donald Knuth
+--   Donald Knuth
 
 حتى التحسينات الصغيرة في الأداء يمكن أن تحدث فرقًا ، خاصةً لمواقع التجارة الإلكترونية. الآن وقد أصبح تطبيق سجل الزوار جاهزًا للوقت الأول ، لنرى كيف يمكننا التحقق من أدائه.
 
-أفضل طريقة للعثور على تحسينات الأداء هي استخدام *منشئ ملفات التعريف*. الخيار الأكثر شيوعًا في الوقت الحاضر هو `Blackfire <https://blackfire.io>`_ (*إخلاء تام*: أنا أيضًا مؤسس مشروع Blackfire).
+أفضل طريقة للعثور على تحسينات الأداء هي استخدام *منشئ ملفات التعريف*. الخيار الأكثر شيوعًا في الوقت الحاضر هو `Blackfire`_ (*إخلاء تام*: أنا أيضًا مؤسس مشروع Blackfire).
 
 تقديم Blackfire
 --------------------
@@ -32,24 +28,31 @@
 
 * امتداد PHP (* probe* ) الذي يصوغ كود PHP.
 
-للعمل مع Blackfire ، تحتاج أولاً إلى `الإشتراك <https://blackfire.io/signup>`_.
+للعمل مع Blackfire ، تحتاج أولاً إلى `الإشتراك`_.
 
 قم بتثبيت Blackfire على جهازك المحلي عن طريق تشغيل البرنامج النصي للتثبيت السريع التالي:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ curl https://installer.blackfire.io/ | bash
+    $ curl https://installer.blackfire.io/installer.sh | bash
 
-يقوم هذا المثبت بتنزيل أداة Blackfire CLI Tool ثم يقوم بتثبيت مسبار PHP (دون تمكينه) على جميع إصدارات PHP المتوفرة.
+يقوم هذا المثبت بتنزيل أداة Blackfire CLI Tool وتثبيتها.
 
-تمكين التحقيق PHP لمشروعنا:
+عند الانتهاء، قم بتثبيت مسبار PHP على جميع إصدارات PHP المتوفرة:
+
+.. code-block:: terminal
+    :class: ignore
+
+    $ sudo blackfire php:install
+
+وقم بتمكين مسبار PHP لمشروعنا:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/php.ini
-    +++ b/php.ini
+    --- i/php.ini
+    +++ w/php.ini
     @@ -7,3 +7,7 @@ session.use_strict_mode=On
      realpath_cache_ttl=3600
      zend.detect_unicode=Off
@@ -67,16 +70,12 @@
     $ symfony server:stop
     $ symfony server:start -d
 
-يلزم تهيئة أداة Blackfire CLI باستخدام بيانات اعتمادك الشخصية **client** (لتخزين ملفات تعريف المشروع الخاصة بك تحت حسابك الشخصي). ابحث عنها أعلى صفحة ``Settings/Credentials`` `page <https://blackfire.io/my/settings/credentials>`_ وقم بتنفيذ الأمر التالي عن طريق استبدال العناصر النائبة:
+يلزم تهيئة أداة Blackfire CLI باستخدام بيانات اعتمادك الشخصية **client** (لتخزين ملفات تعريف المشروع الخاصة بك تحت حسابك الشخصي). ابحث عنها أعلى صفحة ``Settings/Credentials`` `page`_ وقم بتنفيذ الأمر التالي عن طريق استبدال العناصر النائبة:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ blackfire config --client-id=xxx --client-token=xxx
-
-.. note::
-
-    للحصول على إرشادات التثبيت الكامل ، اتبع `اتبع دليل التثبيت المفصل الرسمي <https://blackfire.io/docs/up-and-running/installation>`_. تكون مفيدة عند تثبيت Blackfire على الخادم.
+    $ blackfire client:config --client-id=xxx --client-token=xxx
 
 إعداد وكيل Blackfire على Docker
 -------------------------------------------
@@ -85,38 +84,39 @@
     single: Docker;Blackfire
     single: Blackfire;Agent
 
-الخطوة الأخيرة هي إضافة خدمة وكيل Blackfire في مكدس Docker Compose:
+لقد تم بالفعل إعداد خدمة وكيل Blackfire في مكدس Docker Compose:
 
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/docker-compose.yaml
-    +++ b/docker-compose.yaml
-    @@ -12,3 +12,8 @@ services:
-         mailer:
-             image: schickling/mailcatcher
-             ports: [1025, 1080]
-    +
-    +    blackfire:
-    +        image: blackfire/blackfire
-    +        env_file: .env.local
-    +        ports: [8707]
-
-للتواصل مع الخادم ، تحتاج إلى الحصول على بيانات اعتماد ** server** الشخصية (تحدد بيانات الاعتماد هذه المكان الذي تريد تخزين الملفات الشخصية فيه - يمكنك إنشاء واحد لكل مشروع) ؛ يمكن العثور عليها في أسفل صفحة ``Settings/Credentials ``<https://blackfire.io/my/settings/credentials> `_. قم بتخزينها في ملف `` env.local.`` محلي:
-
-.. code-block:: text
+.. code-block:: yaml
+    :caption: compose.override.yaml
     :class: ignore
 
-    BLACKFIRE_SERVER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    BLACKFIRE_SERVER_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ###> blackfireio/blackfire-symfony-meta ###
+    blackfire:
+        image: blackfire/blackfire:2
+        # uncomment to store Blackfire credentials in a local .env.local file
+        #env_file: .env.local
+        environment:
+        BLACKFIRE_LOG_LEVEL: 4
+        ports: [8307]
+    ###< blackfireio/blackfire-symfony-meta ###
+
+للتواصل مع الخادم ، تحتاج إلى الحصول على بيانات اعتماد ** server** الشخصية (تحدد بيانات الاعتماد هذه المكان الذي تريد تخزين الملفات الشخصية فيه - يمكنك إنشاء واحد لكل مشروع) ؛ يمكن العثور عليها في أسفل صفحة ``Settings/Credentials`` `page`_. قم بتخزينها كأسرار (secrets):
+
+.. code-block:: terminal
+    :class: ignore
+
+    $ symfony console secrets:set BLACKFIRE_SERVER_ID
+    # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    $ symfony console secrets:set BLACKFIRE_SERVER_TOKEN
+    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 يمكنك الآن تشغيل الحاوية الجديدة:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ docker-compose stop
-    $ docker-compose up -d
+    $ docker compose stop
+    $ docker compose up -d --remove-orphans
 
 إصلاح تثبيت Blackfire غير العامل
 ---------------------------------------------------
@@ -127,8 +127,8 @@
     :caption: patch_file
     :class: ignore
 
-    --- a/php.ini
-    +++ b/php.ini
+    --- i/php.ini
+    +++ w/php.ini
     @@ -10,3 +10,4 @@ zend.detect_unicode=Off
      [blackfire]
      # use php_blackfire.dll on Windows
@@ -161,29 +161,33 @@
 
 يتم تضمين Blackfire افتراضيًا في جميع مشاريع Upsun.
 
-قم بإعداد بيانات اعتماد * server * كمتغيرات بيئة:
+قم بإعداد بيانات اعتماد * server * كأسرار **للإنتاج**:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony var:set BLACKFIRE_SERVER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    $ symfony var:set BLACKFIRE_SERVER_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    $ symfony console secrets:set BLACKFIRE_SERVER_ID --env=prod
+    # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    $ symfony console secrets:set BLACKFIRE_SERVER_TOKEN --env=prod
+    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-وقم بتمكين مسبار PHP مثل أي امتداد PHP آخر:
+مسبار PHP مُمكَّن بالفعل مثل أي امتداد PHP آخر مطلوب:
 
-.. code-block:: diff
-    :caption: patch_file
+.. code-block:: yaml
+    :caption: .upsun/config.yaml
+    :emphasize-lines: 9
+    :class: ignore
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -4,6 +4,7 @@ type: php:8.0
-
-     runtime:
-         extensions:
-    +        - blackfire
-             - xsl
-             - pdo_pgsql
-             - apcu
+    runtime:
+        extensions:
+            - apcu
+            - blackfire
+            - ctype
+            - iconv
+            - mbstring
+            - pdo_pgsql
+            - sodium
+            - xsl
 
 إعداد Varnish ل Blackfire
 -------------------------------
@@ -205,12 +209,12 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/config.vcl
-    +++ b/.symfony/config.vcl
+    --- i/.upsun/config.vcl
+    +++ w/.upsun/config.vcl
     @@ -1,3 +1,11 @@
     +acl profile {
     +   # Authorize the local IP address (replace with the IP found above)
-    +   "a.b.c.d";
+    +   "192.168.0.1";
     +   # Authorize Blackfire servers
     +   "46.51.168.2";
     +   "54.75.240.245";
@@ -245,24 +249,15 @@
 .. index::
     single: Profiling;Web Pages
 
-يمكنك تعريف صفحات الويب التقليدية من Firefox أو Google Chrome من خلال `الإضافات المخصصة <https://blackfire.io/docs/integrations/browsers/index>`_.
+يمكنك تعريف صفحات الويب التقليدية من Firefox أو Google Chrome من خلال `الإضافات المخصصة`_.
 
-على جهازك المحلي ، لا تنسَ تعطيل ذاكرة التخزين المؤقت لـ HTTP في ``config/packages/framework.yaml`` عند التوصيف: إذا لم يكن الأمر كذلك ، فستقوم بملف تعريف طبقة ذاكرة التخزين المؤقت لـ Symfony HTTP بدلاً من الرمز الخاص بك:
-
-.. code-block:: diff
-    :caption: patch_file
-    :class: ignore
-
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -16,4 +16,4 @@ framework:
-         php_errors:
-             log: true
-
-    -    http_cache: true
-    +    #http_cache: true
+على جهازك المحلي ، لا تنسَ تعطيل ذاكرة التخزين المؤقت لـ HTTP في ``config/packages/framework.yaml`` عند التوصيف: إذا لم يكن الأمر كذلك ، فستقوم بملف تعريف طبقة ذاكرة التخزين المؤقت لـ Symfony HTTP بدلاً من الرمز الخاص بك.
 
 للحصول على صورة أفضل لأداء التطبيق الخاص بك في الإنتاج ، يجب عليك أيضًا تعريف بيئة "الإنتاج". تبعًا للإعدادات الافتراضية ، تستخدم البيئة المحلية بيئة "التطوير" ، والتي تضيف حمولة كبيرة (بشكل أساسي لجمع البيانات لشريط أدوات تصحيح الويب وملف التعريف Symfony).
+
+.. note::
+
+    بما أننا سنقوم بتوصيف بيئة "الإنتاج"، فلا يوجد ما يجب تغييره في الإعداد لأننا فعّلنا طبقة ذاكرة التخزين المؤقت لـ Symfony HTTP فقط لبيئة "التطوير" في فصل سابق.
 
 .. index::
     single: Symfony CLI;server:prod
@@ -294,21 +289,21 @@
 .. index::
     single: Profiling;API
 
-من الأفضل عمل توصيف API أو SPA على CLI عبر Blackfire CLI Tool التي قمت بتثبيتها مسبقًا:
+من الأفضل عمل توصيف API على CLI عبر Blackfire CLI Tool التي قمت بتثبيتها مسبقًا:
 
 .. code-block:: terminal
     :class: ignore
 
     $ blackfire curl `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`api
 
-يقبل أمر ``blackfire curl`` نفس الحجج والخيارات تمامًا مثل `cURL <https://curl.haxx.se/docs/manpage.html>`_.
+يقبل أمر ``blackfire curl`` نفس الحجج والخيارات تمامًا مثل `cURL`_.
 
 مقارنة الأداء
 -------------------------
 
 في الخطوة المتعلقة بـ "ذاكرة التخزين المؤقت" ، أضفنا طبقة ذاكرة التخزين المؤقت لتحسين أداء التعليمات البرمجية الخاصة بنا ، لكننا لم نتحقق من تأثير التغيير أو نقيسه. نظرًا لأننا جميعًا سيئون جدًا في تخمين ما سيكون سريعًا وما هو بطيء ، فقد ينتهي بك الأمر في موقف يجعل إجراء بعض التحسينات تطبيقك أبطأ بالفعل.
 
-يجب عليك دائمًا قياس تأثير أي تحسين تقوم به مع المحلل. يجعل Blackfire الأمر أسهل بصريًا بفضل `ميزة المقارنة <https://blackfire.io/docs/cookbooks/understanding-comparisons>`_.
+يجب عليك دائمًا قياس تأثير أي تحسين تقوم به مع المحلل. يجعل Blackfire الأمر أسهل بصريًا بفضل `ميزة المقارنة`_.
 
 كتابة الاختبارات الوظيفية للصندوق الأسود
 ----------------------------------------------------------------------------
@@ -316,7 +311,7 @@
 .. index::
     single: Blackfire;Player
 
-لقد رأينا كيفية كتابة الاختبارات الوظيفية باستخدام Symfony. يمكن استخدام Blackfire `لكتابة سيناريوهات التصفح التي يمكن تشغيلها عند الطلب عبر `Blackfire player <https://blackfire.io/player>`_. دعنا نكتب سيناريو يقدم تعليقًا جديدًا ويتحقق من صحته عبر رابط البريد الإلكتروني قيد التطوير ، وعبر المسؤول في الإنتاج.
+لقد رأينا كيفية كتابة الاختبارات الوظيفية باستخدام Symfony. يمكن استخدام Blackfire لكتابة سيناريوهات التصفح التي يمكن تشغيلها عند الطلب عبر `Blackfire player`_. دعنا نكتب سيناريو يقدم تعليقًا جديدًا ويتحقق من صحته عبر رابط البريد الإلكتروني قيد التطوير ، وعبر المسؤول في الإنتاج.
 
 قم بإنشاء ملف `` .blackfire.yaml`` بالمحتوى التالي:
 
@@ -339,10 +334,10 @@
             visit url('/fr/conference/amsterdam-2019')
                 expect status_code() == 200
             submit button("Submit")
-                param comment_form[author] 'Fabien'
-                param comment_form[email] 'me@example.com'
-                param comment_form[text] 'Such a good conference!'
-                param comment_form[photo] file(fake('image', '/tmp', 400, 300, 'cats'), 'awesome-cat.jpg')
+                param comment[author] 'Fabien'
+                param comment[email] 'me@example.com'
+                param comment[text] 'Such a good conference!'
+                param comment[photo] file(fake('simple_image', '/tmp', 400, 300, 'png', true, true), 'placeholder-image.jpg')
                 expect status_code() == 302
             follow
                 expect status_code() == 200
@@ -363,7 +358,10 @@
                         # with "old" messages which do not exist anymore
                         # in the DB (would be a 404 then)
             when env == "prod"
-                visit url('/admin/?entity=Comment&action=list')
+                visit url('/admin')
+                    expect status_code() == 302
+                follow
+                click link("Comments")
                     expect status_code() == 200
                     set comment_ids css('table.table tbody tr').extract('data-id')
                 with id in comment_ids
@@ -385,15 +383,21 @@
 قم بتشغيل هذا السيناريو في التطوير:
 
 .. code-block:: terminal
+    :class: ignore
 
-    $ ./blackfire-player.phar run --endpoint=`symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL` .blackfire.yaml --variable "webmail_url=`symfony var:export MAILER_WEB_URL 2>/dev/null`" --variable="env=dev"
+    $ ./blackfire-player.phar run --endpoint=`symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL` .blackfire.yaml --variable "webmail_url=`symfony var:export MAILER_WEB_URL 2>/dev/null`" --variable="env=dev" -vv
+
+.. code-block:: terminal
+    :class: hide
+
+    $ rm blackfire-player.phar
 
 أو في الإنتاج:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ ./blackfire-player.phar run --endpoint=`symfony env:urls --first` .blackfire.yaml --variable "webmail_url=NONE" --variable="env=prod"
+    $ ./blackfire-player.phar run --endpoint=`symfony cloud:env:url --pipe --primary` .blackfire.yaml --variable "webmail_url=NONE" --variable="env=prod" -vv
 
 يمكن لسيناريوهات Blackfire أيضًا تشغيل ملفات تعريف لكل طلب وتشغيل اختبارات الأداء عن طريق إضافة علامة ``blackfire``.
 
@@ -404,10 +408,21 @@
 
 يمكن تشغيل السيناريو المكتوب في القسم السابق تلقائيًا في سير عمل التكامل المستمر أو في الإنتاج بشكل منتظم.
 
-في Upsun ، يسمح أيضًا بـ `تشغيل السيناريوهات <https://blackfire.io/docs/integrations/paas/symfonycloud#builds-level-enterprise>`_ عندما تنشئ فرعًا جديدًا أو تنشر في الإنتاج للتحقق من الأداء من الكود الجديد تلقائيا.
+في Upsun ، يسمح أيضًا بـ `تشغيل السيناريوهات`_ عندما تنشئ فرعًا جديدًا أو تنشر في الإنتاج للتحقق من الأداء من الكود الجديد تلقائيا.
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `كتاب Blackfire: شرح أداء الكود PHP <https://blackfire.io/book>`_؛
+    * `كتاب Blackfire: شرح أداء الكود PHP`_؛
 
-    * `البرنامج التعليمي SymfonyCasts Blackfire <https://symfonycasts.com/screencast/blackfire>`_.
+    * `البرنامج التعليمي SymfonyCasts Blackfire`_.
+
+.. _`Blackfire`: https://blackfire.io
+.. _`الإشتراك`: https://blackfire.io/signup
+.. _`page`: https://blackfire.io/my/settings/credentials
+.. _`الإضافات المخصصة`: https://blackfire.io/docs/integrations/browsers/index
+.. _`cURL`: https://curl.haxx.se/docs/manpage.html
+.. _`ميزة المقارنة`: https://blackfire.io/docs/cookbooks/understanding-comparisons
+.. _`Blackfire player`: https://blackfire.io/player
+.. _`تشغيل السيناريوهات`: https://blackfire.io/docs/integrations/paas/platformsh#builds-level-enterprise
+.. _`كتاب Blackfire: شرح أداء الكود PHP`: https://blackfire.io/book
+.. _`البرنامج التعليمي SymfonyCasts Blackfire`: https://symfonycasts.com/screencast/blackfire

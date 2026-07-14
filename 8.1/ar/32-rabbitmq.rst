@@ -14,17 +14,23 @@ RabbitMQ هو وسيط رسائل شائع جدًا يمكنك استخدامه 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/messenger.yaml
-    +++ b/config/packages/messenger.yaml
-    @@ -6,7 +6,7 @@ framework:
+    --- i/config/packages/messenger.yaml
+    +++ w/config/packages/messenger.yaml
+    @@ -5,7 +5,7 @@ framework:
              transports:
                  # https://symfony.com/doc/current/messenger.html#transport-configuration
                  async:
     -                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
     +                dsn: '%env(RABBITMQ_URL)%'
-                     options:
-                         auto_setup: false
-                         use_notify: true
+                     retry_strategy:
+                         max_retries: 3
+                         multiplier: 2
+
+نحتاج أيضًا إلى إضافة دعم RabbitMQ إلى Messenger:
+
+.. code-block:: terminal
+
+    $ symfony composer req amqp-messenger
 
 إضافة RabbitMQ إلى Docker Stack
 ---------------------------------------
@@ -37,16 +43,19 @@ RabbitMQ هو وسيط رسائل شائع جدًا يمكنك استخدامه 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/docker-compose.yaml
-    +++ b/docker-compose.yaml
-    @@ -21,3 +21,7 @@ services:
-         redis:
-             image: redis:5-alpine
-             ports: [6379]
+    --- i/compose.yaml
+    +++ w/compose.yaml
+    @@ -18,6 +18,10 @@ services:
+         image: redis:8.0-alpine
+         ports: [6379]
+
+    +  rabbitmq:
+    +    image: rabbitmq:4.2-management
+    +    ports: [5672, 15672]
     +
-    +    rabbitmq:
-    +        image: rabbitmq:3.7-management
-    +        ports: [5672, 15672]
+     volumes:
+     ###> doctrine/doctrine-bundle ###
+       database_data:
 
 إعادة تشغيل خدمات Docker
 ---------------------------------------
@@ -55,8 +64,8 @@ RabbitMQ هو وسيط رسائل شائع جدًا يمكنك استخدامه 
 
 .. code-block:: terminal
 
-    $ docker-compose stop
-    $ docker-compose up -d
+    $ docker compose stop
+    $ docker compose up -d --remove-orphans
 
 .. code-block:: terminal
     :class: hide
@@ -102,46 +111,46 @@ RabbitMQ هو وسيط رسائل شائع جدًا يمكنك استخدامه 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/services.yaml
-    +++ b/.symfony/services.yaml
-    @@ -18,3 +18,8 @@ files:
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -25,4 +25,8 @@ services:
+             rediscache:
+                 type: redis:8.0
 
-     rediscache:
-         type: redis:5.0
+    +    queue:
+    +        type: rabbitmq:4.2
+    +        size: S
     +
-    +queue:
-    +    type: rabbitmq:3.7
-    +    disk: 1024
-    +    size: S
+     applications:
 
 قم بالرجوع إليها في تكوين حاوية الويب أيضًا وقم بتمكين ``amqp`` امتداد PHP :
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -4,6 +4,7 @@ type: php:8.0
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -39,6 +39,7 @@ applications:
 
-     runtime:
-         extensions:
-    +        - amqp
-             - redis
-             - blackfire
-             - xsl
-    @@ -28,6 +29,7 @@ disk: 512
-     relationships:
-         database: "db:postgresql"
-         redis: "rediscache:redis"
-    +    rabbitmq: "queue:rabbitmq"
+             runtime:
+                 extensions:
+    +                - amqp
+                     - apcu
+                     - blackfire
+                     - ctype
+    @@ -72,5 +73,6 @@ applications:
+             relationships:
+                 database: "database:postgresql"
+                 redis: "rediscache:redis"
+    +            rabbitmq: "queue:rabbitmq"
 
-     web:
-         locations:
+             hooks:
+                 build: |
 
 .. index::
     single: Upsun;Tunnel
-    single: Symfony CLI;tunnel:open
-    single: Symfony CLI;tunnel:close
+    single: Symfony CLI;cloud:tunnel:open
+    single: Symfony CLI;cloud:tunnel:close
     single: Symfony CLI;open:remote:rabbitmq
 
 عندما يتم تثبيت خدمة RabbitMQ على مشروع ، يمكنك الوصول إلى واجهة إدارة الويب الخاصة به عن طريق فتح النفق أولاً:
@@ -149,12 +158,14 @@ RabbitMQ هو وسيط رسائل شائع جدًا يمكنك استخدامه 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:open
+    $ symfony cloud:tunnel:open
     $ symfony open:remote:rabbitmq
 
     # when done
-    $ symfony tunnel:close
+    $ symfony cloud:tunnel:close
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `RabbitMQ docs <https://www.rabbitmq.com/documentation.html>`_.
+    * `RabbitMQ docs`_.
+
+.. _`RabbitMQ docs`: https://www.rabbitmq.com/documentation.html

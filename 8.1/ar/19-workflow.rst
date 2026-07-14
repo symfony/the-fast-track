@@ -75,18 +75,16 @@
 .. index::
     single: Command;workflow:dump
 
-للتحقق من سير العمل، قم بإنشاء تقرير مرئي:
+للتحقق من سير العمل، قم بإنشاء تقرير مرئي بصيغة Mermaid:
 
 .. code-block:: terminal
 
     $ symfony console workflow:dump comment --dump-format=mermaid
 
+الصق المخرجات في `Mermaid Live Editor`_ لعرضها؛ كما يعرض GitHub و GitLab مخططات Mermaid مباشرة داخل ملفات Markdown:
+
 .. image:: images/workflow.png
     :align: center
-
-.. note::
-
-    يعتبر امر ال ``dot`` جزء من خدمة ال `Graphviz`_.
 
 إستخدام مسار العمل
 ----------------------------------
@@ -226,8 +224,10 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `مسارات العمل وحالات الآلات <https://symfony.com/doc/current/workflow/workflow-and-state-machine.html>`_ ومتي تختار كل واحدة
+    * `مسارات العمل وحالات الآلات`_ ومتي تختار كل واحدة
 
-    * `مراجع مسارات العملي في سيمفوني <https://symfony.com/doc/current/workflow.html>`_.
+    * `مراجع مسارات العملي في سيمفوني`_.
 
-.. _`Graphviz`: https://www.graphviz.org/
+.. _`Mermaid Live Editor`: https://mermaid.live/
+.. _`مسارات العمل وحالات الآلات`: https://symfony.com/doc/current/workflow/workflow-and-state-machine.html
+.. _`مراجع مسارات العملي في سيمفوني`: https://symfony.com/doc/current/workflow.html

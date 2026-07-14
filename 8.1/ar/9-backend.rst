@@ -10,29 +10,42 @@
 
 كيف يمكننا بداية العمل بسرعة ؟ باستعمال أدوات لإنشاء قاعدة الإشراف الخلفية، EasyAdmin يمكننا من القيام بهذه العملية بطريقة جيدة جدا.
 
+تثبيت المزيد من التبعيات
+-------------------------------------------------
+
+رغم أن حزمة ``webapp`` أضافت تلقائيًا العديد من الحزم اللطيفة، إلا أننا نحتاج لبعض الميزات الأكثر تحديدًا إلى إضافة المزيد من التبعيات. كيف نضيف المزيد من التبعيات؟ عن طريق مؤلف Composer. بالاضافة الي حزمة كومبوزر Composer "الاساسية" ("regular")، سوف نقوم بالعمل مع نوعين "خاصين" من الحزم:
+
+* *مكونات سيمفوني*: الحزم التي تنفذ الصفات الاساسية وعمليات منخفضة المستوي الي تحتاجها معظم البرامج (routing, console, HTTP client, mailer, cache, ...)؛
+
+* *رزم سيمفوني*: حزم تقوم بإضافة مميزات عالية المستوي أو توفير التكامل مع المكتبات الخارجية (رزم يتم مشاركتها في الغالب بواسطة المجتمع).
+
+دعنا نضيف EasyAdmin كتبعية للمشروع:
+
+.. code-block:: terminal
+
+    $ symfony composer req "easycorp/easyadmin-bundle:^5"
+
+*الاسماء المستعارة (Aliases)* لا تعتبر خاصية كمبوزر، ولكن الفكرة مقدمة بواسطة سيمفوني لجعل حياتك أسهل. الاسماء المستعارة هي اختصارات للحزم الشائعة في كموزر. تريد ORM للتطبيق الخاص بك؟ إستدعي ``orm``. تريد ان تقوم ببناء API؟ أستدعي ``api``. يتم حل هذه الاسماء المستعارة بشكل تلقائي لواحدة او اكثر من حزم كمبوزر. إنها اختيارات مُقررة بواسطة فريق سيمفوني الاساسي.
+
+ومن المميزات الانيقة الاخري انه يمكنك حزف مورد ``سيمفوني`` (``symfony`` vendor). إستدعي ``cache`` بدلاً من ``symfony/cache``.
+
+.. tip::
+
+    هل تتذكر بأننا قمنا بذكر مكون إضافي في composer يسمي ``symfony/flex``؟ الاسماء المستعارة واحدة من مميزاتها.
+
 تهيئة EasyAdmin
 --------------------
 
-أولاً، أضف EasyAdmin للمشروع:
+يقوم EasyAdmin تلقائيًا بإنشاء منطقة إدارة لتطبيقك بناءً على وحدات تحكم محددة.
 
-.. code-block:: terminal
-
-    $ symfony composer req "admin:^3"
-
-يقوم EasyAdmin تلقائيًا بإنشاء منطقة إدارة لتطبيقك بناءً على وحدات تحكم محددة. إنشاء ملف ``src/Controller/Admin/`` الدليل حيث سنخزن وحدات التحكم هذه:
-
-.. code-block:: terminal
-
-    $ mkdir src/Controller/Admin/
-
-تحتوي جميع الحزم المثبتة على تهيئة مثل هذه الموجودة ضمن دليل ``config/package/``. في معظم الأوقات ، تم اختيار الإعدادات الافتراضية بعناية للعمل مع معظم التطبيقات.
+للبدء مع EasyAdmin، دعنا نولّد "لوحة تحكم إدارة الويب" التي ستكون نقطة الدخول الرئيسية لإدارة بيانات الموقع:
 
 .. code-block:: terminal
     :class: answers(DashboardController||src/Controller/Admin/)
 
     $ symfony console make:admin:dashboard
 
-قم بإزالة التعليق من الأسطر الأولى، و أضف  فئات نموذج المشروع (classes)
+قبول الإجابات الافتراضية يُنشئ وحدة التحكم التالية:
 
 .. code-block:: php
     :caption: src/Controller/Admin/DashboardController.php
@@ -40,17 +53,15 @@
 
     namespace App\Controller\Admin;
 
+    use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
     use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
     use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
     use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
     use Symfony\Component\HttpFoundation\Response;
-    use Symfony\Component\Routing\Annotation\Route;
 
+    #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
     class DashboardController extends AbstractDashboardController
     {
-        /**
-         * @Route("/admin", name="admin")
-         */
         public function index(): Response
         {
             return parent::index();
@@ -64,14 +75,14 @@
 
         public function configureMenuItems(): iterable
         {
-            yield MenuItem::linktoDashboard('Dashboard', 'fa fa-home');
-            // yield MenuItem::linkToCrud('The Label', 'icon class', EntityClass::class);
+            yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
+            // yield MenuItem::linkTo(SomeCrudController::class, 'The Label', 'fas fa-list');
         }
     }
 
 حسب الاصطلاح ، يتم تخزين جميع وحدات التحكم الإدارية ضمن مساحة الاسم الخاصة بها  ``App\Controller\Admin``
 
-قم بالوصول الي خلفية المسؤول التي تم إنشائها في `` /admin``. بووم! واجهة إدارة لطيفة وغنية بالميزات للمؤتمرات والتعليقات:
+قم بالوصول الي خلفية المسؤول التي تم إنشائها في `` /admin`` كما هو مُهيأ بواسطة السمة ``#[AdminDashboard]``؛ يمكنك تغيير الرابط إلى أي شيء تريده:
 
 .. figure:: screenshots/easy-admin-empty.png
     :alt: /admin
@@ -85,7 +96,7 @@
 
 الخطوة التالية هي إنشاء وحدات تحكم لإدارة المؤتمرات والتعليقات.
 
-في وحدة التحكم في لوحة القيادة ، ربما تكون قد لاحظت طريقة ``configMenuItems ()`` التي تحتوي على تعليق حول إضافة روابط إلى"CRUD** ."CRUDs** هي اختصار لعبارة "إنشاء وقراءة وتحديث وحذف" ، العمليات الأساسية الأربع التي تريد القيام بها على أي كيان. هذا هو بالضبط ما نريد أن يقوم به المسؤول لنا ؛ حتى أن EasyAdmin ينتقل إلى المستوى التالي من خلال الاهتمام أيضًا بالبحث والتصفية.
+في وحدة التحكم في لوحة القيادة ، ربما تكون قد لاحظت طريقة ``configureMenuItems()`` التي تحتوي على تعليق حول إضافة روابط إلى "CRUDs". **CRUD** هي اختصار لعبارة "إنشاء وقراءة وتحديث وحذف" ، العمليات الأساسية الأربع التي تريد القيام بها على أي كيان. هذا هو بالضبط ما نريد أن يقوم به المسؤول لنا ؛ حتى أن EasyAdmin ينتقل إلى المستوى التالي من خلال الاهتمام أيضًا بالبحث والتصفية.
 
 دعونا ننشئ CRUD للمؤتمرات:
 
@@ -136,95 +147,66 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/Admin/DashboardController.php
-    +++ b/src/Controller/Admin/DashboardController.php
-    @@ -2,6 +2,8 @@
-
-     namespace App\Controller\Admin;
-
-    +use App\Entity\Comment;
-    +use App\Entity\Conference;
-     use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
-     use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
-     use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
-    @@ -26,7 +28,8 @@ class DashboardController extends AbstractDashboardController
+    --- i/src/Controller/Admin/DashboardController.php
+    +++ w/src/Controller/Admin/DashboardController.php
+    @@ -44,7 +44,8 @@ class DashboardController extends AbstractDashboardController
 
          public function configureMenuItems(): iterable
          {
-    -        yield MenuItem::linktoDashboard('Dashboard', 'fa fa-home');
-    -        // yield MenuItem::linkToCrud('The Label', 'fas fa-list', EntityClass::class);
-    +        yield MenuItem::linktoRoute('Back to the website', 'fas fa-home', 'homepage');
-    +        yield MenuItem::linkToCrud('Conferences', 'fas fa-map-marker-alt', Conference::class);
-    +        yield MenuItem::linkToCrud('Comments', 'fas fa-comments', Comment::class);
+    -        yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
+    -        // yield MenuItem::linkTo(SomeCrudController::class, 'The Label', 'fas fa-list');
+    +        yield MenuItem::linkToRoute('Back to the website', 'fas fa-home', 'homepage');
+    +        yield MenuItem::linkTo(ConferenceCrudController::class, 'Conferences', 'fas fa-map-marker-alt');
+    +        yield MenuItem::linkTo(CommentCrudController::class, 'Comments', 'fas fa-comments');
          }
      }
 
-لقد تجاوزنا طريقة ``configMenuItems ()`` لإضافة عناصر القائمة مع الرموز ذات الصلة بالمؤتمرات وأيقونات التعليقات ولإضافة ارتباط إلى الصفحة الرئيسية للموقع.
+لقد تجاوزنا طريقة ``configureMenuItems()`` لإضافة عناصر القائمة مع الرموز ذات الصلة بالمؤتمرات وأيقونات التعليقات ولإضافة ارتباط إلى الصفحة الرئيسية للموقع. تعيش فئتا ``ConferenceCrudController`` و ``CommentCrudController`` في نفس مساحة الاسم ``App\Controller\Admin`` مثل لوحة القيادة، لذا لا تحتاجان إلى عبارات ``use`` إضافية.
 
-يعرض EasyAdmin واجهة برمجة تطبيقات لتسهيل الارتباط بالكيان CRUDS عبر طريقة ``MenuItem::linkToRoute ()``.
+يعرض EasyAdmin واجهة برمجة تطبيقات لتسهيل الارتباط بالكيان CRUDS عبر طريقة ``MenuItem::linkTo()`` التي تأخذ فئة وحدة تحكم CRUD.
 
 الصفحة الرئيسية للوحة القيادة فارغة في الوقت الحالي. هذا هو المكان الذي يمكنك فيه عرض بعض الإحصائيات أو أي معلومات ذات صلة. نظرًا لأنه ليس لدينا أي شيء مهم لعرضه ، فلنقم بإعادة التوجيه إلى قائمة المؤتمرات:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/Admin/DashboardController.php
-    +++ b/src/Controller/Admin/DashboardController.php
-    @@ -7,6 +7,7 @@ use App\Entity\Conference;
+    --- i/src/Controller/Admin/DashboardController.php
+    +++ w/src/Controller/Admin/DashboardController.php
+    @@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
      use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
      use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
      use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
     +use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
 
-    @@ -17,7 +18,10 @@ class DashboardController extends AbstractDashboardController
-          */
+     #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
+    @@ -15,7 +16,10 @@ class DashboardController extends AbstractDashboardController
+     {
          public function index(): Response
          {
     -        return parent::index();
-    +        $routeBuilder = $this->get(AdminUrlGenerator::class);
+    +        $routeBuilder = $this->container->get(AdminUrlGenerator::class);
     +        $url = $routeBuilder->setController(ConferenceCrudController::class)->generateUrl();
     +
     +        return $this->redirect($url);
-         }
 
-         public function configureDashboard(): Dashboard
+             // Option 1. You can make your dashboard redirect to some common page of your backend
+             //
 
 عند عرض علاقات الكيانات (المؤتمر المرتبط بتعليق) ، يحاول EasyAdmin استخدام تمثيل سلسلة للمؤتمر. بشكل افتراضي ، يستخدم اصطلاحًا يستخدم اسم الكيان والمفتاح الأساسي ( مثل ``Conference #1``) إذا لم يحدد الكيان "magic" طريقة ``__toString()`` . لجعل العرض أكثر وضوحًا ، أضف هذه الطريقة إلى فئة ``Conference``:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
-    @@ -44,6 +44,11 @@ class Conference
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
+    @@ -35,6 +35,11 @@ class Conference
              $this->comments = new ArrayCollection();
          }
 
     +    public function __toString(): string
     +    {
     +        return $this->city.' '.$this->year;
-    +    }
-    +
-         public function getId(): ?int
-         {
-             return $this->id;
-
-قم بنفس الشيء للنموذج ``Comment``:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -48,6 +48,11 @@ class Comment
-          */
-         private $photoFilename;
-
-    +    public function __toString(): string
-    +    {
-    +        return (string) $this->getEmail();
     +    }
     +
          public function getId(): ?int
@@ -238,24 +220,17 @@
     :align: center
     :figclass: with-browser
 
-أضف بعض التعليقات بدون صور. قم بوضع التاريخ يدوياً في الوقت الحالي؛ سوف نقوم بملئ خلية الـ ``createdAt`` تلقائياً في خطوة مُتقدمة.
-
-.. figure:: screenshots/easy-admin-comments.png
-    :alt: /admin?crudAction=index&crudId=2bfa220&menuIndex=2&submenuIndex=-1
-    :align: center
-    :figclass: with-browser
-
 تخصيص EasyAdmin
 --------------------
 
-تعمل الواجهة الخلفية الافتراضية للمشرف بشكل جيد ، ولكن يمكن تخصيصها بعدة طرق لتحسين التجربة. دعونا نقوم ببعض التغييرات البسيطة لتوضيح بعض الاحتمالات:
+تعمل الواجهة الخلفية الافتراضية للمشرف بشكل جيد ، ولكن يمكن تخصيصها بعدة طرق لتحسين التجربة. دعونا نقوم ببعض التغييرات البسيطة على كيان Comment لتوضيح بعض الاحتمالات:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/Admin/CommentCrudController.php
-    +++ b/src/Controller/Admin/CommentCrudController.php
-    @@ -3,7 +3,15 @@
+    --- i/src/Controller/Admin/CommentCrudController.php
+    +++ w/src/Controller/Admin/CommentCrudController.php
+    @@ -3,10 +3,17 @@
      namespace App\Controller\Admin;
 
      use App\Entity\Comment;
@@ -265,13 +240,15 @@
     +use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
     +use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
     +use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
     +use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
-    +use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
     +use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
      class CommentCrudController extends AbstractCrudController
      {
-    @@ -12,14 +20,44 @@ class CommentCrudController extends AbstractCrudController
+    @@ -15,14 +22,43 @@ class CommentCrudController extends AbstractCrudController
              return Comment::class;
          }
 
@@ -282,7 +259,7 @@
     +            ->setEntityLabelInSingular('Conference Comment')
     +            ->setEntityLabelInPlural('Conference Comments')
     +            ->setSearchFields(['author', 'text', 'email'])
-    +            ->setDefaultSort(['createdAt' => 'DESC']);
+    +            ->setDefaultSort(['createdAt' => 'DESC'])
     +        ;
     +    }
     +
@@ -311,7 +288,6 @@
     +        ;
     +
     +        $createdAt = DateTimeField::new('createdAt')->setFormTypeOptions([
-    +            'html5' => true,
     +            'years' => range(date('Y'), date('Y') + 5),
     +            'widget' => 'single_text',
     +        ]);
@@ -324,9 +300,16 @@
     -    */
      }
 
-لتخصيص قسم ``Comment`` ، يتيح لنا إدراج الحقول بشكل صريح في طريقة ```configureFields()`` ترتيبها بالطريقة التي نريدها. يتم تكوين بعض الحقول بشكل أكبر ، مثل إخفاء حقل النص في صفحة الفهرس.
+لتخصيص قسم ``Comment`` ، يتيح لنا إدراج الحقول بشكل صريح في طريقة ``configureFields()`` ترتيبها بالطريقة التي نريدها. يتم تكوين بعض الحقول بشكل أكبر ، مثل إخفاء حقل النص في صفحة الفهرس.
 
-تحدد طرق ``configFilters ()`` المرشحات التي يجب عرضها أعلى حقل البحث.
+أضف بعض التعليقات بدون صور. قم بوضع التاريخ يدوياً في الوقت الحالي؛ سوف نقوم بملئ خلية الـ ``createdAt`` تلقائياً في خطوة مُتقدمة.
+
+.. figure:: screenshots/easy-admin-comments.png
+    :alt: /admin?crudAction=index&crudId=2bfa220&menuIndex=2&submenuIndex=-1
+    :align: center
+    :figclass: with-browser
+
+تحدد طريقة ``configureFilters()`` المرشحات التي يجب عرضها أعلى حقل البحث.
 
 .. figure:: screenshots/easy-admin-filter.png
     :alt: /admin?crudAction=index&crudId=2bfa220&menuIndex=2&submenuIndex=-1
@@ -340,12 +323,16 @@
 .. code-block:: terminal
     :class: hide
 
-    $ symfony run psql -c "TRUNCATE conference RESTART IDENTITY CASCADE"
+    $ symfony console dbal:run-sql "TRUNCATE conference RESTART IDENTITY CASCADE"
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `EasyAdmin توثيق <https://symfony.com/doc/3.x/bundles/EasyAdminBundle/index.html>`_؛
+    * `EasyAdmin توثيق`_؛
 
-    * `Symfony framework مرجع الإعدادات <https://symfony.com/doc/current/reference/configuration/framework.html>`_;
+    * `Symfony framework مرجع الإعدادات`_؛
 
-    * `طرق PHP السحرية <https://www.php.net/manual/en/language.oop5.magic.php>`_.
+    * `طرق PHP السحرية`_.
+
+.. _`EasyAdmin توثيق`: https://symfony.com/bundles/EasyAdminBundle/4.x/index.html
+.. _`Symfony framework مرجع الإعدادات`: https://symfony.com/doc/current/reference/configuration/framework.html
+.. _`طرق PHP السحرية`: https://www.php.net/manual/en/language.oop5.magic.php

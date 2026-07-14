@@ -16,30 +16,45 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 .. index::
     single: Docker;PostgreSQL
 
-على الجهاز المحلي لدينا ، قررنا استخدام Docker لإدارة الخدمات. قم بإنشاء ملف ``docker-compose.yaml`` وإضافة PostgreSQL كخدمة:
+على الجهاز المحلي لدينا ، قررنا استخدام Docker لإدارة الخدمات. يحتوي ملف ``compose.yaml`` المُولّد بالفعل على PostgreSQL كخدمة:
 
 .. code-block:: yaml
-    :caption: docker-compose.yaml
-    :emphasize-lines: 4,5,10
+    :caption: compose.yaml
+    :emphasize-lines: 2,3
+    :class: ignore
 
-    version: '3'
-
-    services:
-        database:
-            image: postgres:13-alpine
-            environment:
-                POSTGRES_USER: main
-                POSTGRES_PASSWORD: main
-                POSTGRES_DB: main
-            ports: [5432]
+    ###> doctrine/doctrine-bundle ###
+    database:
+        image: postgres:${POSTGRES_VERSION:-16}-alpine
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB:-app}
+            # You should definitely change the password in production
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe}
+            POSTGRES_USER: ${POSTGRES_USER:-app}
+    volumes:
+        - db-data:/var/lib/postgresql/data:rw
+        # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+        # - ./docker/db/data:/var/lib/postgresql/data:rw
+    ###< doctrine/doctrine-bundle ###
 
 سيؤدي هذا إلى تثبيت خادم PostgreSQL وتكوين بعض متغيرات البيئة التي تتحكم في اسم قاعدة البيانات وبيانات الاعتماد. القيم لا تهم حقا.
 
-نكشف أيضًا منفذ PostgreSQL (`` 5432``) من الحاوية container إلى المضيف المحلي. سيساعدنا ذلك في الوصول إلى قاعدة البيانات من الجهاز الخاص بنا.
+نكشف أيضًا منفذ PostgreSQL (`` 5432``) من الحاوية container إلى المضيف المحلي. سيساعدنا ذلك في الوصول إلى قاعدة البيانات من الجهاز الخاص بنا:
+
+.. code-block:: yaml
+    :caption: compose.override.yaml
+    :emphasize-lines: 4
+    :class: ignore
+
+    ###> doctrine/doctrine-bundle ###
+    database:
+        ports:
+        - "5432"
+    ###< doctrine/doctrine-bundle ###
 
 .. note::
 
-    يجب أن يكون قد تم تثبيت ملحق `pdo_pgsql`` عندما تم إعداد PHP في خطوة سابقة.
+    يجب أن يكون قد تم تثبيت ملحق ``pdo_pgsql`` عندما تم إعداد PHP في خطوة سابقة.
 
 بدء Docker Compose
 ---------------------
@@ -47,15 +62,20 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 بدء Docker Compose في الخلفية (`` -d``):
 
 .. code-block:: terminal
+    :class: hide
 
-    $ docker-compose up -d
+    $ docker compose down --remove-orphans
+
+.. code-block:: terminal
+
+    $ docker compose up -d --remove-orphans
 
 انتظر قليلاً للسماح بتشغيل قاعدة البيانات والتحقق من أن كل شيء يسير على ما يرام:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ docker-compose ps
+    $ docker compose ps
 
             Name                      Command              State            Ports
     ---------------------------------------------------------------------------------------
@@ -66,12 +86,12 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 .. code-block:: terminal
     :class: ignore
 
-    $ docker-compose logs
+    $ docker compose logs
 
 الوصول إلى قاعدة البيانات المحلية
 --------------------------------------------------------------
 
-قد يكون استخدام الأداة المساعدة لسطر الأوامر ``psql`` مفيدًا من وقت لآخر. ولكن عليك أن تتذكر بيانات الاعتماد واسم قاعدة البيانات. أقل وضوحا ، تحتاج أيضا إلى معرفة المنفذ المحلي الذي تديره قاعدة البيانات على المضيف. يختار Docker منفذًا عشوائيًا حتى تتمكن من العمل على أكثر من مشروع باستخدام  PostgreSQL في نفس الوقت (المنفذ المحلي هو جزء من مخرجات ``docker-compose ps``).
+قد يكون استخدام الأداة المساعدة لسطر الأوامر ``psql`` مفيدًا من وقت لآخر. ولكن عليك أن تتذكر بيانات الاعتماد واسم قاعدة البيانات. أقل وضوحا ، تحتاج أيضا إلى معرفة المنفذ المحلي الذي تديره قاعدة البيانات على المضيف. يختار Docker منفذًا عشوائيًا حتى تتمكن من العمل على أكثر من مشروع باستخدام  PostgreSQL في نفس الوقت (المنفذ المحلي هو جزء من مخرجات ``docker compose ps``).
 
 إذا قمت بتشغيل ``psql`` عبر Symfony CLI ، فلن تحتاج إلى تذكر أي شيء.
 
@@ -89,12 +109,12 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 
 .. note::
 
-    إذا لم يكن لديك مشغل ``psql`` الثنائي على مضيفك المحلي ، يمكنك أيضًا تشغيله عبر ``docker-compose``:
+    إذا لم يكن لديك مشغل ``psql`` الثنائي على مضيفك المحلي ، يمكنك أيضًا تشغيله عبر ``docker compose``:
 
     .. code-block:: terminal
         :class: ignore
 
-        $ docker-compose exec database psql main
+        $ docker compose exec database psql app app
 
 فحص واستعادة بيانات قاعدة البيانات
 ----------------------------------------------------------------
@@ -118,84 +138,45 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 
     $ symfony run psql < dump.sql
 
-.. warning::
-
-    لا تتصل أبدًا بـ ``docker-compose down`` إذا كنت لا تريد أن تفقد البيانات. أو النسخ الاحتياطي أولاً.
-
 إضافة PostgreSQL إلى Upsun
 -----------------------------------------
 
 .. index::
     single: Upsun;PostgreSQL
 
-بالنسبة للبنية التحتية للإنتاج على Upsun ، يجب إضافة خدمة مثل PostgreSQL في ملف ``.symfony/services.yaml`` الفارغ حاليا:
+بالنسبة للبنية التحتية للإنتاج على Upsun ، يجب إضافة خدمة مثل PostgreSQL في ملف ``.upsun/config.yaml`` ، وهو ما تم بالفعل عبر وصفة حزمة ``webapp``:
 
 .. code-block:: yaml
-    :caption: .symfony/services.yaml
+    :caption: .upsun/config.yaml
+    :class: ignore
 
-    db:
-        type: postgresql:13
-        disk: 1024
-        size: S
+    database:
+        type: postgresql:16
 
-خدمة ``db`` هي قاعدة بيانات PostgreSQL (نفس الشيء بالنسبة لـ Docker) التي نريد توفيرها في حاوية صغيرة بسعة 1 جيجابايت من القرص.
+خدمة ``database`` هي قاعدة بيانات PostgreSQL (نفس النسخة المستخدمة في Docker). يخصص Upsun قرصها تلقائيًا عند أول نشر؛ عدّله لاحقًا باستخدام ``symfony cloud:resources:set`` إذا لزم الأمر.
 
-نحتاج أيضًا إلى "ربط" قاعدة البيانات بحاوية التطبيق الموضحة في ``.symfony.cloud.yaml``:
+نحتاج أيضًا إلى "ربط" قاعدة البيانات بحاوية التطبيق الموضحة في ``.upsun/config.yaml``:
 
 .. code-block:: yaml
-    :caption: .symfony.cloud.yaml
+    :caption: .upsun/config.yaml
     :class: ignore
 
     relationships:
-        database: "db:postgresql"
+        database: "database:postgresql"
 
-تتم الإشارة إلى خدمة ``db`` من النوع ``postgresql`` على أنها ``database`` في حاوية التطبيق.
+تتم الإشارة إلى خدمة ``database`` من النوع ``postgresql`` على أنها ``database`` في حاوية التطبيق.
 
-الخطوة الأخيرة هي إضافة ملحق ``pdo_pgsql`` إلى وقت تشغيل PHP:
+تحقق من أن ملحق ``pdo_pgsql`` مثبّت بالفعل لوقت تشغيل PHP:
 
 .. code-block:: yaml
-    :caption: .symfony.cloud.yaml
+    :caption: .upsun/config.yaml
     :class: ignore
 
     runtime:
         extensions:
+            # other extensions
             - pdo_pgsql
-            # other extensions here
-
-ها هو الفرق الكامل لتغييرات ``.symfony.cloud.yaml``:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -4,6 +4,7 @@ type: php:8.0
-
-     runtime:
-         extensions:
-    +        - pdo_pgsql
-             - apcu
-             - mbstring
-             - sodium
-    @@ -21,6 +22,9 @@ build:
-
-     disk: 512
-
-    +relationships:
-    +    database: "db:postgresql"
-    +
-     web:
-         locations:
-             "/":
-
-قم بتنفيذ هذه التغييرات ثم أعد النشر إلى Upsun:
-
-.. code-block:: terminal
-    :class: ignore
-
-    $ git add .
-    $ git commit -m'Configuring the database'
-    $ symfony deploy
+            # other extensions
 
 الوصول إلى قاعدة بيانات Upsun
 --------------------------------------------------------
@@ -206,8 +187,9 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 
 .. index::
     single: Upsun;Tunnel
-    single: Symfony CLI;tunnel:open
-    single: Symfony CLI;tunnel:close
+    single: Symfony CLI;cloud:tunnel:open
+    single: Symfony CLI;cloud:tunnel:close
+    single: Symfony CLI;var:expose-from-tunnel
     single: Symfony CLI;run psql
 
 إذا كنت ترغب في الاتصال بـ PostgreSQL المستضافة على حاويات الإنتاج ، يمكنك فتح نفق SSH بين الجهاز المحلي والبنية الأساسية لــ Upsun:
@@ -215,9 +197,10 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:open --expose-env-vars
+    $ symfony cloud:tunnel:open
+    $ symfony var:expose-from-tunnel
 
-بشكل افتراضي ، لا يتم كشف خدمات Upsun كمتغيرات بيئة على الجهاز المحلي. يجب عليك القيام بذلك بشكل صريح باستخدام علامة ``--expose-env-vars``. لماذا ؟ الاتصال بقاعدة بيانات الإنتاج عملية خطيرة. يمكنك العبث مع بيانات *حقيقية*. الزامية طلب العلامة هو ما يؤكد أن هذا *بالفعل* ما تريد القيام به.
+بشكل افتراضي ، لا يتم كشف خدمات Upsun كمتغيرات بيئة على الجهاز المحلي. يجب عليك القيام بذلك بشكل صريح بتشغيل أمر ``var:expose-from-tunnel``. لماذا ؟ الاتصال بقاعدة بيانات الإنتاج عملية خطيرة. يمكنك العبث مع بيانات *حقيقية*.
 
 الآن ، قم بالاتصال بقاعدة بيانات PostgreSQL عن بعد من خلال ``symfony run psql`` كما كان من قبل:
 
@@ -231,7 +214,7 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:close
+    $ symfony cloud:tunnel:close
 
 .. tip::
 
@@ -255,33 +238,39 @@ PostgreSQL هو محرك قاعدة البيانات الذي سنستعمل.
 
     PGHOST=127.0.0.1
     PGPORT=32781
-    PGDATABASE=main
-    PGUSER=main
-    PGPASSWORD=main
+    PGDATABASE=app
+    PGUSER=app
+    PGPASSWORD=!ChangeMe!
     # ...
 
 تتم قراءة متغيرات البيئة ``PG*`` بواسطة الأداة المساعدة ``psql``. ماذا عن الآخرين؟
 
-عندما يكون النفق مفتوحًا لـ Upsun مع مجموعة العلامة ``--expose-env-vars``، فإن الأمر ``var:export`` يُرجع متغيرات البيئة البعيدة:
+عندما يكون النفق مفتوحًا لـ Upsun مع ``var:expose-from-tunnel``، فإن الأمر ``var:export`` يُرجع متغيرات البيئة البعيدة:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony tunnel:open --expose-env-vars
+    $ symfony cloud:tunnel:open
+    $ symfony var:expose-from-tunnel
     $ symfony var:export
-    $ symfony tunnel:close
+    $ symfony cloud:tunnel:close
 
 وصف البنية التحتية الخاصة بك
 ----------------------------------------------------
 
-ربما لم تكن قد أدركت ذلك حتى الآن ، لكن تخزين البنية التحتية في ملفات بجانب الكود يساعد كثيرًا.Docker و Upsun يستخدمان ملفات التكوين لوصف البنية التحتية للمشروع. عندما تحتاج ميزة جديدة إلى خدمة إضافية ، فإن التغييرات البرمجية وتغييرات البنية التحتية هي جزء من نفس التصحيح.
+ربما لم تكن قد أدركت ذلك حتى الآن ، لكن تخزين البنية التحتية في ملفات بجانب الكود يساعد كثيرًا. Docker و Upsun يستخدمان ملفات التكوين لوصف البنية التحتية للمشروع. عندما تحتاج ميزة جديدة إلى خدمة إضافية ، فإن التغييرات البرمجية وتغييرات البنية التحتية هي جزء من نفس التصحيح.
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `خدمات Upsun <https://symfony.com/doc/master/cloud/services/intro.html#available-services>`_؛
+    * `خدمات Upsun`_؛
 
-    * `tunnel  Upsun  <https://symfony.com/doc/current/cloud/services/intro.html#connecting-to-a-service>`_؛
+    * `نفق Upsun`_؛
 
-    * `PostgreSQL وثائق دعم <https://www.postgresql.org/docs/>`_؛
+    * `PostgreSQL وثائق دعم`_؛
 
-    * `أوامر docker-compose <https://docs.docker.com/compose/reference/>`_.
+    * `أوامر Docker Compose`_.
+
+.. _`خدمات Upsun`: https://symfony.com/doc/current/cloud/services/intro.html#available-services
+.. _`نفق Upsun`: https://symfony.com/doc/current/cloud/services/intro.html#connecting-to-a-service
+.. _`PostgreSQL وثائق دعم`: https://www.postgresql.org/docs/
+.. _`أوامر Docker Compose`: https://docs.docker.com/reference/cli/docker/compose/

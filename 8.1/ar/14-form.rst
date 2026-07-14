@@ -17,13 +17,13 @@
 
 .. code-block:: terminal
 
-    $ symfony console make:form CommentFormType Comment
+    $ symfony console make:form CommentType Comment
 
 .. code-block:: text
     :class: ignore
     :emphasize-lines: 1
 
-     created: src/Form/CommentFormType.php
+     created: src/Form/CommentType.php
 
 
       Success!
@@ -32,10 +32,10 @@
      Next: Add fields to your form and start using it.
      Find the documentation at https://symfony.com/doc/current/forms.html
 
-تحدد فئة ``App\Form\CommentFormType`` نموذجًا للكيان ``App\Entity\Comment``:
+تحدد فئة ``App\Form\CommentType`` نموذجًا للكيان ``App\Entity\Comment``:
 
 .. code-block:: php
-    :caption: src/App/Form/CommentFormType.php
+    :caption: src/Form/CommentType.php
     :class: ignore
 
     namespace App\Form;
@@ -45,9 +45,9 @@
     use Symfony\Component\Form\FormBuilderInterface;
     use Symfony\Component\OptionsResolver\OptionsResolver;
 
-    class CommentFormType extends AbstractType
+    class CommentType extends AbstractType
     {
-        public function buildForm(FormBuilderInterface $builder, array $options)
+        public function buildForm(FormBuilderInterface $builder, array $options): void
         {
             $builder
                 ->add('author')
@@ -59,7 +59,7 @@
             ;
         }
 
-        public function configureOptions(OptionsResolver $resolver)
+        public function configureOptions(OptionsResolver $resolver): void
         {
             $resolver->setDefaults([
                 'data_class' => Comment::class,
@@ -76,36 +76,35 @@
 
 .. code-block:: diff
     :caption: patch_file
-    :emphasize-lines: 18,24
+    :emphasize-lines: 19,29
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -2,7 +2,9 @@
 
      namespace App\Controller;
 
     +use App\Entity\Comment;
      use App\Entity\Conference;
-    +use App\Form\CommentFormType;
+    +use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    @@ -31,6 +33,9 @@ class ConferenceController extends AbstractController
-         #[Route('/conference/{slug}', name: 'conference')]
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
+    @@ -23,5 +25,8 @@ final class ConferenceController extends AbstractController
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
     +        $comment = new Comment();
-    +        $form = $this->createForm(CommentFormType::class, $comment);
+    +        $form = $this->createForm(CommentType::class, $comment);
     +
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
-    @@ -39,6 +44,7 @@ class ConferenceController extends AbstractController
+    @@ -30,6 +35,7 @@ final class ConferenceController extends AbstractController
                  'comments' => $paginator,
-                 'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
-                 'next' => min(count($paginator), $offset + CommentRepository::PAGINATOR_PER_PAGE),
-    +            'comment_form' => $form->createView(),
-             ]));
+                 'previous' => $offset - CommentRepository::COMMENTS_PER_PAGE,
+                 'next' => min(count($paginator), $offset + CommentRepository::COMMENTS_PER_PAGE),
+    +            'comment_form' => $form,
+             ]);
          }
      }
 
@@ -114,16 +113,14 @@
 .. index::
     single: Twig;form
 
-عند تمرير نموذج إلى ال Template، استخدم `` ()createView  `` لتحويل البيانات إلى تنسيق مناسب لل Templates.
-
 يمكن عرض النموذج في ال Template عن طريق وظيفة `` النموذج `` ل Twig:
 
 .. code-block:: diff
     :caption: patch_file
     :emphasize-lines: 10
 
-    --- a/templates/conference/show.html.twig
-    +++ b/templates/conference/show.html.twig
+    --- i/templates/conference/show.html.twig
+    +++ w/templates/conference/show.html.twig
     @@ -30,4 +30,8 @@
          {% else %}
              <div>No comments have been posted yet for this conference.</div>
@@ -151,11 +148,11 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Form/CommentFormType.php
-    +++ b/src/Form/CommentFormType.php
-    @@ -4,20 +4,31 @@ namespace App\Form;
-
-     use App\Entity\Comment;
+    --- i/src/Form/CommentType.php
+    +++ w/src/Form/CommentType.php
+    @@ -6,26 +6,32 @@ use App\Entity\Comment;
+     use App\Entity\Conference;
+     use Symfony\Bridge\Doctrine\Form\Type\EntityType;
      use Symfony\Component\Form\AbstractType;
     +use Symfony\Component\Form\Extension\Core\Type\EmailType;
     +use Symfony\Component\Form\Extension\Core\Type\FileType;
@@ -164,9 +161,9 @@
      use Symfony\Component\OptionsResolver\OptionsResolver;
     +use Symfony\Component\Validator\Constraints\Image;
 
-     class CommentFormType extends AbstractType
+     class CommentType extends AbstractType
      {
-         public function buildForm(FormBuilderInterface $builder, array $options)
+         public function buildForm(FormBuilderInterface $builder, array $options): void
          {
              $builder
     -            ->add('author')
@@ -175,32 +172,33 @@
     +            ])
                  ->add('text')
     -            ->add('email')
-    -            ->add('createdAt')
-    -            ->add('photoFilename')
-    -            ->add('conference')
+    -            ->add('createdAt', null, [
+    -                'widget' => 'single_text',
     +            ->add('email', EmailType::class)
     +            ->add('photo', FileType::class, [
     +                'required' => false,
     +                'mapped' => false,
     +                'constraints' => [
-    +                    new Image(['maxSize' => '1024k'])
+    +                    new Image(maxSize: '1024k')
     +                ],
-    +            ])
+                 ])
+    -            ->add('photoFilename')
+    -            ->add('conference', EntityType::class, [
+    -                'class' => Conference::class,
+    -                'choice_label' => 'id',
+    -            ])
+    -        ;
     +            ->add('submit', SubmitType::class)
-             ;
+    +       ;
          }
+
+         public function configureOptions(OptionsResolver $resolver): void
 
 لاحظ أننا أضفنا زر إرسال (Submit) (يسمح لنا بالاستمرار في استخدام تعبير`` {{(form (comment_form)}} `` البسيط في النموذج).
 
 لا يمكن ترتيب بعض الحقول تلقائيًا ، مثل حقل ``photoFilename``. يحتاج كيان ``التعليق`` فقط إلى حفظ اسم ملف الصورة ، ولكن يجب أن يتعامل النموذج مع تحميل الملف نفسه. للتعامل مع هذه الحالة ، قمنا بإضافة حقل يسمى حقل ``الصورة / photo`` على أنه ``غير محدد un-mapped``: لن يتم تعيينه لأي خاصية في ``التعليق / Comment``. سنقوم بإدارته يدويًا لتنفيذ منطق معين (مثل تخزين الصورة التي تم تحميلها على القرص).
 
 كمثال للتخصيص ، قمنا أيضًا بتعديل التسمية الافتراضية لبعض الحقول.
-
-قيد الصورة يعمل بالتحقق من نوع mime ؛ تتطلب مكون Mime لجعله يعمل:
-
-.. code-block:: terminal
-
-    $ symfony composer req mime
 
 .. figure:: screenshots/form-customized.png
     :alt: /conference/amsterdam-2019
@@ -240,7 +238,7 @@
         </div>
     </form>
 
-يستخدم النموذج إدخال ``البريد الإلكتروني / email`` للبريد الإلكتروني للتعليق ويجعل معظم الحقول `` مطلوبة ``. لاحظ أن النموذج يحتوي أيضًا على حقل مخفي لـ ``_token`` لحماية النموذج من `هجمات <https://owasp.org/www-community/attacks/csrf>`_.
+يستخدم النموذج إدخال ``البريد الإلكتروني / email`` للبريد الإلكتروني للتعليق ويجعل معظم الحقول `` مطلوبة ``. لاحظ أن النموذج يحتوي أيضًا على حقل مخفي لـ ``_token`` لحماية النموذج من `هجمات CSRF`_.
 
 ولكن إذا تجاوز إرسال النموذج التحقق من HTML (باستخدام عميل HTTP لا يفرض قواعد التحقق من الصحة مثل cURL) ، فقد تصل البيانات غير الصالحة إلى الخادم.
 
@@ -249,37 +247,33 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -4,6 +4,7 @@ namespace App\Entity;
-
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -5,6 +5,7 @@ namespace App\Entity;
      use App\Repository\CommentRepository;
+     use Doctrine\DBAL\Types\Types;
      use Doctrine\ORM\Mapping as ORM;
     +use Symfony\Component\Validator\Constraints as Assert;
 
-     /**
-      * @ORM\Entity(repositoryClass=CommentRepository::class)
-    @@ -21,16 +22,20 @@ class Comment
-         /**
-          * @ORM\Column(type="string", length=255)
-          */
-    +    #[Assert\NotBlank]
-         private $author;
+     #[ORM\Entity(repositoryClass: CommentRepository::class)]
+     #[ORM\HasLifecycleCallbacks]
+    @@ -16,12 +17,16 @@ class Comment
+         private ?int $id = null;
 
-         /**
-          * @ORM\Column(type="text")
-          */
+         #[ORM\Column(length: 255)]
     +    #[Assert\NotBlank]
-         private $text;
+         private ?string $author = null;
 
-         /**
-          * @ORM\Column(type="string", length=255)
-          */
+         #[ORM\Column(type: Types::TEXT)]
+    +    #[Assert\NotBlank]
+         private ?string $text = null;
+
+         #[ORM\Column(length: 255)]
     +    #[Assert\NotBlank]
     +    #[Assert\Email]
-         private $email;
+         private ?string $email = null;
 
-         /**
+         #[ORM\Column]
 
 التعامل مع نموذج
 ------------------------------
@@ -291,34 +285,39 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -7,6 +7,7 @@ use App\Entity\Conference;
-     use App\Form\CommentFormType;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -7,7 +7,9 @@ use App\Entity\Conference;
+     use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
     +use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-     use Symfony\Component\HttpFoundation\Request;
+    +use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-    @@ -16,10 +17,12 @@ use Twig\Environment;
-     class ConferenceController extends AbstractController
-     {
-         private $twig;
-    +    private $entityManager;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\Routing\Attribute\Route;
+    @@ -14,6 +15,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
-    -    public function __construct(Environment $twig)
-    +    public function __construct(Environment $twig, EntityManagerInterface $entityManager)
+     final class ConferenceController extends AbstractController
+     {
+    +    public function __construct(
+    +        private EntityManagerInterface $entityManager,
+    +    ) {
+    +    }
+    +
+         #[Route('/', name: 'homepage')]
+         public function index(ConferenceRepository $conferenceRepository): Response
          {
-             $this->twig = $twig;
-    +        $this->entityManager = $entityManager;
+    @@ -24,9 +30,18 @@ final class ConferenceController extends AbstractController
          }
 
-         #[Route('/', name: 'homepage')]
-    @@ -35,6 +38,15 @@ class ConferenceController extends AbstractController
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+    -    public function show(Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
          {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
+             $form = $this->createForm(CommentType::class, $comment);
     +        $form->handleRequest($request);
     +        if ($form->isSubmitted() && $form->isValid()) {
     +            $comment->setConference($conference);
@@ -329,8 +328,9 @@
     +            return $this->redirectToRoute('conference', ['slug' => $conference->getSlug()]);
     +        }
 
-             $offset = max(0, $request->query->getInt('offset', 0));
              $paginator = $commentRepository->getCommentPaginator($conference, $offset);
+
+لاحظ أن كائن ``Request`` يُحقن الآن في وحدة التحكم ، لأن النموذج يحتاجه لفحص البيانات المرسلة عبر ``handleRequest()``.
 
 عندما يتم إرسال النموذج ، يتم تحديث كائن `` التعليق / Comment `` وفقًا للبيانات المقدمة.
 
@@ -343,40 +343,66 @@
 تحميل الملفات
 -------------------------
 
-يجب تخزين الصور التي تم تحميلها على القرص المحلي ، في مكان يمكن الوصول إليه من خلال الواجهة الأمامية حتى نتمكن من عرضها على صفحة المؤتمر. سنقوم بتخزينها تحت دليل ``public/uploads/photos``:
+يجب تخزين الصور التي تم تحميلها على القرص المحلي ، في مكان يمكن الوصول إليه من خلال الواجهة الأمامية حتى نتمكن من عرضها على صفحة المؤتمر. سنقوم بتخزينها تحت دليل ``public/uploads/photos``.
+
+.. index::
+    single: Attribute;Autowire
+    single: Autowire
+
+نظرًا لأننا لا نريد ترميز مسار الدليل بشكل ثابت في الكود ، نحتاج إلى طريقة لتخزينه عالميًا في الإعدادات. تستطيع حاوية Symfony تخزين *المعلمات / parameters* بالإضافة إلى الخدمات ، وهي مقاييس تساعد في تكوين الخدمات:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/config/services.yaml
+    +++ w/config/services.yaml
+    @@ -4,6 +4,7 @@
+     # Put parameters here that don't need to change on each machine where the app is deployed
+     # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+     parameters:
+    +    photo_dir: "%kernel.project_dir%/public/uploads/photos"
+
+     services:
+         # default configuration for services in *this* file
+
+لقد رأينا بالفعل كيف يتم حقن الخدمات تلقائيًا في وسائط المُنشئ. بالنسبة لمعلمات الحاوية ، يمكننا حقنها بشكل صريح عبر السمة ``Autowire``.
+
+الآن ، لدينا كل ما نحتاج لمعرفته لتنفيذ المنطق اللازم لتخزين الملف الذي تم تحميله إلى وجهته النهائية:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -9,6 +9,7 @@ use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
      use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Component\HttpFoundation\File\Exception\FileException;
+    +use Symfony\Component\DependencyInjection\Attribute\Autowire;
      use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
-     use Symfony\Component\Routing\Annotation\Route;
-    @@ -34,13 +35,22 @@ class ConferenceController extends AbstractController
+     use Symfony\Component\Routing\Attribute\Route;
+    @@ -29,13 +30,23 @@ final class ConferenceController extends AbstractController
          }
 
-         #[Route('/conference/{slug}', name: 'conference')]
-    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-         {
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0): Response
+    -    {
+    +    public function show(
+    +        Request $request,
+    +        Conference $conference,
+    +        CommentRepository $commentRepository,
+    +        #[Autowire('%photo_dir%')] string $photoDir,
+    +        #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0,
+    +    ): Response {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
+             $form = $this->createForm(CommentType::class, $comment);
              $form->handleRequest($request);
              if ($form->isSubmitted() && $form->isValid()) {
                  $comment->setConference($conference);
     +            if ($photo = $form['photo']->getData()) {
     +                $filename = bin2hex(random_bytes(6)).'.'.$photo->guessExtension();
-    +                try {
-    +                    $photo->move($photoDir, $filename);
-    +                } catch (FileException $e) {
-    +                    // unable to upload the photo, give up
-    +                }
+    +                $photo->move($photoDir, $filename);
     +                $comment->setPhotoFilename($filename);
     +            }
 
@@ -384,29 +410,6 @@
                  $this->entityManager->flush();
 
 لإدارة تحميل الصور ، نقوم بإنشاء اسم عشوائي للملف. ثم ننقل الملف الذي تم تحميله إلى موقعه النهائي (دليل الصور). أخيرًا ، نقوم بتخزين اسم الملف في كائن التعليق.
-
-.. index::
-    single: Container;Bind
-    single: Bind
-
-لاحظ الخاصية الجديدة في طريقة ``()show``؟ ``photoDir$`` عبارة عن string  وليست خدمة. كيف يمكن لـ Symfony معرفة ما يجب حقنه هنا؟ تستطيع حاوية Symfony تخزين *المعلمات / parameters* بالإضافة إلى الخدمات. المعلمات هي مقاييس تساعد في تكوين الخدمات. يمكن إدخال هذه المعلمات في الخدمات بشكل صريح ، أو يمكن *ربطها بالاسم*:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -10,6 +10,8 @@ services:
-         _defaults:
-             autowire: true      # Automatically injects dependencies in your services.
-             autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
-    +        bind:
-    +            $photoDir: "%kernel.project_dir%/public/uploads/photos"
-
-         # makes classes in src/ available to be used as services
-         # this creates a service per class whose id is the fully-qualified class name
-
-يسمح إعداد ``bind`` لـ Symfony بإدخال القيمة كلما كانت للخدمة خاصية ``photoDir$``.
 
 حاول تحميل ملف PDF بدلاً من الصورة. يجب أن ترى رسائل الخطأ . التصميم قبيح للغاية في الوقت الحالي ، ولكن لا تقلق ، كل شيء سيصبح جميلًا في بضع خطوات عندما سنعمل على تصميم الموقع. بالنسبة للنماذج ، سنقوم بتغيير سطر واحد من التكوين لنمط جميع عناصر النموذج.
 
@@ -450,17 +453,17 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/Admin/CommentCrudController.php
-    +++ b/src/Controller/Admin/CommentCrudController.php
-    @@ -9,6 +9,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
-     use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+    --- i/src/Controller/Admin/CommentCrudController.php
+    +++ w/src/Controller/Admin/CommentCrudController.php
+    @@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
     +use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+     use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
      use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-     use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
-    @@ -45,7 +46,9 @@ class CommentCrudController extends AbstractCrudController
+    @@ -47,7 +48,9 @@ class CommentCrudController extends AbstractCrudController
              yield TextareaField::new('text')
                  ->hideOnIndex()
              ;
@@ -479,8 +482,8 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.gitignore
-    +++ b/.gitignore
+    --- i/.gitignore
+    +++ w/.gitignore
     @@ -1,3 +1,4 @@
     +/public/uploads
 
@@ -494,42 +497,51 @@
 
 ليس كل شيء للقراءة فقط في مشروع Symfony. نحاول جاهدين إنشاء أكبر قدر ممكن من ذاكرة التخزين المؤقت عند بناء الحاوية (خلال مرحلة تدفئة ذاكرة التخزين المؤقت) ، ولكن لا تزال Symfony بحاجة إلى الكتابة في مكان ما لذاكرة التخزين المؤقت للمستخدم ، والسجلات ، والجلسات إذا تم تخزينها على نظام الملفات، واكثر.
 
-ألق نظرة على  ``symfony.cloud.yaml.`` ، يوجد بالفعل *جبل قابل للكتابة* للدليل ``/var``. الدليل ``/var`` هو الدليل الوحيد الذي تكتب فيه Symfony (ذاكرة التخزين المؤقت ، السجلات ، ...).
+ألق نظرة على  ``.upsun/config.yaml`` ، يوجد بالفعل *جبل قابل للكتابة* للدليل ``/var``. الدليل ``/var`` هو الدليل الوحيد الذي تكتب فيه Symfony (ذاكرة التخزين المؤقت ، السجلات ، ...).
 
 لنقم بإنشاء حامل جديد للصور التي تم تحميلها:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony.cloud.yaml
-    +++ b/.symfony.cloud.yaml
-    @@ -36,6 +36,7 @@ web:
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -41,6 +41,7 @@ applications:
+             mounts:
+                 "/var/cache": { source: instance, source_path: var/cache }
+                 "/var/share": { source: storage, source_path: var/share }
+    +            "/public/uploads": { source: storage, source_path: uploads }
 
-     mounts:
-         "/var": { source: local, source_path: var }
-    +    "/public/uploads": { source: local, source_path: uploads }
 
-     hooks:
-         build: |
+             relationships:
 
 يمكنك الآن نشر الكود وسيتم تخزين الصور في دليل `` /public/uploads `` مثل نسختنا المحلية.
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `البرنامج التعليمي لـ SymfonyCasts Forms <https://symfonycasts.com/screencast/symfony-forms>`_؛
+    * `البرنامج التعليمي لـ SymfonyCasts Forms`_؛
 
-    * كيفية `تخصيص عرض نموذج Symfony في HTML <https://symfony.com/doc/current/form/form_customization.html>`_؛
+    * كيفية `تخصيص عرض نموذج Symfony في HTML`_؛
 
-    * `التحقق من نماذج Symfony <https://symfony.com/doc/current/forms.html#validating-forms>`_؛
+    * `التحقق من نماذج Symfony`_؛
 
-    * `مرجع أنواع نماذج Symfony <https://symfony.com/doc/current/reference/forms/types.html>`_؛
+    * `مرجع أنواع نماذج Symfony`_؛
 
-    * `مستندات <https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md>`_, والتي توفر التكامل مع العديد من موفري التخزين السحابي ، مثل AWS S3 ، Azure و Google Cloud Storage؛
+    * `مستندات FlysystemBundle`_, والتي توفر التكامل مع العديد من موفري التخزين السحابي ، مثل AWS S3 ، Azure و Google Cloud Storage؛
 
-    * `معلمات إعداد Symfony <https://symfony.com/doc/current/configuration.html#configuration-parameters>`_.
+    * `معلمات إعداد Symfony`_.
 
-    * `قيود المصادقة ل Symfony <https://symfony.com/doc/current/validation.html#basic-constictions>`_؛
+    * `قيود المصادقة ل Symfony`_؛
 
-    * `سيمفوني ورقة غش نموذج <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony2/how_symfony2_forms_works_en.pdf>`_.
+    * `سيمفوني ورقة غش نموذج`_.
 
 .. _`نوع النموذج / form type`: https://symfony.com/doc/current/forms.html#form-types
+.. _`هجمات CSRF`: https://owasp.org/www-community/attacks/csrf
+.. _`البرنامج التعليمي لـ SymfonyCasts Forms`: https://symfonycasts.com/screencast/symfony-forms
+.. _`تخصيص عرض نموذج Symfony في HTML`: https://symfony.com/doc/current/form/form_customization.html
+.. _`التحقق من نماذج Symfony`: https://symfony.com/doc/current/forms.html#validating-forms
+.. _`مرجع أنواع نماذج Symfony`: https://symfony.com/doc/current/reference/forms/types.html
+.. _`مستندات FlysystemBundle`: https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
+.. _`معلمات إعداد Symfony`: https://symfony.com/doc/current/configuration.html#configuration-parameters
+.. _`قيود المصادقة ل Symfony`: https://symfony.com/doc/current/validation.html#basic-constraints
+.. _`سيمفوني ورقة غش نموذج`: https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony2/how_symfony2_forms_works_en.pdf

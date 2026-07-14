@@ -1,4 +1,4 @@
-منع البريد العشوائي باستخدام واجهة برمجة التطبيقات (API)
+منع البريد العشوائي باستخدام الذكاء الاصطناعي
 ====================================================================================================
 
 .. index::
@@ -6,104 +6,56 @@
 
 يمكن لأي شخص إرسال ملاحظات. حتى الروبوتات والبريد المزعج وأشياء أخرى. يمكننا إضافة "captcha" إلى النموذج حتى نحمي بطريقة ما من الروبوتات ، أو يمكننا استخدام بعض واجهات برمجة التطبيقات (API) لتباعيات خارجية.
 
-لقد قررت استخدام خدمة `Akismet <https://akismet.com>`_ المجانية _ لتوضيح كيفية الاتصال بواجهة برمجة التطبيقات وكيفية إجراء المكالمة "خارج النطاق".
+لقد قررت استخدام نموذج لغوي كبير (Large Language Model) لتحديد ما إذا كان التعليق بريدًا عشوائيًا، لتوضيح كيفية استخدام الذكاء الاصطناعي في تطبيق Symfony وكيفية إجراء مثل هذه المكالمات المكلفة "خارج النطاق".
 
-الاشتراك في Akismet
------------------------------
-
-.. index::
-    single: Akismet
-
-قم بالتسجيل للحصول على حساب مجاني على `akismet.com <https://akismet.com>`_ واحصل على مفتاح واجهة برمجة التطبيقات Akismet.
-
-الاعتماد على مكون Symfony HTTPClient
----------------------------------------------------
+الحصول على مفتاح واجهة برمجة تطبيقات الذكاء الاصطناعي
+----------------------------------------------------------------------------------
 
 .. index::
-    single: Components;HTTP Client
-    single: HTTP Client
+    single: AI
+    single: OpenAI
 
-بدلاً من استخدام مكتبة تلخص واجهة برمجة تطبيقات Akismet ، سنجري جميع مكالمات واجهة برمجة التطبيقات مباشرة. يعد إجراء مكالمات HTTP بأنفسنا أكثر فعالية (ويسمح لنا بالاستفادة من جميع أدوات تصحيح Symfony مثل التكامل مع Symfony Profiler).
+يدعم Symfony AI العديد من مزودي النماذج: OpenAI و Anthropic و Google Gemini و Mistral، وحتى النماذج المحلية عبر Ollama. يستخدم هذا الفصل OpenAI: قم بالتسجيل على `platform.openai.com`_ وأنشئ مفتاح API. إذا كنت تفضل مزودًا آخر، يبقى الكود كما هو؛ يتغير الإعداد فقط.
 
-لإجراء مكالمات API ، استخدم Symfony HttpClient Component:
+الاعتماد على Symfony AI Bundle
+----------------------------------------------------------------------------------
+
+.. index::
+    single: Components;AI
+    single: AI;Agent
+    single: AI;Platform
+
+بدلاً من استدعاء واجهة HTTP الخاصة بالنموذج بأنفسنا، سنستخدم Symfony AI Bundle. يوفر تجريدًا لـ *منصة* (platform) لمزودي النماذج (يأتي كل مزود كحزمة جسر خاصة به) و *وكيل* (agent) يغلف نموذجًا لإجراء المكالمات؛ ويستفيد من جميع أدوات تصحيح Symfony مثل التكامل مع Symfony Profiler:
 
 .. code-block:: terminal
 
-    $ symfony composer req http-client
+    $ symfony composer req symfony/ai-bundle symfony/ai-agent symfony/ai-open-ai-platform
 
-تصميم فئة Spam Checker Class  للبريد المزعج
----------------------------------------------------------------
+.. note::
 
-قم بإنشاء فئة  جديدة تحت `` src / `` باسم `` SpamChecker '' لتضمين منطق استدعاء Akismet API ومعالجة جوابها:
+    Symfony AI مجموعة حديثة من المكونات وما زالت تجريبية: قد تتطور واجهاتها البرمجية أسرع من بقية Symfony.
 
-.. code-block:: php
-    :emphasize-lines: 14,24
-    :caption: src/SpamChecker.php
+لقد قامت وصفة جسر OpenAI (recipe) بإعداد المنصة لنا بالفعل؛ وهي تشير إلى متغير بيئة ``OPENAI_API_KEY`` (وأضافت قيمة افتراضية فارغة له في ``.env``):
 
-    namespace App;
+.. code-block:: yaml
+    :caption: config/packages/ai_open_ai_platform.yaml
+    :class: ignore
 
-    use App\Entity\Comment;
-    use Symfony\Contracts\HttpClient\HttpClientInterface;
+    ai:
+        platform:
+            openai:
+                api_key: '%env(OPENAI_API_KEY)%'
 
-    class SpamChecker
-    {
-        private $client;
-        private $endpoint;
+قم بإعداد *وكيل* (agent) افتراضي فوقها:
 
-        public function __construct(HttpClientInterface $client, string $akismetKey)
-        {
-            $this->client = $client;
-            $this->endpoint = sprintf('https://%s.rest.akismet.com/1.1/comment-check', $akismetKey);
-        }
+.. code-block:: yaml
+    :caption: config/packages/ai.yaml
 
-        /**
-         * @return int Spam score: 0: not spam, 1: maybe spam, 2: blatant spam
-         *
-         * @throws \RuntimeException if the call did not work
-         */
-        public function getSpamScore(Comment $comment, array $context): int
-        {
-            $response = $this->client->request('POST', $this->endpoint, [
-                'body' => array_merge($context, [
-                    'blog' => 'https://guestbook.example.com',
-                    'comment_type' => 'comment',
-                    'comment_author' => $comment->getAuthor(),
-                    'comment_author_email' => $comment->getEmail(),
-                    'comment_content' => $comment->getText(),
-                    'comment_date_gmt' => $comment->getCreatedAt()->format('c'),
-                    'blog_lang' => 'en',
-                    'blog_charset' => 'UTF-8',
-                    'is_test' => true,
-                ]),
-            ]);
-
-            $headers = $response->getHeaders();
-            if ('discard' === ($headers['x-akismet-pro-tip'][0] ?? '')) {
-                return 2;
-            }
-
-            $content = $response->getContent();
-            if (isset($headers['x-akismet-debug-help'][0])) {
-                throw new \RuntimeException(sprintf('Unable to check for spam: %s (%s).', $content, $headers['x-akismet-debug-help'][0]));
-            }
-
-            return 'true' === $content ? 1 : 0;
-        }
-    }
-
-ترسل طريقة  `` ()request  `` ل HTTP طلب POST إلى عنوان URL Akismet (`` $ this-> endpoint '') ويمرر مجموعة من المعلمات.
-
-تُظهر طريقة `` getSpamScore()  `` ثلاث  قيم بناءً على استجابة استدعاء API:
-
-* ``2``: إذا كان التعليق "بريدًا عشوائيًا" ؛
-
-* ``1``: إذا كان التعليق غير مرغوب فيه ؛
-
-* ``0``: إذا كان التعليق غير مرغوب فيه.
-
-.. tip::
-
-    استخدم عنوان البريد الإلكتروني الخاص بـ `` akismet-Guarantee-spam@example.com `` لفرض نتيجة المكالمة على أنها بريد مزعج.
+    ai:
+        agent:
+            default:
+                platform: 'ai.platform.openai'
+                model: 'gpt-5-mini'
 
 استخدام متغيرات البيئة
 ------------------------------------------
@@ -113,23 +65,7 @@
     single: .env
     single: .env.local
 
-تعتمد فئة ``SpamChecker`` على خاصية ``akismetKey\``. مثل دليل التحميل ، يمكننا حقنه عبر إعداد حاوية ``bind``:
-
-.. code-block:: diff
-    :caption: patch_file
-
-    --- a/config/services.yaml
-    +++ b/config/services.yaml
-    @@ -12,6 +12,7 @@ services:
-             autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
-             bind:
-                 $photoDir: "%kernel.project_dir%/public/uploads/photos"
-    +            $akismetKey: "%env(AKISMET_KEY)%"
-
-         # makes classes in src/ available to be used as services
-         # this creates a service per class whose id is the fully-qualified class name
-
-لا نريد بالتأكيد تحديد قيمة مفتاح Akismet في ملف التكوين `` services.yaml '' ، لذا نستخدم متغير بيئة بدلاً من ذلك (`` AKISMET_KEY '').
+لا نريد بالتأكيد ترميز قيمة المفتاح بشكل ثابت في الإعداد؛ لهذا السبب تتم قراءته من متغير البيئة ``OPENAI_API_KEY``.
 
 ومن ثم يعود الأمر لكل مطور لتعيين متغير بيئة "حقيقي" أو لتخزين القيمة في ملف ``env.local``:
 
@@ -137,7 +73,7 @@
     :caption: .env.local
     :class: ignore
 
-    AKISMET_KEY=abcdef
+    OPENAI_API_KEY=sk-...
 
 للإنتاج Production ، يجب تحديد متغير بيئة "حقيقي".
 
@@ -155,12 +91,12 @@
 
 الأسرار هي متغيرات بيئية متخفية.
 
-أضف مفتاح Akismet في الخزنة:
+أضف مفتاح OpenAI API في الخزنة:
 
 .. code-block:: terminal
-    :class: answers(AKISMET_KEY_VALUE)
+    :class: answers(OPENAI_API_KEY_VALUE)
 
-    $ symfony console secrets:set AKISMET_KEY
+    $ symfony console secrets:set OPENAI_API_KEY
 
 .. code-block:: text
     :class: ignore
@@ -168,13 +104,104 @@
      Please type the secret value:
      >
 
-     [OK] Secret "AKISMET_KEY" encrypted in "config/secrets/dev/"; you can commit it.
+     [OK] Secret "OPENAI_API_KEY" encrypted in "config/secrets/dev/"; you can commit it.
 
-نظرًا لأن هذه هي المرة الأولى التي نقوم فيها بتشغيل هذا الأمر ، فقد تم إنشاء مفتاحين في دليل ``/config/secret/dev``. ثم قام بتخزين سر ``AKISMET_KEY`` في نفس الدليل.
+نظرًا لأن هذه هي المرة الأولى التي نقوم فيها بتشغيل هذا الأمر ، فقد تم إنشاء مفتاحين في دليل ``/config/secret/dev``. ثم قام بتخزين سر ``OPENAI_API_KEY`` في نفس الدليل.
 
 بالنسبة لأسرار التطوير ، يمكنك أن تقرر تنفيذ الخزنة والمفاتيح التي تم إنشاؤها في دليل ``/config/secret/dev``.
 
 يمكن أيضًا تجاوز الأسرار عن طريق تعيين متغير بيئة يحمل نفس الاسم.
+
+.. index::
+    single: Command;secrets:reveal
+
+لقراءة سر مرة أخرى من الخزنة، استخدم ``secrets:reveal``:
+
+.. code-block:: terminal
+
+    $ symfony console secrets:reveal OPENAI_API_KEY
+
+تصميم فئة Spam Checker Class  للبريد المزعج
+---------------------------------------------------------------
+
+.. index::
+    single: AI;Prompt
+
+قم بإنشاء فئة جديدة تحت ``src/`` باسم ``SpamChecker`` لتغليف منطق سؤال النموذج عما إذا كان التعليق بريدًا عشوائيًا:
+
+.. code-block:: php
+    :caption: src/SpamChecker.php
+
+    namespace App;
+
+    use App\Entity\Comment;
+    use Symfony\AI\Agent\AgentInterface;
+    use Symfony\AI\Platform\Exception\ExceptionInterface;
+    use Symfony\AI\Platform\Message\Message;
+    use Symfony\AI\Platform\Message\MessageBag;
+
+    class SpamChecker
+    {
+        public function __construct(
+            private AgentInterface $agent,
+        ) {
+        }
+
+        /**
+         * @return int Spam score: 0: not spam, 1: maybe spam, 2: blatant spam
+         */
+        public function getSpamScore(Comment $comment, array $context): int
+        {
+            $messages = new MessageBag(
+                Message::forSystem(<<<PROMPT
+                    You moderate comments submitted to a conference guestbook.
+                    Classify the comment as "ham", "maybe spam", or "blatant spam".
+                    Only answer with the classification.
+                    PROMPT),
+                Message::ofUser(sprintf(<<<COMMENT
+                    IP: %s
+                    User agent: %s
+                    Author: %s (%s)
+                    Comment: %s
+                    COMMENT,
+                    $context['user_ip'] ?? '',
+                    $context['user_agent'] ?? '',
+                    $comment->getAuthor(),
+                    $comment->getEmail(),
+                    $comment->getText(),
+                )),
+            );
+
+            try {
+                $answer = strtolower($this->agent->call($messages)->getContent());
+            } catch (ExceptionInterface) {
+                // when the model cannot answer, let a human moderate the comment
+                return 1;
+            }
+
+            return match (true) {
+                str_contains($answer, 'blatant spam') => 2,
+                str_contains($answer, 'maybe spam') => 1,
+                default => 0,
+            };
+        }
+    }
+
+تخبر *موجِّه النظام* (system prompt) النموذجَ بدوره وتقيّد إجاباته؛ بينما تحتوي *رسالة المستخدم* (user message) على التعليق وسياق إرساله (عنوان IP، وكيل المستخدم).
+
+تُظهر طريقة `` getSpamScore()  `` ثلاث  قيم بناءً على إجابة النموذج:
+
+* ``2``: إذا كان التعليق "بريدًا عشوائيًا واضحًا" ؛
+
+* ``1``: إذا كان التعليق قد يكون بريدًا عشوائيًا، أو عند تعذّر الوصول إلى النموذج ؛
+
+* ``0``: إذا كان التعليق غير مرغوب فيه (ham).
+
+إخراج النموذج نص حر، حتى عندما يقيّده الموجِّه: حلّله بتسامح (حوّله إلى أحرف صغيرة، استخدم ``str_contains()``). وعندما يتعذّر على النموذج الإجابة تمامًا، ارجع إلى الإشراف البشري بدلاً من الفشل: يجب أن يساعد الذكاء الاصطناعي المسؤول، لا أن يعطّل دفتر الزوار.
+
+.. tip::
+
+    حاول إرسال تعليق يبدو واضحًا أنه بريد عشوائي، مثل "Buy cheap watches at http://example.com/!!!"، لرؤية النموذج وهو يعمل.
 
 التحقق من التعليقات على البريد المزعج
 ---------------------------------------------------------------------
@@ -184,26 +211,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
     @@ -7,6 +7,7 @@ use App\Entity\Conference;
-     use App\Form\CommentFormType;
+     use App\Form\CommentType;
      use App\Repository\CommentRepository;
      use App\Repository\ConferenceRepository;
     +use App\SpamChecker;
      use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-     use Symfony\Component\HttpFoundation\File\Exception\FileException;
-    @@ -35,7 +36,7 @@ class ConferenceController extends AbstractController
-         }
-
-         #[Route('/conference/{slug}', name: 'conference')]
-    -    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-    +    public function show(Request $request, Conference $conference, CommentRepository $commentRepository, SpamChecker $spamChecker, string $photoDir): Response
-         {
+     use Symfony\Component\DependencyInjection\Attribute\Autowire;
+    @@ -34,7 +35,8 @@ final class ConferenceController extends AbstractController
+             Request $request,
+             Conference $conference,
+             CommentRepository $commentRepository,
+    +        SpamChecker $spamChecker,
+             #[Autowire('%photo_dir%')] string $photoDir,
+             #[MapQueryParameter(options: ['min_range' => 0])] int $offset = 0,
+         ): Response {
              $comment = new Comment();
-             $form = $this->createForm(CommentFormType::class, $comment);
-    @@ -53,6 +54,17 @@ class ConferenceController extends AbstractController
+    @@ -48,6 +50,17 @@ final class ConferenceController extends AbstractController
                  }
 
                  $this->entityManager->persist($comment);
@@ -224,6 +251,87 @@
 
 تحقق من أنه يعمل بشكل جيد.
 
+تحديد معدل إرسال التعليقات
+---------------------------------------------------------------------
+
+.. index::
+    single: Rate Limiter
+    single: Components;RateLimiter
+
+يحمي اكتشاف البريد العشوائي الموقع من المرسلين المتطورين. هناك حماية تكميلية وأرخص بكثير وهي تقييد سرعة إرسال نفس العميل للتعليقات: لا أحد ينشر بشكل مشروع عشرات التعليقات في الساعة على دفتر زوار.
+
+أضف مكون Symfony Rate Limiter:
+
+.. code-block:: terminal
+
+    $ symfony composer req rate-limiter
+
+قم بإعداد مُحدِّد يقبل 5 تعليقات كحد أقصى في الساعة من نفس العميل:
+
+.. code-block:: yaml
+    :caption: config/packages/rate_limiter.yaml
+
+    framework:
+        rate_limiter:
+            comment_submission:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '1 hour'
+
+    when@test:
+        framework:
+            rate_limiter:
+                comment_submission:
+                    limit: 1000
+
+تُرسل الاختبارات الآلية العديد من التعليقات بشكل مشروع في فترة زمنية قصيرة، لذلك يُرفع الحد لبيئة ``test``.
+
+افرض المُحدِّد على إرسال التعليقات باستخدام السمة ``#[RateLimit]``؛ افتراضيًا، يُعرّف العملاء بعنوان IP الخاص بهم:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -15,6 +15,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
+     use Symfony\Component\HttpFoundation\Request;
+     use Symfony\Component\HttpFoundation\Response;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+    +use Symfony\Component\HttpKernel\Attribute\RateLimit;
+     use Symfony\Component\Routing\Attribute\Route;
+
+     final class ConferenceController extends AbstractController
+    @@ -31,6 +32,7 @@ final class ConferenceController extends AbstractController
+             ]);
+         }
+
+    +    #[RateLimit('comment_submission', methods: ['POST'])]
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(
+             Request $request,
+
+لاحظ وسيط ``methods``: تصفح صفحة المؤتمر طلب ``GET`` ويجب ألا يُقيَّد؛ تُقيَّد فقط عمليات إرسال التعليقات (طلبات ``POST``).
+
+عند بلوغ الحد، يُرجع Symfony تلقائيًا استجابة ``429 Too Many Requests`` مع ترويسة HTTP ``Retry-After`` تُخبر العميل متى يمكنه إعادة المحاولة.
+
+يحمي المكون نفسه أيضًا نموذج تسجيل دخول المدير من هجمات القوة الغاشمة (brute-force)؛ تفعيل *خنق تسجيل الدخول* (login throttling) على جدار الحماية يحتاج سطرًا واحدًا:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -19,6 +19,7 @@ security:
+             main:
+                 lazy: true
+                 provider: app_user_provider
+    +            login_throttling: ~
+                 form_login:
+                     login_path: app_login
+                     check_path: app_login
+
+افتراضيًا، يحظر Symfony عنوان IP بعد 5 محاولات تسجيل دخول فاشلة لنفس اسم المستخدم خلال دقيقة (يعيد تسجيل الدخول الناجح ضبط العدّاد). استخدم خياري ``max_attempts`` و ``interval`` لضبط السياسة.
+
 إدارة الأسرار في الإنتاج Production
 --------------------------------------------------------
 
@@ -231,14 +339,14 @@
     single: Upsun;Secret
     single: Upsun;Environment Variable
     single: Secret
-    single: Symfony CLI;var:set
+    single: Symfony CLI;cloud:variable:create
 
-للإنتاج ، يضمن Upsun إعداد *متغيرات البيئة الحساسة*:
+للإنتاج ، يدعم Upsun إعداد *متغيرات البيئة الحساسة*:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony var:set --sensitive AKISMET_KEY=abcdef
+    $ symfony cloud:variable:create --sensitive=1 --level=project -y --name=env:OPENAI_API_KEY --value=sk-abcdef
 
 ولكن كما نُقش أعلاه ، قد يكون استخدام أسرار Symfony أفضل. ليس من حيث الأمن ، ولكن من حيث الإدارة السرية لفريق المشروع. يتم تخزين جميع الأسرار في المخزن Repository  ومتغير البيئة الوحيد الذي تحتاج إلى إدارته للإنتاج هو مفتاح فك التشفير. وهذا يجعل من الممكن لأي شخص في الفريق إضافة أسرار الإنتاج حتى إذا لم يكن لديهم إمكانية الوصول إلى خوادم الإنتاج. التثبيت  أكثر صعوبة  نوعا ما بالرغم من ذلك.
 
@@ -249,27 +357,32 @@
 
 .. code-block:: terminal
 
-    $ APP_ENV=prod symfony console secrets:generate-keys
+    $ symfony console secrets:generate-keys --env=prod
 
 .. note::
 
-    The ``APP_ENV=prod`` part before the command allows setting the ``APP_ENV`` environment variable only for this command. On Windows, use ``--env=prod`` instead: ``symfony console secrets:generate-keys --env=prod``
+    على Linux وأنظمة التشغيل المشابهة، استخدم ``APP_RUNTIME_ENV=prod`` بدلاً من ``--env=prod`` لأن ذلك يتجنب تصريف التطبيق لبيئة ``prod``:
+
+    .. code-block:: terminal
+        :class: ignore
+
+        $ APP_RUNTIME_ENV=prod symfony console secrets:generate-keys
 
 .. index::
     single: Command;secrets:set
 
-أعد إضافة سر Akismet في قبو الإنتاج ولكن بقيمته للإنتاج:
+أعد إضافة سر OpenAI API في قبو الإنتاج ولكن بقيمته للإنتاج:
 
 .. code-block:: terminal
-    :class: answers(abcdef)
+    :class: answers(sk-abcdef)
 
-    $ APP_ENV=prod symfony console secrets:set AKISMET_KEY
+    $ symfony console secrets:set OPENAI_API_KEY --env=prod
 
 الخطوة الأخيرة هي إرسال مفتاح فك التشفير إلى Upsun عن طريق تعيين متغير حساس:
 
 .. code-block:: terminal
 
-    $ symfony var:set --sensitive SYMFONY_DECRYPTION_SECRET=`php -r 'echo base64_encode(include("config/secrets/prod/prod.decrypt.private.php"));'`
+    $ symfony cloud:variable:create --sensitive=1 --level=project -y --name=env:SYMFONY_DECRYPTION_SECRET --value=`php -r 'echo base64_encode(include("config/secrets/prod/prod.decrypt.private.php"));'`
 
 يمكنك إضافة جميع الملفات وتنفيذها ؛ تمت إضافة مفتاح فك التشفير في .gitignore تلقائيًا ، لذلك لن يتم الالتزام به أبدًا. لمزيد من الأمان ، يمكنك إزالته من جهازك المحلي حيث تم نشره الآن:
 
@@ -279,8 +392,13 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `مستندات Component HttpClient <https://symfony.com/doc/current/components/http_client.html>`_؛
+    * `مستندات Symfony AI`_؛
 
-    * `معالجات المتغيرة للبيئة <https://symfony.com/doc/current/configuration/env_var_processors.html>`_؛
+    * `معالجات المتغيرة للبيئة`_؛
 
-    * `ملف الغش الخاص بالـ HttpClient في سيمفوني <https://github.com/andreia/symfony-cheat-sheets/blob/master/Symfony4/httpclient_en_43.pdf>`_.
+    * `كيفية الحفاظ على سرية المعلومات الحساسة`_.
+
+.. _`platform.openai.com`: https://platform.openai.com
+.. _`مستندات Symfony AI`: https://symfony.com/doc/current/ai/index.html
+.. _`معالجات المتغيرة للبيئة`: https://symfony.com/doc/current/configuration/env_var_processors.html
+.. _`كيفية الحفاظ على سرية المعلومات الحساسة`: https://symfony.com/doc/current/configuration/secrets.html

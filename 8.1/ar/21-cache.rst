@@ -21,24 +21,26 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -33,9 +33,12 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+     use Symfony\Component\DependencyInjection\Attribute\Autowire;
+     use Symfony\Component\HttpFoundation\Request;
+     use Symfony\Component\HttpFoundation\Response;
+    +use Symfony\Component\HttpKernel\Attribute\Cache;
+     use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+     use Symfony\Component\HttpKernel\Attribute\RateLimit;
+     use Symfony\Component\Messenger\MessageBusInterface;
+    @@ -27,6 +28,7 @@ final class ConferenceController extends AbstractController
+         ) {
+         }
+
+    +    #[Cache(smaxage: 3600)]
          #[Route('/', name: 'homepage')]
          public function index(ConferenceRepository $conferenceRepository): Response
          {
-    -        return new Response($this->twig->render('conference/index.html.twig', [
-    +        $response = new Response($this->twig->render('conference/index.html.twig', [
-                 'conferences' => $conferenceRepository->findAll(),
-             ]));
-    +        $response->setSharedMaxAge(3600);
-    +
-    +        return $response;
-         }
 
-         #[Route('/conference/{slug}', name: 'conference')]
-
-تقوم الطريقة ``()setSharedMaxAge`` بتكوين انتهاء صلاحية ذاكرة التخزين المؤقت لوكلاء عكسيين. استخدم ``()setMaxAge`` للسيطرة على ذاكرة التخزين المؤقت للمستعرض. يتم التعبير عن الوقت بالثواني (ساعة واحدة = 60 دقيقة = 3600 ثانية).
+تُهيّئ السمة ``#[Cache]`` انتهاء صلاحية ذاكرة التخزين المؤقت للوكلاء العكسيين عبر وسيطها ``smaxage``؛ استخدم ``maxage`` للتحكم في ذاكرة التخزين المؤقت للمتصفح. يتم التعبير عن الوقت بالثواني (ساعة واحدة = 60 دقيقة = 3600 ثانية). ومثل التوجيه (routing) أو تحديد المعدل (rate limiting)، تُعلَن سياسة التخزين المؤقت في المكان الذي تنطبق فيه تمامًا: على وحدة التحكم (controller).
 
 يعد التخزين المؤقت لصفحة المؤتمر أكثر صعوبة لأنه أكثر ديناميكية. يمكن لأي شخص إضافة تعليق في أي وقت ، ولا يريد أحد الانتظار لمدة ساعة لرؤيته عبر الإنترنت. في مثل هذه الحالات ، استخدم استراتيجية * التحقق من صحة HTTP.
 
@@ -48,19 +50,21 @@
 .. index::
     single: HTTP Cache;Symfony Reverse Proxy
 
-لاختبار استراتيجية ذاكرة التخزين المؤقت HTTP ، استخدم الوكيل العكسي Symfony HTTP:
+لاختبار استراتيجية ذاكرة التخزين المؤقت HTTP ، فعّل الوكيل العكسي Symfony HTTP، ولكن فقط في بيئة "التطوير" (لبيئة "الإنتاج"، سنستخدم حلاً "أكثر متانة"):
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -15,3 +15,5 @@ framework:
-         #fragments: true
-         php_errors:
-             log: true
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -22,3 +22,7 @@ when@test:
+             test: true
+             session:
+                 storage_factory_id: session.storage.factory.mock_file
     +
-    +    http_cache: true
+    +when@dev:
+    +    framework:
+    +        http_cache: true
 
 إلى جانب كونه وكيل HTTP كامل العكسي ، يضيف الوكيل العكسي Symfony HTTP (عبر فئة ``HttpCache``) بعض معلومات التصحيح الجيدة كرؤوس HTTP. وهذا يساعد بشكل كبير في التحقق من صحة رؤوس ذاكرة التخزين المؤقت التي وضعناها.
 
@@ -114,7 +118,7 @@
     single: HTTP Cache;ESI
     single: ESI
 
-يقوم مستمع `TwigEventSubscriber` بإدخال متغير عمومي في Twig مع جميع كائنات المؤتمر. يفعل ذلك لكل صفحة واحدة من الموقع. ربما يكون هدفًا رائعًا للتحسين.
+يقوم مستمع `TwigEventListener` بإدخال متغير عمومي في Twig مع جميع كائنات المؤتمر. يفعل ذلك لكل صفحة واحدة من الموقع. ربما يكون هدفًا رائعًا للتحسين.
 
 لن تضيف مؤتمرات جديدة كل يوم ، وبالتالي فإن الكود يبحث عن نفس البيانات بالضبط من قاعدة البيانات مرارًا وتكرارًا.
 
@@ -127,27 +131,27 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -41,6 +41,14 @@ class ConferenceController extends AbstractController
-             return $response;
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -36,6 +36,14 @@ final class ConferenceController extends AbstractController
+             ]);
          }
 
     +    #[Route('/conference_header', name: 'conference_header')]
     +    public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
     +    {
-    +        return new Response($this->twig->render('conference/header.html.twig', [
+    +        return $this->render('conference/header.html.twig', [
     +            'conferences' => $conferenceRepository->findAll(),
-    +        ]));
+    +        ]);
     +    }
     +
-         #[Route('/conference/{slug}', name: 'conference')]
-         public function show(Request $request, Conference $conference, CommentRepository $commentRepository, string $photoDir): Response
-         {
+         #[RateLimit('comment_submission', methods: ['POST'])]
+         #[Route('/conference/{slug:conference}', name: 'conference')]
+         public function show(
 
 قم بإنشاء القالب المقابل:
 
-.. code-block:: twig
+.. code-block:: html+twig
     :caption: templates/conference/header.html.twig
 
     <ul>
@@ -167,9 +171,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -16,11 +16,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -14,11 +14,7 @@
          <body>
              <header>
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
@@ -200,9 +204,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/config/packages/framework.yaml
-    +++ b/config/packages/framework.yaml
-    @@ -11,7 +11,7 @@ framework:
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -12,7 +12,7 @@ framework:
              cookie_secure: auto
              cookie_samesite: lax
 
@@ -221,9 +225,9 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/templates/base.html.twig
-    +++ b/templates/base.html.twig
-    @@ -16,7 +16,7 @@
+    --- i/templates/base.html.twig
+    +++ w/templates/base.html.twig
+    @@ -14,7 +14,7 @@
          <body>
              <header>
                  <h1><a href="{{ path('homepage') }}">Guestbook</a></h1>
@@ -266,22 +270,16 @@
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/ConferenceController.php
-    +++ b/src/Controller/ConferenceController.php
-    @@ -44,9 +44,12 @@ class ConferenceController extends AbstractController
+    --- i/src/Controller/ConferenceController.php
+    +++ w/src/Controller/ConferenceController.php
+    @@ -36,6 +36,7 @@ final class ConferenceController extends AbstractController
+             ]);
+         }
+
+    +    #[Cache(smaxage: 3600)]
          #[Route('/conference_header', name: 'conference_header')]
          public function conferenceHeader(ConferenceRepository $conferenceRepository): Response
          {
-    -        return new Response($this->twig->render('conference/header.html.twig', [
-    +        $response = new Response($this->twig->render('conference/header.html.twig', [
-                 'conferences' => $conferenceRepository->findAll(),
-             ]));
-    +        $response->setSharedMaxAge(3600);
-    +
-    +        return $response;
-         }
-
-         #[Route('/conference/{slug}', name: 'conference')]
 
 تم تمكين ذاكرة التخزين المؤقت الآن لكلا من الطلبين:
 
@@ -314,54 +312,61 @@
 
 .. code-block:: terminal
 
-    $ rm src/EventSubscriber/TwigEventSubscriber.php
+    $ rm src/EventListener/TwigEventListener.php
 
 تطهير ذاكرة التخزين المؤقت HTTP للاختبار
 -----------------------------------------------------------------------
 
 يصبح اختبار موقع الويب في متصفح أو عبر الاختبارات الآلية أكثر صعوبة مع طبقة التخزين المؤقت.
 
-You can manually remove all the HTTP cache by removing the
-``var/cache/dev/http_cache/`` directory:
+يمكنك إزالة كل ذاكرة التخزين المؤقت HTTP يدويًا بحذف دليل ``var/cache/dev/http_cache/``:
 
 .. code-block:: terminal
 
     $ rm -rf var/cache/dev/http_cache/
 
 .. index::
-    single: Annotations;Route
+    single: Attributes;Route
 
 لا تعمل هذه الإستراتيجية بشكل جيد إذا كنت تريد فقط إبطال بعض عناوين URL أو إذا كنت تريد دمج إلغاء صلاحية ذاكرة التخزين المؤقت في اختباراتك الوظيفية. دعنا نضيف نقطة نهاية HTTP صغيرة ، للمسؤول فقط لإبطال بعض عناوين URL:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -6,8 +6,10 @@ use App\Entity\Comment;
-     use App\Message\CommentMessage;
-     use Doctrine\ORM\EntityManagerInterface;
+    --- i/config/packages/security.yaml
+    +++ w/config/packages/security.yaml
+    @@ -20,6 +20,8 @@ security:
+                     login_path: app_login
+                     check_path: app_login
+                     enable_csrf: true
+    +            http_basic: { realm: Admin Area }
+    +            entry_point: form_login
+                 logout:
+                     path: app_logout
+                     # where to redirect after logout
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
      use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-    +use Symfony\Bundle\FrameworkBundle\HttpCache\HttpCache;
      use Symfony\Component\HttpFoundation\Request;
      use Symfony\Component\HttpFoundation\Response;
+    +use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
     +use Symfony\Component\HttpKernel\KernelInterface;
      use Symfony\Component\Messenger\MessageBusInterface;
-     use Symfony\Component\Routing\Annotation\Route;
-     use Symfony\Component\Workflow\Registry;
-    @@ -52,4 +54,17 @@ class AdminController extends AbstractController
+     use Symfony\Component\Routing\Attribute\Route;
+     use Symfony\Component\Workflow\WorkflowInterface;
+    @@ -47,4 +49,16 @@ class AdminController extends AbstractController
                  'comment' => $comment,
-             ]);
+             ]));
          }
     +
     +    #[Route('/admin/http-cache/{uri<.*>}', methods: ['PURGE'])]
-    +    public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri): Response
+    +    public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri, StoreInterface $store): Response
     +    {
     +        if ('prod' === $kernel->getEnvironment()) {
     +            return new Response('KO', 400);
     +        }
     +
-    +        $store = (new class($kernel) extends HttpCache {})->getStore();
     +        $store->purge($request->getSchemeAndHttpHost().'/'.$uri);
     +
     +        return new Response('Done');
@@ -378,8 +383,8 @@ You can manually remove all the HTTP cache by removing the
 
 .. code-block:: terminal
 
-    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`/admin/http-cache/
-    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`/admin/http-cache/conference_header
+    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`admin/http-cache/
+    $ curl -s -I -X PURGE -u admin:admin `symfony var:export SYMFONY_PROJECT_DEFAULT_ROUTE_URL`admin/http-cache/conference_header
 
 يعرض الأمر الفرعي `` symfony var: export SYMFONY_PROJECT_DEFAULT_ROUTE_URL `` عنوان URL الحالي لخادم الويب المحلي.
 
@@ -387,43 +392,64 @@ You can manually remove all the HTTP cache by removing the
 
     لا تحتوي وحدة التحكم على اسم مسار حيث لن تتم الإشارة إليه مطلقًا في الكود.
 
+تعطيل ذاكرة التخزين المؤقت HTTP في التطوير
+----------------------------------------------------------
+
+كانت ذاكرة التخزين المؤقت HTTP رائعة للتحقق من رؤوس التخزين المؤقت ولتعلّم كيفية تطهير الإدخالات القديمة. لكن تفعيل وكيل عكسي في بيئة التطوير أمر غير معتاد، وسرعان ما يصبح عائقًا: تُقدَّم الاستجابات من ذاكرة التخزين المؤقت بينما تعمل على الكود، بل تُقدَّم بعض أصول vendor باستجابة فارغة بسبب قيد قديم في HttpCache مع استجابات الملفات.
+
+الآن بعد أن تم التحقق من كل شيء، قم بتعطيلها؛ سيتولى Varnish الأمر في الإنتاج:
+
+.. code-block:: diff
+    :caption: patch_file
+
+    --- i/config/packages/framework.yaml
+    +++ w/config/packages/framework.yaml
+    @@ -14,7 +14,3 @@ when@test:
+             test: true
+             session:
+                 storage_factory_id: session.storage.factory.mock_file
+    -
+    -when@dev:
+    -    framework:
+    -        http_cache: true
+
 تجميع مسارات مماثلة بإستعمل Prefix
 ----------------------------------------------------------
 
 .. index::
-    single: Annotations;Route
+    single: Attributes;Route
 
 المساران في وحدة تحكم المشرف لهما نفس البادئة `` admin/ `` بدلاً من تكرارها في جميع المسارات ، قم بإعادة بناء الطرق لتكوين البادئة على الفصل نفسه:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Controller/AdminController.php
-    +++ b/src/Controller/AdminController.php
-    @@ -15,6 +15,7 @@ use Symfony\Component\Routing\Annotation\Route;
-     use Symfony\Component\Workflow\Registry;
+    --- i/src/Controller/AdminController.php
+    +++ w/src/Controller/AdminController.php
+    @@ -15,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
+     use Symfony\Component\Workflow\WorkflowInterface;
      use Twig\Environment;
 
     +#[Route('/admin')]
      class AdminController extends AbstractController
      {
-         private $twig;
-    @@ -28,7 +29,7 @@ class AdminController extends AbstractController
-             $this->bus = $bus;
+         public function __construct(
+    @@ -24,7 +25,7 @@ class AdminController extends AbstractController
+         ) {
          }
 
     -    #[Route('/admin/comment/review/{id}', name: 'review_comment')]
     +    #[Route('/comment/review/{id}', name: 'review_comment')]
-         public function reviewComment(Request $request, Comment $comment, Registry $registry): Response
+         public function reviewComment(Request $request, Comment $comment, WorkflowInterface $commentStateMachine): Response
          {
              $accepted = !$request->query->get('reject');
-    @@ -55,7 +56,7 @@ class AdminController extends AbstractController
-             ]);
+    @@ -50,7 +51,7 @@ class AdminController extends AbstractController
+             ]));
          }
 
     -    #[Route('/admin/http-cache/{uri<.*>}', methods: ['PURGE'])]
     +    #[Route('/http-cache/{uri<.*>}', methods: ['PURGE'])]
-         public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri): Response
+         public function purgeHttpCache(KernelInterface $kernel, Request $request, string $uri, StoreInterface $store): Response
          {
              if ('prod' === $kernel->getEnvironment()) {
 
@@ -436,11 +462,7 @@ You can manually remove all the HTTP cache by removing the
 
 ليس لدينا خوارزميات تستهلك الكثير من الذاكرة أو وحدة المعالجة المركزية على الموقع. للتحدث عن * ذاكرة التخزين المؤقت المحلية / local caches * ، دعنا ننشئ أمرًا يعرض الخطوة الحالية التي نعمل عليها (لنكون أكثر دقة ، اسم علامة Git المرتبط بتنفيذ Git الحالي).
 
-يسمح لك مكون  Symfony Process بتشغيل أمر والحصول على النتيجة مرة أخرى (standard and error output) ؛ قم بتثبيته:
-
-.. code-block:: terminal
-
-    $ symfony composer req process
+يسمح لك مكون  Symfony Process بتشغيل أمر والحصول على النتيجة مرة أخرى (standard and error output).
 
 بناء الأمر:
 
@@ -449,79 +471,53 @@ You can manually remove all the HTTP cache by removing the
 
     namespace App\Command;
 
+    use Symfony\Component\Console\Attribute\AsCommand;
     use Symfony\Component\Console\Command\Command;
-    use Symfony\Component\Console\Input\InputInterface;
     use Symfony\Component\Console\Output\OutputInterface;
     use Symfony\Component\Process\Process;
 
-    class StepInfoCommand extends Command
+    #[AsCommand('app:step:info')]
+    class StepInfoCommand
     {
-        protected static $defaultName = 'app:step:info';
-
-        protected function execute(InputInterface $input, OutputInterface $output): int
+        public function __invoke(OutputInterface $output): int
         {
             $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
             $process->mustRun();
             $output->write($process->getOutput());
 
-            return 0;
+            return Command::SUCCESS;
         }
     }
-
-.. index::
-    single: Command;make:command
-
-.. note::
-
-    يمكنك استخدام الأمر `` command:make `` لإنشاء الأمر:
-
-    .. code-block:: terminal
-        :class: ignore
-
-        $ symfony console make:command app:step:info
 
 .. index::
     single: Cache
     single: Components;Cache
 
-ماذا لو أردنا تخزين النتيجة  لبضع دقائق؟ استخدم ذاكرة التخزين المؤقت Symfony:
+ماذا لو أردنا تخزين النتيجة  لبضع دقائق؟ استخدم ذاكرة التخزين المؤقت Symfony.
 
-.. code-block:: terminal
-
-    $ symfony composer req cache
-
-ولف الكود بمنطق ذاكرة التخزين المؤقت:
+يحقن Symfony الخدمات المُلمَّحة بنوعها (type-hinted) في طريقة ``__invoke()`` للأمر، بنفس الطريقة التي يفعلها مع وسائط وحدة التحكم. لُف الكود بمنطق ذاكرة التخزين المؤقت:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/src/Command/StepInfoCommand.php
-    +++ b/src/Command/StepInfoCommand.php
-    @@ -6,16 +6,31 @@ use Symfony\Component\Console\Command\Command;
-     use Symfony\Component\Console\Input\InputInterface;
+    --- i/src/Command/StepInfoCommand.php
+    +++ w/src/Command/StepInfoCommand.php
+    @@ -6,15 +6,21 @@ use Symfony\Component\Console\Attribute\AsCommand;
+     use Symfony\Component\Console\Command\Command;
      use Symfony\Component\Console\Output\OutputInterface;
      use Symfony\Component\Process\Process;
     +use Symfony\Contracts\Cache\CacheInterface;
 
-     class StepInfoCommand extends Command
+     #[AsCommand('app:step:info')]
+     class StepInfoCommand
      {
-         protected static $defaultName = 'app:step:info';
-
-    +    private $cache;
-    +
-    +    public function __construct(CacheInterface $cache)
-    +    {
-    +        $this->cache = $cache;
-    +
-    +        parent::__construct();
-    +    }
-    +
-         protected function execute(InputInterface $input, OutputInterface $output): int
+    -    public function __invoke(OutputInterface $output): int
+    +    public function __invoke(OutputInterface $output, CacheInterface $cache): int
          {
     -        $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
     -        $process->mustRun();
     -        $output->write($process->getOutput());
-    +        $step = $this->cache->get('app.current_step', function ($item) {
+    +        $step = $cache->get('app.current_step', function ($item) {
     +            $process = new Process(['git', 'tag', '-l', '--points-at', 'HEAD']);
     +            $process->mustRun();
     +            $item->expiresAfter(30);
@@ -530,7 +526,7 @@ You can manually remove all the HTTP cache by removing the
     +        });
     +        $output->writeln($step);
 
-             return 0;
+             return Command::SUCCESS;
          }
 
 يتم استدعاء العملية الآن فقط إذا لم يكن عنصر `` app.current_step `` في ذاكرة التخزين المؤقت.
@@ -540,7 +536,7 @@ You can manually remove all the HTTP cache by removing the
 
 لا تقم بإضافة ذاكرة التخزين المؤقت بدون مبالاة. ضع في اعتبارك أن إضافة بعض ذاكرة التخزين المؤقت يضيف طبقة من التعقيد. وبما أننا جميعًا سيئون جدًا في تخمين ما سيكون سريعًا وما هو بطيء ، فقد ينتهي بك الأمر في موقف حيث تجعل ذاكرة التخزين المؤقت تطبيقك أبطأ.
 
-قم دائمًا بقياس تأثير إضافة ذاكرة التخزين المؤقت باستخدام أداة للتحليل مثل `Blackfire <https://blackfire.io/>`_.
+قم دائمًا بقياس تأثير إضافة ذاكرة التخزين المؤقت باستخدام أداة للتحليل مثل `Blackfire`_.
 
 ارجع إلى خطوة "الأداء" لمعرفة المزيد حول كيفية استخدام Blackfire لاختبار الكود قبل النشر.
 
@@ -552,28 +548,29 @@ You can manually remove all the HTTP cache by removing the
     single: Upsun;Varnish
     single: Varnish
 
-لا تستخدم وكيل Symfony العكسي في الإنتاج. من الأفضل دائمًا استخدام وكيل عكسي مثل Varnish على البنية التحتية أو CDN تجاري.
+بدلاً من استخدام وكيل Symfony العكسي في الإنتاج، سنستخدم وكيل Varnish العكسي "الأكثر متانة".
 
 أضف Varnish إلى خدمات Upsun:
 
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/services.yaml
-    +++ b/.symfony/services.yaml
-    @@ -2,3 +2,12 @@ db:
-         type: postgresql:13
-         disk: 1024
-         size: S
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -6,6 +6,15 @@ services:
+         database:
+             type: postgresql:16
+
+    +    varnish:
+    +        type: varnish:9.0
+    +        relationships:
+    +            application: 'app:http'
+    +        configuration:
+    +            vcl: !include
+    +                type: string
+    +                path: config.vcl
     +
-    +varnish:
-    +    type: varnish:6.0
-    +    relationships:
-    +        application: 'app:http'
-    +    configuration:
-    +        vcl: !include
-    +            type: string
-    +            path: config.vcl
+     applications:
 
 .. index::
     single: Upsun;Routes
@@ -583,17 +580,18 @@ You can manually remove all the HTTP cache by removing the
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/routes.yaml
-    +++ b/.symfony/routes.yaml
-    @@ -1,2 +1,2 @@
-    -"https://{all}/": { type: upstream, upstream: "app:http" }
-    +"https://{all}/": { type: upstream, upstream: "varnish:http", cache: { enabled: false } }
-     "http://{all}/": { type: redirect, to: "https://{all}/" }
+    --- i/.upsun/config.yaml
+    +++ w/.upsun/config.yaml
+    @@ -1,5 +1,5 @@
+     routes:
+    -    "https://{all}/": { type: upstream, upstream: "app:http" }
+    +    "https://{all}/": { type: upstream, upstream: "varnish:http", cache: { enabled: false } }
+         "http://{all}/": { type: redirect, to: "https://{all}/" }
 
 أخيرًا ، قم بإنشاء ملف `` config.vcl '' لإعداد Varnish:
 
 .. code-block:: vcl
-    :caption: .symfony/config.vcl
+    :caption: .upsun/config.vcl
 
     sub vcl_recv {
         set req.backend_hint = application.backend();
@@ -605,7 +603,7 @@ You can manually remove all the HTTP cache by removing the
 يجب تمكين دعم ESI على Varnish بشكل صريح لكل طلب. لجعله عالميًا، يستخدم Symfony الرؤوس القياسية `` Surrogate-Capability `` و `` Surrogate-Control `` للتفاوض بشأن دعم ESI:
 
 .. code-block:: vcl
-    :caption: .symfony/config.vcl
+    :caption: .upsun/config.vcl
 
     sub vcl_recv {
         set req.backend_hint = application.backend();
@@ -629,8 +627,8 @@ You can manually remove all the HTTP cache by removing the
 .. code-block:: diff
     :caption: patch_file
 
-    --- a/.symfony/config.vcl
-    +++ b/.symfony/config.vcl
+    --- i/.upsun/config.vcl
+    +++ w/.upsun/config.vcl
     @@ -1,6 +1,13 @@
      sub vcl_recv {
          set req.backend_hint = application.backend();
@@ -646,27 +644,35 @@ You can manually remove all the HTTP cache by removing the
 
      sub vcl_backend_response {
 
-في الحياة الواقعية ، ربما تقيد عناوين IP بدلاً من ذلك كما هو موضح في `مستندات Varnish <https://varnish-cache.org/docs/trunk/users-guide/purging.html>`_.
+في الحياة الواقعية ، ربما تقيد عناوين IP بدلاً من ذلك كما هو موضح في `مستندات Varnish`_.
 
 امسح بعض عناوين URL:
 
 .. code-block:: terminal
 
-    $ curl -X PURGE -H 'x-purge-token PURGE_NOW' `symfony env:urls --first`
-    $ curl -X PURGE -H 'x-purge-token PURGE_NOW' `symfony env:urls --first`conference_header
+    $ curl -X PURGE -H 'x-purge-token: PURGE_NOW' `symfony cloud:env:url --pipe --primary`
+    $ curl -X PURGE -H 'x-purge-token: PURGE_NOW' `symfony cloud:env:url --pipe --primary`conference_header
 
-تبدو عناوين URL غريبة بعض الشيء لأن عناوين URL التي يتم إرجاعها بواسطة ``env:urls`` تنتهي بالفعل بـ ``/``.
+تبدو عناوين URL غريبة بعض الشيء لأن عناوين URL التي يتم إرجاعها بواسطة ``env:url`` تنتهي بالفعل بـ ``/``.
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `Cloudflare <https://www.cloudflare.com>`_ ، منصة السحابة العالمية؛
+    * `Cloudflare`_ ، منصة السحابة العالمية؛
 
-    * `Varnish HTTP Cache <https://varnish-cache.org/docs/index.html مستندات>`_؛
+    * `Varnish HTTP Cache docs`_؛
 
-    * `مواصفات ESI <https://www.w3.org/TR/esi-lang>`_ و `موارد مطوري ESI <https://www.akamai.com/us/en/support/esi.jsp>`_؛
+    * `مواصفات ESI`_ و `موارد مطوري ESI`_؛
 
-    * `نموذج التحقق من ذاكرة التخزين المؤقت HTTP <https://symfony.com/doc/current/http_cache/validation.html>`_؛
+    * `نموذج التحقق من ذاكرة التخزين المؤقت HTTP`_؛
 
-    * `HTTP Cache في Upsun <https://symfony.com/doc/master/cloud/cookbooks/cache.html>`_.
+    * `HTTP Cache في Upsun`_.
 
+.. _`Blackfire`: https://blackfire.io/
+.. _`مستندات Varnish`: https://varnish-cache.org/docs/trunk/users-guide/purging.html
 .. _`CDN`: https://en.wikipedia.org/wiki/Content_delivery_network
+.. _`Cloudflare`: https://www.cloudflare.com
+.. _`Varnish HTTP Cache docs`: https://varnish-cache.org/docs/index.html
+.. _`مواصفات ESI`: https://www.w3.org/TR/esi-lang
+.. _`موارد مطوري ESI`: https://www.akamai.com/us/en/support/esi.jsp
+.. _`نموذج التحقق من ذاكرة التخزين المؤقت HTTP`: https://symfony.com/doc/current/http_cache/validation.html
+.. _`HTTP Cache في Upsun`: https://symfony.com/doc/current/cloud/cookbooks/cache.html

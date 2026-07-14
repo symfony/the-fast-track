@@ -5,13 +5,7 @@
     single: Doctrine
     single: Database
 
-للتعامل مع قاعدة البيانات من PHP ، سوف نعتمد على `Doctrine`_ ، وهي مجموعة من المكتبات التي تساعد المطورين على إدارة قواعد البيانات:
-
-.. code-block:: terminal
-
-    $ symfony composer req "orm:^2"
-
-يقوم هذا الأمر بتثبيت بعض التبعيات: Doctrine DBAL (طبقة تجريد قاعدة البيانات) ، Doctrine ORM (مكتبة لمعالجة محتوى قاعدة البيانات الخاصة بنا باستخدام كائنات PHP) ، و Doctrine Migrations.
+للتعامل مع قاعدة البيانات من PHP ، سوف نعتمد على `Doctrine`_ ، وهي مجموعة من المكتبات التي تساعد المطورين على إدارة قواعد البيانات: Doctrine DBAL (طبقة تجريد قاعدة البيانات) ، Doctrine ORM (مكتبة لمعالجة محتوى قاعدة البيانات الخاصة بنا باستخدام كائنات PHP) ، و Doctrine Migrations.
 
 تكوين Doctrine ORM
 -----------------------
@@ -49,7 +43,7 @@
 .. code-block:: text
     :class: ignore
 
-    DATABASE_URL=postgres://main:main@127.0.0.1:32781/main?sslmode=disable&charset=utf8
+    DATABASE_URL=postgres://app:!ChangeMe!@127.0.0.1:32781/app?sslmode=disable&charset=utf8
     # ...
 
 هل تتذكر``database`` *اسم الخدمة* المستخدمة في تكوينات Docker و Upsun؟ يتم استخدام أسماء الخدمات كبادئات لتحديد متغيرات البيئة مثل ``DATABASE_URL``. إذا تم تسمية خدماتك وفقًا لاتفاقيات Symfony ، فلن تكون هناك حاجة إلى تكوين آخر.
@@ -65,15 +59,17 @@
 
 .. code-block:: diff
 
-    --- a/.env
-    +++ b/.env
-    @@ -24,5 +24,5 @@ APP_SECRET=ce2ae8138936039d22afb20f4596fe97
-     #
-     # DATABASE_URL="sqlite:///%kernel.project_dir%/var/data.db"
-     # DATABASE_URL="mysql://db_user:db_password@127.0.0.1:3306/db_name?serverVersion=5.7"
-    -DATABASE_URL="postgresql://db_user:db_password@127.0.0.1:5432/db_name?serverVersion=13&charset=utf8"
-    +DATABASE_URL="postgresql://127.0.0.1:5432/db?serverVersion=13&charset=utf8"
+    --- i/.env
+    +++ w/.env
+    @@ -26,7 +26,7 @@ APP_SECRET=ce2ae8138936039d22afb20f4596fe97
+     # DATABASE_URL="sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
+     # DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=8.0.32&charset=utf8mb4"
+     # DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=10.11.2-MariaDB&charset=utf8mb4"
+    -DATABASE_URL="postgresql://app:!ChangeMe!@127.0.0.1:5432/app?serverVersion=16&charset=utf8"
+    +DATABASE_URL="postgresql://127.0.0.1:5432/db?serverVersion=16&charset=utf8"
      ###< doctrine/doctrine-bundle ###
+
+     ###> symfony/messenger ###
 
 لماذا تحتاج المعلومات إلى تكرارها في مكانين مختلفين؟ لأنه في بعض الأنظمة الأساسية السحابية ، في *وقت البناء* ، قد لا يكون عنوان URL لقاعدة البيانات معروفًا بعد ، لكن Doctrine بحاجة إلى معرفة محرك قاعدة البيانات لبناء تكوينها. لذلك ، المضيف ، اسم المستخدم وكلمة المرور لا يهم حقا.
 
@@ -90,7 +86,9 @@
 
 .. index:: ! Command;make:entity
 
-يمكن أن تساعدنا حزمة Maker في إنشاء فئة (فئة *Entity*) تمثل مؤتمرًا:
+يمكن أن تساعدنا حزمة Maker في إنشاء فئة (فئة *Entity*) تمثل مؤتمرًا.
+
+حان الوقت الآن لتوليد كيان ``Conference``:
 
 .. code-block:: terminal
     :class: answers(city||string||255||no||year||string||4||no||isInternational||boolean||no)
@@ -169,15 +167,15 @@
 قام الأمر أيضًا بإنشاء فئة Doctrine *repository*: ``App\Repository\ConferenceRepository``.
 
 .. index::
-    single: Annotations;@ORM\\Entity
-    single: Annotations;@ORM\\Id
-    single: Annotations;@ORM\\GeneratedValue
-    single: Annotations;@ORM\\Column
+    single: Attributes;ORM\\Entity
+    single: Attributes;ORM\\Id
+    single: Attributes;ORM\\GeneratedValue
+    single: Attributes;ORM\\Column
 
 يبدو الرمز الذي تم إنشاؤه كما يلي (يتم نسخ جزء صغير فقط من الملف هنا):
 
 .. code-block:: php
-    :caption: src/App/Entity/Conference.php
+    :caption: src/Entity/Conference.php
     :class: ignore
 
     namespace App\Entity;
@@ -185,22 +183,16 @@
     use App\Repository\ConferenceRepository;
     use Doctrine\ORM\Mapping as ORM;
 
-    /**
-     * @ORM\Entity(repositoryClass=ConferenceRepository::class)
-     */
+    #[ORM\Entity(repositoryClass: ConferenceRepository::class)]
     class Conference
     {
-        /**
-         * @ORM\Id()
-         * @ORM\GeneratedValue()
-         * @ORM\Column(type="integer")
-         */
-        private $id;
+        #[ORM\Id]
+        #[ORM\GeneratedValue]
+        #[ORM\Column]
+        private ?int $id = null;
 
-        /**
-         * @ORM\Column(type="string", length=255)
-         */
-        private $city;
+        #[ORM\Column(length: 255)]
+        private ?string $city = null;
 
         // ...
 
@@ -209,7 +201,7 @@
             return $this->city;
         }
 
-        public function setCity(string $city): self
+        public function setCity(string $city): static
         {
             $this->city = $city;
 
@@ -219,9 +211,9 @@
         // ...
     }
 
-لاحظ أن الفئة class نفسه عبارة عن فئة PHP عادي بدون أي علامات على Doctrine. يتم استخدام التعليقات التوضيحية Annotations لإضافة بيانات تعريف مفيدة لـ Doctrine لتعيين الفئة إلى جدول قاعدة البيانات ذي الصلة.
+لاحظ أن الفئة class نفسه عبارة عن فئة PHP عادي بدون أي علامات على Doctrine. يتم استخدام السمات Attributes لإضافة بيانات تعريف مفيدة لـ Doctrine لتعيين الفئة إلى جدول قاعدة البيانات ذي الصلة.
 
-أضافت Doctrine خاصية "id" لتخزين المفتاح الأساسي للصف في جدول قاعدة البيانات. يتم إنشاء هذا المفتاح (``@ORM\Id()``) تلقائيًا (``@ORM\GeneratedValue()``) عبر استراتيجية تعتمد على مشغل قاعدة البيانات.
+أضافت Doctrine خاصية "id" لتخزين المفتاح الأساسي للصف في جدول قاعدة البيانات. يتم إنشاء هذا المفتاح (``#[ORM\Id]``) تلقائيًا (``#[ORM\GeneratedValue]``) عبر استراتيجية تعتمد على مشغل قاعدة البيانات.
 
 .. index::
     single: Command;make:entity
@@ -229,7 +221,7 @@
 الآن ، قم بإنشاء فئة كيان لتعليقات المؤتمر:
 
 .. code-block:: terminal
-    :class: answers(author||string||255||no||text||text||no||email||string||255||no||createdAt||datetime||no)
+    :class: answers(author||string||255||no||text||text||no||email||string||255||no||createdAt||datetime_immutable||no)
 
     $ symfony console make:entity Comment
 
@@ -331,31 +323,29 @@
           * json_array
 
 .. index::
-    single: Annotations;@ORM\\ManyToOne
-    single: Annotations;@ORM\\JoinColumn
-    single: Annotations;@ORM\\OneToMany
+    single: Attributes;ORM\\ManyToOne
+    single: Attributes;ORM\\JoinColumn
+    single: Attributes;ORM\\OneToMany
 
 ألقِ نظرة على الفرق الكامل لفئات الكيانات بعد إضافة العلاقة:
 
 .. code-block:: diff
     :class: ignore
 
-    --- a/src/Entity/Comment.php
-    +++ b/src/Entity/Comment.php
-    @@ -36,6 +36,12 @@ class Comment
-          */
-         private $createdAt;
+    --- i/src/Entity/Comment.php
+    +++ w/src/Entity/Comment.php
+    @@ -23,6 +23,10 @@ class Comment
+         #[ORM\Column]
+         private ?\DateTimeImmutable $createdAt = null;
 
-    +    /**
-    +     * @ORM\ManyToOne(targetEntity=Conference::class, inversedBy="comments")
-    +     * @ORM\JoinColumn(nullable=false)
-    +     */
-    +    private $conference;
+    +    #[ORM\ManyToOne(inversedBy: 'comments')]
+    +    #[ORM\JoinColumn(nullable: false)]
+    +    private ?Conference $conference = null;
     +
          public function getId(): ?int
          {
              return $this->id;
-    @@ -88,4 +94,16 @@ class Comment
+    @@ -88,4 +92,16 @@ class Comment
 
              return $this;
          }
@@ -365,15 +355,15 @@
     +        return $this->conference;
     +    }
     +
-    +    public function setConference(?Conference $conference): self
+    +    public function setConference(?Conference $conference): static
     +    {
     +        $this->conference = $conference;
     +
     +        return $this;
     +    }
      }
-    --- a/src/Entity/Conference.php
-    +++ b/src/Entity/Conference.php
+    --- i/src/Entity/Conference.php
+    +++ w/src/Entity/Conference.php
     @@ -2,6 +2,8 @@
 
      namespace App\Entity;
@@ -383,14 +373,15 @@
      use Doctrine\ORM\Mapping as ORM;
 
      /**
-    @@ -31,6 +33,16 @@ class Conference
-          */
-         private $isInternational;
+    @@ -20,6 +22,19 @@ class Conference
+         #[ORM\Column]
+         private ?bool $isInternational = null;
 
     +    /**
-    +     * @ORM\OneToMany(targetEntity=Comment::class, mappedBy="conference", orphanRemoval=true)
+    +     * @var Collection<int, Comment>
     +     */
-    +    private $comments;
+    +    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'conference', orphanRemoval: true)]
+    +    private Collection $comments;
     +
     +    public function __construct()
     +    {
@@ -406,27 +397,26 @@
          }
     +
     +    /**
-    +     * @return Collection|Comment[]
+    +     * @return Collection<int, Comment>
     +     */
     +    public function getComments(): Collection
     +    {
     +        return $this->comments;
     +    }
     +
-    +    public function addComment(Comment $comment): self
+    +    public function addComment(Comment $comment): static
     +    {
     +        if (!$this->comments->contains($comment)) {
-    +            $this->comments[] = $comment;
+    +            $this->comments->add($comment);
     +            $comment->setConference($this);
     +        }
     +
     +        return $this;
     +    }
     +
-    +    public function removeComment(Comment $comment): self
+    +    public function removeComment(Comment $comment): static
     +    {
-    +        if ($this->comments->contains($comment)) {
-    +            $this->comments->removeElement($comment);
+    +        if ($this->comments->removeElement($comment)) {
     +            // set the owning side to null (unless already changed)
     +            if ($comment->getConference() === $this) {
     +                $comment->setConference(null);
@@ -465,7 +455,7 @@
 
 *Doctrine Migrations* هي الأداة المثالية لمثل هذه المهمة. تم تثبيتها بالفعل كجزء من تبعية ``orm``.
 
-*الترحيل* هو فئة تصف التغييرات اللازمة لتحديث مخطط قاعدة البيانات من حالته الحالية إلى الحالة الجديدة المحددة بواسطة التعليقات التوضيحية للكيان. نظرًا لأن قاعدة البيانات فارغة في الوقت الحالي ، يجب أن تتكون عملية الترحيل من إنشاء جدولين.
+*الترحيل* هو فئة تصف التغييرات اللازمة لتحديث مخطط قاعدة البيانات من حالته الحالية إلى الحالة الجديدة المحددة بواسطة سمات الكيان. نظرًا لأن قاعدة البيانات فارغة في الوقت الحالي ، يجب أن تتكون عملية الترحيل من إنشاء جدولين.
 
 دعونا نرى ما أنتجته Doctrine:
 
@@ -484,9 +474,9 @@
     use Doctrine\DBAL\Schema\Schema;
     use Doctrine\Migrations\AbstractMigration;
 
-    final class Version20191019083640 extends AbstractMigration
+    final class Version00000000000000 extends AbstractMigration
     {
-        public function up(Schema $schema) : void
+        public function up(Schema $schema): void
         {
             // this up() migration is auto-generated, please modify it to your needs
             $this->addSql('CREATE SEQUENCE comment_id_seq INCREMENT BY 1 MINVALUE 1 START 1');
@@ -497,7 +487,7 @@
             $this->addSql('ALTER TABLE comment ADD CONSTRAINT FK_9474526C604B8382 FOREIGN KEY (conference_id) REFERENCES conference (id) NOT DEFERRABLE INITIALLY IMMEDIATE');
         }
 
-        public function down(Schema $schema) : void
+        public function down(Schema $schema): void
         {
             // ...
         }
@@ -526,12 +516,17 @@
 
 .. sidebar:: الذهاب أبعد من ذلك
 
-    * `قواعد البيانات  و Doctrine ORM <https://symfony.com/doc/current/doctrine.html>`_ في تطبيقات Symfony؛
+    * `قواعد البيانات و Doctrine ORM`_ في تطبيقات Symfony؛
 
-    * `SymfonyCasts Doctrine درس تعليمي <https://symfonycasts.com/screencast/symfony-doctrine/install>`_؛
+    * `SymfonyCasts Doctrine درس تعليمي`_؛
 
-    * `العمل مع علاقات ترابطية Doctrine <https://symfony.com/doc/current/doctrine/associations.html>`_؛
+    * `العمل مع علاقات ترابطية Doctrine`_؛
 
-    * `DoctrineMigrationsBundle docs <https://symfony.com/doc/current/bundles/DoctrineMigrationsBundle/index.html>`_.
+    * `DoctrineMigrationsBundle docs`_.
+
+.. _`قواعد البيانات و Doctrine ORM`: https://symfony.com/doc/current/doctrine.html
+.. _`SymfonyCasts Doctrine درس تعليمي`: https://symfonycasts.com/screencast/symfony-doctrine/install
+.. _`العمل مع علاقات ترابطية Doctrine`: https://symfony.com/doc/current/doctrine/associations.html
+.. _`DoctrineMigrationsBundle docs`: https://symfony.com/doc/current/bundles/DoctrineMigrationsBundle/index.html
 
 .. _`Doctrine`: https://www.doctrine-project.org/
