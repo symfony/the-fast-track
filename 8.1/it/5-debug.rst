@@ -132,7 +132,7 @@ Debug in produzione
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Il debug sui server di produzione è spesso più complicato. Non si ha accesso al Profiler di Symfony e i log sono meno verbosi, ma è possibile farne un tail:
@@ -140,7 +140,7 @@ Il debug sui server di produzione è spesso più complicato. Non si ha accesso a
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 È anche possibile connettersi al container web via SSH:
 

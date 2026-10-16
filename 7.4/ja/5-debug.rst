@@ -132,7 +132,7 @@ IDE の設定
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 本番サーバのデバッグは、より複雑です。例えば、 Symfony profiler は使えませんし、ログの情報も冗長にしていません。それでも、ログの tail は可能です:
@@ -140,7 +140,7 @@ IDE の設定
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 また、Webコンテナ上に SSH で接続することも可能です:
 

@@ -515,14 +515,14 @@ Messenger має механізм для повторної відправки �
 Як і Symfony CLI, Upsun керує перезавантаженнями й журналами.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Щоб отримати журнали воркера, використовуйте:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Йдемо далі
 

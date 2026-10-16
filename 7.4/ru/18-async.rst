@@ -523,14 +523,14 @@ Symfony CLI может управлять такими фоновыми кома
 Подобно Symfony CLI, Upsun позволяет управлять перезагрузками и логами.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Чтобы посмотреть логи воркера, воспользуйтесь командой ниже:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Двигаемся дальше
 

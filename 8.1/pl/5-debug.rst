@@ -132,7 +132,7 @@ Debugowanie w środowisku produkcyjnym
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Debugowanie serwerów produkcyjnych jest zawsze trudniejsze. Nie masz dostępu na przykład do profilera Symfony. Dzienniki logów są mniej szczegółowe, ale śledzenie ostatnich zapisów jest możliwe:
@@ -140,7 +140,7 @@ Debugowanie serwerów produkcyjnych jest zawsze trudniejsze. Nie masz dostępu n
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Możesz nawet połączyć się przez SSH z kontenerem webowym:
 

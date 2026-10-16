@@ -132,7 +132,7 @@ Depurando en entorno de producción
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 La depuración de los entornos de producción siempre es más complicada. Por ejemplo, no tienes acceso a Symfony Profiler. Los registros son menos descriptivos. Pero es posible analizar estos registros del *log*:
@@ -140,7 +140,7 @@ La depuración de los entornos de producción siempre es más complicada. Por ej
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Puedes incluso conectarte a través de SSH al contenedor web:
 

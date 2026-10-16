@@ -515,14 +515,14 @@ To consume messages from PostgreSQL, we need to run the ``messenger:consume`` co
 Like for the Symfony CLI, Upsun manages restarts and logs.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 To get logs for a worker, use:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Going Further
 

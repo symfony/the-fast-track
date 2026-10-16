@@ -523,14 +523,14 @@ Pour consommer les messages de PostgreSQL, nous devons exécuter la commande ``m
 Comme pour la commande ``symfony``, Upsun gère les redémarrages et les logs.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Pour obtenir les logs d'un worker, utilisez :
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Aller plus loin
 

@@ -132,7 +132,7 @@ Déboguer en production
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Le débogage des serveurs de production est toujours plus délicat. Vous n'avez pas accès au Symfony Profiler par exemple. Les logs sont moins détaillés. Mais il est possible de consulter les logs :
@@ -140,7 +140,7 @@ Le débogage des serveurs de production est toujours plus délicat. Vous n'avez 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Vous pouvez même vous connecter en SSH sur le conteneur web :
 

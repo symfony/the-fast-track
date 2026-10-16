@@ -515,14 +515,14 @@ Per consumare i messaggi da PostgreSQL, dobbiamo eseguire il comando ``messenger
 Come per la CLI di Symfony, Upsun gestisce riavvii e log.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Per mostrare i log di un worker, utilizzare:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Andare oltre
 

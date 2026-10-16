@@ -132,7 +132,7 @@ Debuggen im Produktivsystem
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Das Debuggen von Produktivsystemen ist immer schwieriger. Du hast zum Beispiel keinen Zugriff auf den Symfony Profiler; Logs sind weniger ausführlich. Aber es ist möglich die Logs einzusehen:
@@ -140,7 +140,7 @@ Das Debuggen von Produktivsystemen ist immer schwieriger. Du hast zum Beispiel k
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Du kannst Dich sogar über SSH zum Web-Container verbinden:
 

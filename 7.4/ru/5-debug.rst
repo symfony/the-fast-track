@@ -132,7 +132,7 @@ Symfony поддерживает создание *окружений*. По у�
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Отладка на продакшен-серверах всегда сложнее. К примеру, в таком случае у вас нет доступа к профилировщику Symfony. А в логах не так много подробной информации. Но всё же можно посмотреть последние записи логов:
@@ -140,7 +140,7 @@ Symfony поддерживает создание *окружений*. По у�
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Вы даже можете подключиться через SSH из веб-контейнера:
 

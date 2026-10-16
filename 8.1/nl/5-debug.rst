@@ -132,7 +132,7 @@ Problemen oplossen in productie
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Het debuggen van productieservers is altijd lastiger. Zo heb je bijvoorbeeld geen toegang tot de Symfony-profiler. Logs zijn minder uitgebreid, maar het volgen van logs is mogelijk:
@@ -140,7 +140,7 @@ Het debuggen van productieservers is altijd lastiger. Zo heb je bijvoorbeeld gee
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Je kan zelfs met de webcontainer verbinden via SSH:
 

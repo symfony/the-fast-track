@@ -132,7 +132,7 @@ Symfony підтримує поняття *середовища*. За замо�
 .. index::
     single: Upsun;Remote Logs
     single: Upsun;SSH
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
     single: Symfony CLI;cloud:ssh
 
 Налагодження продакшн-серверів завжди складніше. Наприклад, у вас немає доступу до профілювальника Symfony. Журнали менш детальні. Але перегляд останніх записів, все ж, можливий:
@@ -140,7 +140,7 @@ Symfony підтримує поняття *середовища*. За замо�
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --tail
+    $ symfony cloud:log --tail
 
 Ви навіть можете підключитися до веб-контейнеру через SSH:
 

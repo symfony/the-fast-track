@@ -515,14 +515,14 @@ Aby przetwarzać wiadomości od PostgreSQL, musimy bezustannie uruchamiać polec
 Podobnie jak Symfony CLI, Upsun zarządza restartami i logami.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Aby odczytać logi robotnika, użyj:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Idąc dalej
 

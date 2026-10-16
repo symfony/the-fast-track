@@ -523,14 +523,14 @@ PostgreSQL からメッセージ取得実行をするには、 ``messenger:consu
 Symfony CLI のように、Upsun マネージャーはログをリスタートします。
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 ワーカーのログを取得するには、以下のようにしてください:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: より深く学ぶために
 

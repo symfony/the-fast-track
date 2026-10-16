@@ -515,14 +515,14 @@ Um Messages von PostgreSQL zu bearbeiten, müssen wir den ``messenger:consume``-
 Wie Symfony CLI verwaltet Upsun Neustarts und Logs.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Um Logs für einen Worker zu erhalten, verwende:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Weiterführendes
 

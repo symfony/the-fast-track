@@ -515,14 +515,14 @@ Om berichten van PostgreSQL te consumeren, moeten we het ``messenger:consume`` c
 Net als bij de Symfony CLI, beheert Upsun de restarts en logs.
 
 .. index::
-    single: Symfony CLI;cloud:logs
+    single: Symfony CLI;cloud:log
 
 Om logs voor een worker te krijgen, gebruik:
 
 .. code-block:: terminal
     :class: ignore
 
-    $ symfony cloud:logs --worker=messages all
+    $ symfony cloud:log --worker=messages all
 
 .. sidebar:: Verder gaan
 
