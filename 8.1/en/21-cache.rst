@@ -426,7 +426,7 @@ The two routes in the admin controller have the same ``/admin`` prefix. Instead 
 
     --- i/src/Controller/AdminController.php
     +++ w/src/Controller/AdminController.php
-    @@ -15,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
+    @@ -16,6 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
      use Symfony\Component\Workflow\WorkflowInterface;
      use Twig\Environment;
 
@@ -434,16 +434,16 @@ The two routes in the admin controller have the same ``/admin`` prefix. Instead 
      class AdminController extends AbstractController
      {
          public function __construct(
-    @@ -24,7 +25,7 @@ class AdminController extends AbstractController
+    @@ -25,7 +26,7 @@ class AdminController extends AbstractController
          ) {
          }
 
     -    #[Route('/admin/comment/review/{id}', name: 'review_comment')]
     +    #[Route('/comment/review/{id}', name: 'review_comment')]
-         public function reviewComment(Request $request, Comment $comment, WorkflowInterface $commentStateMachine): Response
+         public function reviewComment(Request $request, Comment $comment, #[Target('comment')] WorkflowInterface $workflow): Response
          {
              $accepted = !$request->query->get('reject');
-    @@ -50,7 +51,7 @@ class AdminController extends AbstractController
+    @@ -51,7 +52,7 @@ class AdminController extends AbstractController
              ]));
          }
 

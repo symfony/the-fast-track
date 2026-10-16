@@ -124,8 +124,8 @@ Modify the workflow to handle the new state:
      use App\Message\CommentMessage;
      use App\Repository\CommentRepository;
      use App\SpamChecker;
-    @@ -25,6 +26,8 @@ class CommentMessageHandler
-             private WorkflowInterface $commentStateMachine,
+    @@ -26,6 +27,8 @@ class CommentMessageHandler
+             #[Target('comment')] private WorkflowInterface $workflow,
              private MailerInterface $mailer,
              #[Autowire('%admin_email%')] private string $adminEmail,
     +        private ImageOptimizer $imageOptimizer,
@@ -133,15 +133,15 @@ Modify the workflow to handle the new state:
              private ?LoggerInterface $logger = null,
          ) {
          }
-    @@ -54,6 +57,12 @@ class CommentMessageHandler
+    @@ -55,6 +58,12 @@ class CommentMessageHandler
                      ->to($this->adminEmail)
                      ->context(['comment' => $comment])
                  );
-    +        } elseif ($this->commentStateMachine->can($comment, 'optimize')) {
+    +        } elseif ($this->workflow->can($comment, 'optimize')) {
     +            if ($comment->getPhotoFilename()) {
     +                $this->imageOptimizer->resize($this->photoDir.'/'.$comment->getPhotoFilename());
     +            }
-    +            $this->commentStateMachine->apply($comment, 'optimize');
+    +            $this->workflow->apply($comment, 'optimize');
     +            $this->entityManager->flush();
              } elseif ($this->logger) {
                  $this->logger->debug('Dropping comment message', ['comment' => $comment->getId(), 'state' => $comment->getState()]);
